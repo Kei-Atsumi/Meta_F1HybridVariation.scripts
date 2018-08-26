@@ -28,7 +28,7 @@ Load "dat" file - updated data which is complete (contains sample sizes, means a
 
 ```{r load unprocessed dat, echo=FALSE}
 # Load data
-dat <- read.xlsx("../Data extraction/DataExtraction_sexual.xlsx", sheet = 1) %>%
+dat <- read.xlsx("../data/DataExtraction_sexual.xlsx", sheet = 1) %>%
   filter(Usable == "y") %>%   # delete cross without information about both parentals
   mutate_at(vars(Mn.sp1.M:surv.relat.hyb21), as.numeric) # modify data to numeric
 
@@ -116,7 +116,7 @@ male.LS$sex <- "male"
 names(male.LS) <- gsub(".M", "", names(male.LS))
 
 ############ export ############
-write.table(male.LS,"../Analysis/sexual.dat.modif.csv",
+write.table(male.LS,"../data/sexual.dat.modif.csv",
             quote=F,sep="\t", row.names = F)
 ```
 

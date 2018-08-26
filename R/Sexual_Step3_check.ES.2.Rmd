@@ -21,9 +21,9 @@ library(metafor)    # meta-analysis!
 library(knitr)
 
 # load Effect sizes
-ES.recip <- read.table("../Analysis/sexual.ES.recip.csv", head = TRUE, sep = "\t")
-ES.matpat <- read.table("../Analysis/sexual.ES.matpat.csv", head = TRUE, sep = "\t")
-ES.epistasis <- read.table("../Analysis/sexual.ES.epistasis.csv", head = TRUE, sep = "\t")
+ES.recip <- read.table("../data/sexual.ES.recip.csv", head = TRUE, sep = "\t")
+ES.matpat <- read.table("../data/sexual.ES.matpat.csv", head = TRUE, sep = "\t")
+ES.epistasis <- read.table("../data/sexual.ES.epistasis.csv", head = TRUE, sep = "\t")
 ```
 
 # Check whether sampling variance of lnCVR is sensitive for asuumption on correlation
@@ -69,7 +69,7 @@ Hence, I drop such effect sizes
 ES.recip.lnRR <- filter(ES.recip, lnRR.recip.sv > 0.001) %>%
   filter(., lnRR.recip.sv < 1000)
 # export dataset
-write.table(ES.recip.lnRR, "../Analysis/sexual.ES.lnRR.recip.csv", 
+write.table(ES.recip.lnRR, "../data/sexual.ES.lnRR.recip.csv", 
             row.names = F, sep = "\t")
 # confirm plot
 plot(ES.recip.lnRR$lnRR.recip.es, sqrt(1/ES.recip.lnRR$lnRR.recip.sv), 

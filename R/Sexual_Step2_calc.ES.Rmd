@@ -20,8 +20,8 @@ library(metafor)    # meta-analysis!
 library(knitr)
 
 # load spLS files
-dat.modif <- read.table("../Analysis/sexual.dat.modif.csv", head = TRUE, sep = "\t")
-dat.modif.copy <- read.table("../Analysis/sexual.dat.modif.csv", head = TRUE, sep = "\t")
+dat.modif <- read.table("../data/sexual.dat.modif.csv", head = TRUE, sep = "\t")
+dat.modif.copy <- read.table("../data/sexual.dat.modif.csv", head = TRUE, sep = "\t")
 ```
 
 # Load effect size functions   
@@ -116,7 +116,7 @@ SMD.recip <- escalc(measure = "SMD",
 # combine lnRR & SMD & data 
 Recip <- cbind(SMD.recip, lnRR.recip) 
 
-write.table(Recip, "../Analysis/sexual.ES.recip.csv", 
+write.table(Recip, "../data/sexual.ES.recip.csv", 
             row.names = F, sep = "\t")
 
 # forest plot on hypothesis1
@@ -242,7 +242,7 @@ mat.pat2 <- rbind(LS, SL) %>% arrange(., ES.ID)
 mat.pat2$comp.ID <- paste("comp", 1:nrow(mat.pat2), sep = ".") %>%
  as.factor(.) 
 
-write.table(mat.pat2, "../Analysis/sexual.ES.matpat.csv", 
+write.table(mat.pat2, "../data/sexual.ES.matpat.csv", 
             row.names = F, sep = "\t")
 
 ```
@@ -413,7 +413,7 @@ epistasis <- rbind(LS.L, LS.S, SL.L, SL.S) %>%
 ## add comparison ID column
 epistasis$comp.ID <- paste("comp", 1:nrow(mat.pat), sep = ".")
 
-write.table(epistasis, "../Analysis/sexual.ES.epistasis.csv", 
+write.table(epistasis, "../data/sexual.ES.epistasis.csv", 
             row.names = F, sep = "\t")
 
 ```
