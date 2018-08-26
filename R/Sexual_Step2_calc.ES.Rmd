@@ -1,0 +1,423 @@
+---
+title: "Step2_calculate.EffectSize"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    toc: yes
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())  # reset workspace
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
+library(tidyverse)  # dataset modification
+library(metafor)    # meta-analysis!
+library(knitr)
+
+# load spLS files
+dat.modif <- read.table("../Analysis/sexual.dat.modif.csv", head = TRUE, sep = "\t")
+dat.modif.copy <- read.table("../Analysis/sexual.dat.modif.csv", head = TRUE, sep = "\t")
+```
+
+# Load effect size functions   
+lnRR & lnCVR
+
+```{r lnRR & lnCVR functions, include=FALSE}
+
+#' @description Function for calculating log response ratio
+#' @param m1 Mean of group 1
+#' @param m2 Mean of group 2
+#' @param sd1 Standard deviation of group 1
+#' @param sd2 Standard deviation of group 2
+#' @param n1 Sample size of group 1
+#' @param n2 Sample size of group 2
+#' @author Daniel Noble - daniel.noble@unsw.edu.au
+
+lnRR_es <- function(n1, n2, m1, m2, sd1, sd2){
+  sd_pool <- (((n1 - 1) * (sd1^2)) + ((n2 - 1) * (sd2^2)))/(n1 + n2 - 2)
+	lnRR    <- log(m1) - log(m2)
+	VlnRR   <- (sd_pool^2)*((1/(n1*(m1^2)) + 1/(n2*(m2^2))))
+return(cbind(lnRR,VlnRR))
+}
+
+
+#' @title lnCVR
+#' @description Function for calculating log coefficient of variation ratio
+#' @references Nakagawa et al. (2015) Meta-analysis of variation: ecological and evolutionary applications and beyond. Methods in Ecology and Evolution, 6:143-152.
+#' @author Alistair Senior - Alistair.senior@sydney.edu.au
+
+lnCVR_es<-function(m1, m2, sd1, sd2, n1, n2){
+	lnCVR <-(log(sd1) - log(m1) + 1 / (2*(n1 - 1))) - (log(sd2) - log(m2) + 1 / (2*(n2 - 1)))
+	return(lnCVR)	
+}
+
+#' @title Sampling variance for lnCVR
+#' @description Function for calculating sampling variance of log coefficient of variation ratio under different assumptions about mean-variance relationships.
+#' @param cor Assumed correlation between mean and variance. Used when a vector of statistics of length 1 is provided. 
+#' @param Equal.E.C.Corr Logical indicating whether the the correlation between mean and variance is equal in both group groups.
+
+lnCVR_var<-function(m1, m2, sd1, sd2, n1, n2, cor, Equal.E.C.Corr=TRUE){
+	#To Do: Function depends on a vector being provided. But situations were only a single valued vector used. Need to solve correlation between log(sd) and log(mean) in these situations.
+	if(length(m1) <= 1 & length(sd1) <= 1){
+		#Assume correlation is 0.5
+		S2<- sd1^2 / (n1 * (m1^2)) + 1 / (2 * (n1 - 1)) - 2 * cor * sqrt((sd1^2 / (n1 * (m1^2))) * (1 / (2 * (n1 - 1)))) + sd2^2 / (n2 * (m2^2)) + 1 / (2 * (n2 - 1)) - 2 * cor * sqrt((sd2^2 / (n2 * (m2^2))) * (1 / (2 * (n2 - 1))))
+	}
+
+	if(Equal.E.C.Corr==TRUE & length(m1) > 1 & length(sd1) > 1){
+		mvcorr<-stats::cor.test(log(c(m1, m2)), log(c(sd1, sd2)))$estimate
+			
+		S2<- sd1^2 / (n1 * (m1^2)) + 1 / (2 * (n1 - 1)) - 2 * mvcorr * sqrt((sd1^2 / (n1 * (m1^2))) * (1 / (2 * (n1 - 1)))) + sd2^2 / (n2 * (m2^2)) + 1 / (2 * (n2 - 1)) - 2 * mvcorr * sqrt((sd2^2 / (n2 * (m2^2))) * (1 / (2 * (n2 - 1))))
+		}
+
+	if(Equal.E.C.Corr==FALSE & length(m1) > 1 & length(sd1) > 1){
+		Cmvcorr<-stats::cor.test(log(m1), log(sd1))$estimate
+		Emvcorr<-stats::cor.test(log(m2), (sd2))$estimate
+	
+		S2<- sd1^2 / (n1 * (m1^2)) + 1 / (2 * (n1 - 1)) - 2 * Cmvcorr * sqrt((sd1^2 / (n1 * (m1^2))) * (1 / (2 * (n1 - 1)))) + sd2^2 / (n2 * (m2^2)) + 1 / (2 * (n2 - 1)) - 2 * Emvcorr * sqrt((sd2^2 / (n2 * (m2^2))) * (1 / (2 * (n2 - 1))))
+		}	
+return(S2)	
+}
+
+```
+
+# Hypothesis 1. Hybrid phenotype differs between cross directions
+Test this hypothesis by examining whether ln(hybLS / hybSL) is significantly differ from 0.  
+hybLS: hybrids whose mother is the larger species (spL).   
+hybSL: hybrids whose mother is the smaller species (spS).  
+  
+if LnRR = 0  ->  No phenotypic difference between cross direction  
+if 0 < LnRR  ->  Hybrid SL < Hybrid LS  
+if LnRR < 0  ->  Hybrid LS < Hybrid SL  
+  
+As phenotypic data do not scaled, SMD may be better than lnRR.
+So SMD is also calculated
+
+```{r lnRR & SMD between reciprocal hybrids, echo = TRUE, warning=FALSE, fig.width = 15, fig.height = 15}
+
+# calculate lnRR
+lnRR.recip <- lnRR_es(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.hybSL, 
+                      m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.hybSL, 
+                     sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.hybSL)
+colnames(lnRR.recip) <- c("lnRR.recip.es", "lnRR.recip.sv")  # change colname
+
+# calculate SMD
+SMD.recip <- escalc(measure = "SMD",
+                     n1i = N.hybLS,   n2i = N.hybSL, 
+                     m1i = Mn.hybLS,  m2i = Mn.hybSL, 
+                    sd1i = SD.hybLS, sd2i = SD.hybSL,
+                    data = dat.modif) %>%
+  rename(SMD.recip.es = yi, SMD.recip.sv = vi) 
+
+# combine lnRR & SMD & data 
+Recip <- cbind(SMD.recip, lnRR.recip) 
+
+write.table(Recip, "../Analysis/sexual.ES.recip.csv", 
+            row.names = F, sep = "\t")
+
+# forest plot on hypothesis1
+forest(Recip$lnRR.recip.es, Recip$lnRR.recip.sv)
+forest(Recip$SMD.recip.es, Recip$SMD.recip.sv)
+```
+
+  
+  
+# Investigation (preliminary): dominance or additive?  
+
+run a model with ln(father species - hypbrids) and another model ln(mother species - hybrids)  
+expect the overall effect sizes to be close to 0 if dominant is the case  
+                                                 if additive, non-zero.  
+check heterogeneity (as it may be sometimes dominant and other times additive)  
+
+```{r lnRR & SMD between hybrids, and mother and father species, warning=FALSE, error=FALSE}
+#######################################
+# calculate lnRR
+#######################################
+
+## Difference from mother species:  ln(spLL)-ln(hybLS) : expected to be > 0
+lnRR.mother.LS <- lnRR_es(n2 = dat.modif$N.hybLS,   n1 = dat.modif$N.spL, 
+                          m2 = dat.modif$Mn.hybLS,  m1 = dat.modif$Mn.spL, 
+                         sd2 = dat.modif$SD.hybLS, sd1 = dat.modif$SD.spL) %>%
+  as.data.frame() 
+colnames(lnRR.mother.LS) <- c("lnRR.mother.LS.es", "lnRR.mother.LS.sv")  # change colname
+## Difference from father species:  ln(hybLS)-ln(spSS) : expected to be > 0
+lnRR.father.LS <- lnRR_es(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spS, 
+                          m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spS, 
+                         sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spS) %>%
+  as.data.frame() 
+colnames(lnRR.father.LS) <- c("lnRR.father.LS.es", "lnRR.father.LS.sv")  # change colname
+## Difference from mother species:  ln(spLL)-ln(hybSL) : expected to be > 0
+lnRR.mother.SL <- lnRR_es(n2 = dat.modif$N.hybSL,   n1 = dat.modif$N.spL, 
+                          m2 = dat.modif$Mn.hybSL,  m1 = dat.modif$Mn.spL, 
+                         sd2 = dat.modif$SD.hybSL, sd1 = dat.modif$SD.spL) %>%
+  as.data.frame() 
+colnames(lnRR.mother.SL) <- c("lnRR.mother.SL.es", "lnRR.mother.SL.sv")  # change colname
+## Difference from father species:  ln(hybLS)-ln(spSS) : expected to be > 0
+lnRR.father.SL <- lnRR_es(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spS, 
+                          m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spS, 
+                         sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spS) %>%
+  as.data.frame() 
+colnames(lnRR.father.SL) <- c("lnRR.father.SL.es", "lnRR.father.SL.sv")  # change colname
+
+
+#######################################
+# calculate SMD
+#######################################
+
+## Difference from mother species:  SMD(spLL-hybLS) : expected to be > 0
+SMD.mother.LS <- escalc(measure = "SMD", data = dat.modif, 
+                        n2i = dat.modif$N.hybLS,   n1i = dat.modif$N.spL, 
+                        m2i = dat.modif$Mn.hybLS,  m1i = dat.modif$Mn.spL, 
+                       sd2i = dat.modif$SD.hybLS, sd1i = dat.modif$SD.spL) %>%
+  select(yi, vi) %>%
+  rename(SMD.mother.LS.es = yi, SMD.mother.LS.sv = vi)
+## Difference from father species:  SMD(hybLS-spSS) : expected to be > 0
+SMD.father.LS <- escalc(measure = "SMD", data = dat.modif,
+                        n1i = dat.modif$N.hybLS,   n2i = dat.modif$N.spS, 
+                        m1i = dat.modif$Mn.hybLS,  m2i = dat.modif$Mn.spS, 
+                       sd1i = dat.modif$SD.hybLS, sd2i = dat.modif$SD.spS) %>%
+  select(yi, vi) %>%
+  rename(SMD.father.LS.es = yi, SMD.father.LS.sv = vi)
+## Difference from mother species:  SMD(spLL-hybSL) : expected to be > 0
+SMD.mother.SL <- escalc(measure = "SMD", data = dat.modif,
+                        n2i = dat.modif$N.hybSL,   n1i = dat.modif$N.spL, 
+                        m2i = dat.modif$Mn.hybSL,  m1i = dat.modif$Mn.spL, 
+                       sd2i = dat.modif$SD.hybSL, sd1i = dat.modif$SD.spL) %>%
+  select(yi, vi) %>%
+  rename(SMD.mother.SL.es = yi, SMD.mother.SL.sv = vi)
+## Difference from father species:  SMD(hybLS-spSS) : expected to be > 0
+SMD.father.SL <- escalc(measure = "SMD", data = dat.modif,
+                        n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spS, 
+                        m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spS, 
+                       sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spS) %>%
+  select(yi, vi) %>%
+  rename(SMD.father.SL.es = yi, SMD.father.SL.sv = vi)
+
+
+############################################################
+# dataset wrangling
+############################################################
+
+
+# combine dataset & ESs
+mat.pat <- bind_cols(dat.modif, 
+                   lnRR.mother.LS, lnRR.father.LS,
+                   lnRR.mother.SL, lnRR.father.SL,
+                   SMD.mother.LS, SMD.father.LS,
+                   SMD.mother.SL, SMD.father.SL
+                   )
+
+# Compare maternal inheritance & paternal inheritance
+# For this, spL-hybLS & spS-hybSL, and spL-hybSL & spS-hybLS should be combined, repsectively
+# If former is smaller than latter, maternal inheritance is greater than paternal
+# hybrid LS
+## extract
+LS <- mat.pat %>%
+  select(Study.ID:sex, contains("LS"))
+## change colnames
+names(LS) <- names(LS) %>%
+  str_replace_all("mother.LS", "dist.mother") %>%
+  str_replace_all("father.LS", "dist.father")
+## add rows indicate type of hybrid
+LS$hyb <- "LS"
+
+# hybrid SL
+## extract
+SL <- mat.pat %>%
+  select(Study.ID:sex, contains("SL"))
+## change colnames
+names(SL) <- names(SL) %>%
+  str_replace_all("mother.SL", "dist.mother") %>%
+  str_replace_all("father.SL", "dist.father")
+## add rows indicate type of hybrid
+SL$hyb <- "SL"
+
+# combine LS & SL
+mat.pat2 <- rbind(LS, SL) %>% arrange(., ES.ID)
+## add comparison ID column
+mat.pat2$comp.ID <- paste("comp", 1:nrow(mat.pat2), sep = ".") %>%
+ as.factor(.) 
+
+write.table(mat.pat2, "../Analysis/sexual.ES.matpat.csv", 
+            row.names = F, sep = "\t")
+
+```
+  
+  
+# Hypothesis 3. Hybrids more vary than parentals due to epistasis
+Compare variance between hybrid & pure cross by lnCVR for all combinations  
+if lnCVR = 0 -> No difference in variance between pure & hybrid  
+if 0 < lnCVR -> Hybrid more varies than pure  
+if lnCVR < 0 -> Hybrid less varies than pure  
+
+```{r lnCVR between hybrids and pure crosses, include=TRUE, echo = TRUE, warning = FALSE, error=FALSE, fig.width = 15, fig.height = 15}
+
+
+#################################################################
+# calculate lnCVR for all combinations between pure & hybrids
+#################################################################
+
+## hybLS vs spL
+dat.modif.copy$lnCVR.es.LS.L <- 
+  lnCVR_es(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spL, 
+           m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spL, 
+          sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spL)
+## hybSL vs spL
+dat.modif.copy$lnCVR.es.SL.L <-
+  lnCVR_es(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spL, 
+           m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spL,
+          sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spL)
+## hybLS vs spS
+dat.modif.copy$lnCVR.es.LS.S <-
+  lnCVR_es(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spS, 
+           m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spS, 
+          sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spS)
+## hybSL vs spS
+dat.modif.copy$lnCVR.es.SL.S <-
+  lnCVR_es(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spS, 
+           m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spS, 
+          sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spS)
+
+
+##############################################################
+# calculate sampling variance of lnCVR for all combinations | 
+# Assuming correlation between mean & variance 
+# is not different between group1 & group2
+##############################################################
+
+### hybLS vs spL
+dat.modif.copy$lnCVR.sv.corT.LS.L <- 
+  lnCVR_var(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spL, 
+            m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spL, 
+           sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spL,
+                           Equal.E.C.Corr=TRUE)
+### hybSL vs spL
+dat.modif.copy$lnCVR.sv.corT.SL.L <-
+  lnCVR_var(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spL, 
+            m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spL,
+           sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spL,
+                           Equal.E.C.Corr=TRUE)
+### hybLS vs spS
+dat.modif.copy$lnCVR.sv.corT.LS.S <-
+  lnCVR_var(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spS, 
+            m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spS, 
+           sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spS,
+                           Equal.E.C.Corr=TRUE)
+### hybSL vs spS
+dat.modif.copy$lnCVR.sv.corT.SL.S <-
+  lnCVR_var(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spS, 
+            m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spS, 
+           sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spS,
+                           Equal.E.C.Corr=TRUE)
+
+##############################################################
+# calculate sampling variance of lnCVR for all combinations | 
+# Assuming correlation between mean & variance 
+# is different between group1 & group2
+##############################################################
+
+### hybLS vs spL
+dat.modif.copy$lnCVR.sv.corF.LS.L <- 
+  lnCVR_var(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spL, 
+            m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spL, 
+           sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spL,
+                           Equal.E.C.Corr=FALSE)
+### hybSL vs spL
+dat.modif.copy$lnCVR.sv.corF.SL.L <-
+  lnCVR_var(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spL, 
+            m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spL,
+           sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spL,
+                           Equal.E.C.Corr=FALSE)
+### hybLS vs spS
+dat.modif.copy$lnCVR.sv.corF.LS.S <-
+  lnCVR_var(n1 = dat.modif$N.hybLS,   n2 = dat.modif$N.spS, 
+            m1 = dat.modif$Mn.hybLS,  m2 = dat.modif$Mn.spS, 
+           sd1 = dat.modif$SD.hybLS, sd2 = dat.modif$SD.spS,
+                           Equal.E.C.Corr=FALSE)
+### hybSL vs spS
+dat.modif.copy$lnCVR.sv.corF.SL.S <-
+  lnCVR_var(n1 = dat.modif$N.hybSL,   n2 = dat.modif$N.spS, 
+            m1 = dat.modif$Mn.hybSL,  m2 = dat.modif$Mn.spS, 
+           sd1 = dat.modif$SD.hybSL, sd2 = dat.modif$SD.spS,
+                           Equal.E.C.Corr=FALSE)
+
+################################################################################
+# Compare lnCVR between pure vs hybrids at once
+# For this, all comparison should be combined (bind_rows())
+################################################################################
+
+##########################
+# Hybrid LS vs Pure LL
+##########################
+
+## devide
+## relative survival of hybridSL is deleted to avoid trouble in bind_rows()
+LS.L <- select(dat.modif.copy, Study.ID:divergence, N.spL:sex, 
+               -surv.relat.hybSL, contains("LS.L"))
+## add comparison type
+LS.L$comparison <- "LS.L"
+## change colnames to avoid trouble in bind_rows()
+names(LS.L) <- str_replace_all(names(LS.L), ".LS.L", "") # To convine lnCVR values with other dataset
+names(LS.L) <- str_replace_all(names(LS.L), ".relat.hybLS", ".relat.hyb") # To convine relative hybrid survival rate with other dataset
+
+##########################
+# Hybrid LS vs Pure SS
+##########################
+
+## devide
+LS.S <- select(dat.modif.copy, Study.ID:divergence, N.spL:sex, 
+               -surv.relat.hybSL, contains("LS.S")) 
+## add comparison type
+LS.S$comparison <- "LS.S"
+## change colnames
+names(LS.S) <- str_replace_all(names(LS.S), ".LS.S", "")
+names(LS.S) <- str_replace_all(names(LS.S), ".relat.hybLS", ".relat.hyb")
+
+##########################
+# Hybrid SL vs Pure LL
+##########################
+
+## devide
+SL.L <- select(dat.modif.copy, Study.ID:divergence, N.spL:sex, 
+               -surv.relat.hybLS, contains("SL.L")) 
+## add comparison type
+SL.L$comparison <- "SL.L"
+## change colnames
+names(SL.L) <- str_replace_all(names(SL.L), ".SL.L", "")
+names(SL.L) <- str_replace_all(names(SL.L), ".relat.hybSL", ".relat.hyb") 
+  # 雑種生存率のデータをLS.Lのデータと連結させるため
+
+##########################
+# Hybrid SL vs Pure SS
+##########################
+
+## devide
+SL.S <- select(dat.modif.copy, Study.ID:divergence, N.spL:sex, 
+               -surv.relat.hybLS, contains("SL.S")) 
+## add comparison type
+SL.S$comparison <- "SL.S"
+## change colnames
+names(SL.S) <- str_replace_all(names(SL.S), ".SL.S", "")
+names(SL.S) <- str_replace_all(names(SL.S), ".relat.hybSL", ".relat.hyb")
+
+##############################
+# Combine above four datasets
+##############################
+
+epistasis <- rbind(LS.L, LS.S, SL.L, SL.S) %>%
+  arrange(., ES.ID)
+## add comparison ID column
+epistasis$comp.ID <- paste("comp", 1:nrow(mat.pat), sep = ".")
+
+write.table(epistasis, "../Analysis/sexual.ES.epistasis.csv", 
+            row.names = F, sep = "\t")
+
+```
+
+Overall, hybrids seem to have equall to smaller phenotypic variance than pure crosses.  
+-> Epistasis hypothesis is not supported   
+

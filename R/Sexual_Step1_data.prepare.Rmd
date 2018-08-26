@@ -1,0 +1,125 @@
+---
+title: "Step1.data.preparing"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    toc: yes
+  word_document:
+    toc: yes
+---
+
+# Preparing environment
+
+```{r setup}
+rm(list=ls())  # reset workspace
+sessionInfo()  # show R version etc
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
+library(tidyverse)  # dataset modification
+library(openxlsx)  # read Excel file
+library(knitr)
+```
+
+# Load data and do pre-processing and visual data checks
+Load "dat" file - updated data which is complete (contains sample sizes, means and standard deviations for both males and females) and is raw (standardised values not included).   
+
+```{r load unprocessed dat, echo=FALSE}
+# Load data
+dat <- read.xlsx("../Data extraction/DataExtraction_sexual.xlsx", sheet = 1) %>%
+  filter(Usable == "y") %>%   # delete cross without information about both parentals
+  mutate_at(vars(Mn.sp1.M:surv.relat.hyb21), as.numeric) # modify data to numeric
+
+# add unique ID for each effect size (row)
+dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(dat)[1])), sep="")
+# how many NA (missing values) per numerical column
+unlist(lapply(dat, function(x) sum(is.na(x)))) 
+```
+
+# Data preprocessing and initial checks of main moderators
+Extract data from row dataset
+Species are assigned by relative trait value (larger species will be spL and smaller species will be spS).
+
+```{r modifiers}
+
+####################################################
+# Z scaling for modifier variables
+####################################################
+
+dat$lnL.lnS          <- scale(dat$lnL.lnS)[,1]          
+ # ratio of trait value between parentals ln(spL/spS)
+dat$divergence       <- scale(dat$divergence)[,1]
+ # genetic divergence between parentals
+dat$hetero.males     <- scale(dat$hetero.males)[,1]
+ # males heterogametic or not: 1 or 0
+dat$trait.type       <- scale(dat$trait.type)[,1]
+ # song trait or morphological trait: 1 or 0
+dat$surv.relat.hyb12 <- scale(dat$surv.relat.hyb12)[,1]
+ # relative hybrid mortality compared to mean of parentals
+dat$surv.relat.hyb21 <- scale(dat$surv.relat.hyb21)[,1]
+ # relative hybrid mortality compared to mean of parentals
+
+####################################################
+# examining correlation between modifiers
+####################################################
+modifiers <- dat %>%
+  dplyr::select(lnL.lnS, divergence, contains("surv.relat"),
+                trait.type, hetero.males)
+
+print("Relationships among modifiers")
+pairs(modifiers)
+print("Correlations among modifiers")
+cor(modifiers, use = "pairwise.complete.obs")
+print("Number of NAs in modifiers")
+unlist(lapply(modifiers, function(x) sum(is.na(x)))) 
+```
+
+# Allign parental species according to trait values
+Currently, dataset is composed of   
+species 1, species 2, hybrid12 (sp1 mother & sp2 father), hybrid 21 (sp2 mother & sp1 father)  
+
+To investigate maternal/paternal effect in hybrids using difference in mean trait value between reciprocal cross, it's better to allign species with larger trait value (spL) and smaller value (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  
+If   
+ln(hybridLS/hybridSL) or (hybridLS - hybridSL) >0, that means hybridLS > hybrid SL ...maternal effect  
+ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid SL ...paternal effect
+
+```{r dat preprocessing}
+
+####################################################
+# modify sp1 & sp2 -> spL & spS
+####################################################
+
+############ in the case where sp1 >= sp2 ############
+#### extract
+male.sp1sp2 <- dat %>%
+  filter(Mn.sp1.M >= Mn.sp2.M) # filtering according to mean trait value of parentals
+#### change column name from sp1 or sp2 -> spL or spS
+names(male.sp1sp2) <- gsub("1", "L", names(male.sp1sp2))
+names(male.sp1sp2) <- gsub("2", "S", names(male.sp1sp2))
+
+############ in the case where sp1 < sp2 ############
+#### extract
+male.sp2sp1 <- dat %>%
+  filter(Mn.sp1.M < Mn.sp2.M)
+#### change column name from sp1 or sp2 -> spS or spL
+names(male.sp2sp1) <- gsub("1", "S", names(male.sp2sp1))
+names(male.sp2sp1) <- gsub("2", "L", names(male.sp2sp1))
+
+############ combine dataset & sort by ES.ID ############
+male.LS <- bind_rows(male.sp1sp2, male.sp2sp1) %>%
+  arrange(ES.ID)
+
+############ mark as male data ############
+male.LS$sex <- "male"
+names(male.LS) <- gsub(".M", "", names(male.LS))
+
+############ export ############
+write.table(male.LS,"../Analysis/sexual.dat.modif.csv",
+            quote=F,sep="\t", row.names = F)
+```
+
+
+
+### move to Step2.calculate.EffectSize

@@ -1,0 +1,434 @@
+---
+title: "Step5_Phylogenetic Meta-Analysis"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    toc: yes
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())  # reset workspace
+sessionInfo()  # show R version etc
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
+library(tidyverse)  # dataset modification
+library(metafor)    # meta-analysis!
+library(knitr)
+library(ape)        # Phylogeny
+library(phytools)        # Phylogeny
+
+```
+
+## *Phylogenetic data*    
+
+Obtained from NCBI taxonomy, thus represents distance in taxonomical tree.  
+Polytomies were solved randomly using R, not utilizing phylogenetic studies of focal organisms.  
+
+```{r load data, include=FALSE}
+
+
+## Load effect sizes for "reciprocal cross (lnRR)" analysis
+ES.recip.lnRR <- read.table("../Analysis/sexual.ES.lnRR.recip.csv", head = TRUE, sep = "\t")
+tree.spL.recip.lnRR.random <- read.tree(file = "../Data/Phyltree.spL.recip.lnRR.random.tre")
+tree.spL.recip.lnRR.random <- compute.brlen(tree.spL.recip.lnRR.random) # calculate branch length
+tree.spL.recip.lnRR.random.cor <- vcv(tree.spL.recip.lnRR.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
+levels(ES.recip.lnRR$spL.name)
+
+## Load effect sizes for "reciprocal cross (SMD)" analysis
+ES.recip.SMD <- read.table("../Analysis/sexual.ES.recip.csv", head = TRUE, sep = "\t")
+tree.spL.recip.SMD.random <- read.tree(file = "../Data/Phyltree.spL.recip.SMD.random.tre")
+tree.spL.recip.SMD.random <- compute.brlen(tree.spL.recip.SMD.random) # calculate branch length
+tree.spL.recip.SMD.random.cor <- vcv(tree.spL.recip.SMD.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
+
+## Load effect sizes for "paternal vs maternal" analysis
+ES.matpat.2 <- read.table("../Analysis/sexual.ES.matpat.2.csv", head = TRUE, sep = "\t")
+tree.spL.matpat.random <- read.tree(file = "../Data/PhylTree.spL.matpat.random.tre")
+tree.spL.matpat.random <- compute.brlen(tree.spL.matpat.random) # calculate branch length
+tree.spL.matpat.random.cor <- vcv(tree.spL.matpat.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
+
+
+## Load effect sizes for "epistasis" analysis
+ES.epistasis <- read.table("../Analysis/sexual.ES.epistasis.csv", head = TRUE, sep = "\t")
+tree.spL.epistasis.random <- read.tree(file = "../Data/PhylTree.spL.epistasis.random.tre")
+tree.spL.epistasis.random <- 
+  compute.brlen(tree.spL.epistasis.random) # calculate branch length
+tree.spL.epistasis.random.cor <- 
+  vcv(tree.spL.epistasis.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
+
+```
+
+
+# Reciprocal cross   
+Test this hypothesis by examining whether ln(hybLS / hybSL) is significantly differ from 0.  
+hybLS: hybrids whose mother is the larger species (spL).   
+hybSL: hybrids whose mother is the smaller species (spS).  
+  
+if LnRR = 0  ->  No phenotypic difference between cross direction  
+if 0 < LnRR  ->  Hybrid SL < Hybrid LS  
+if LnRR < 0  ->  Hybrid LS < Hybrid SL  
+
+
+
+```{r reciprocal, lnRR, warning=FALSE}
+
+########################################
+# random effect model
+########################################
+recip.lnRR_random <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
+                            method = "REML", data = ES.recip.lnRR,
+                            random = list(~1 | spL.name, ~1 | Study.ID)
+                       )
+ # ~1 | ES.ID as a random effect is required
+summary(recip.lnRR_random)
+
+########################################
+# phylogenetic random effect model
+########################################
+recip.lnRR_phyl.random <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
+                            method = "REML", data = ES.recip.lnRR,
+                            random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID), 
+                            R = list(spL.name = tree.spL.recip.lnRR.random.cor)
+                            )
+ # ~1 | ES.ID as a random effect is required
+summary(recip.lnRR_phyl.random)
+
+# I^2 see http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate?s[]=rma&s[]=mv&s[]=i2 
+W <- diag(1/ES.recip.lnRR$lnRR.recip.sv)
+X <- model.matrix(recip.lnRR_phyl.random)
+P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+100 * sum(recip.lnRR_phyl.random$sigma2) / (sum(recip.lnRR_phyl.random$sigma2) +
+                                         (recip.lnRR_phyl.random$k-recip.lnRR_phyl.random$p)/sum(diag(P)))
+
+########################################
+# regression with random effect including phylogeny
+########################################
+recip.lnRR_phyl.random.reg <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
+                                method = "REML", data = ES.recip.lnRR,
+                                random = list(~1 | spL.name, ~1 | Study.ID), 
+                                R = list(spL.name = tree.spL.recip.lnRR.random.cor),
+                                mods = ~divergence + trait.type + lnL.lnS + hetero.males
+                                )
+summary(recip.lnRR_phyl.random.reg)
+
+########################################
+# effect of species
+########################################
+# This basically uses spL.name as a factor and "-1" will make it return an intercept estimate for every level of this factor
+rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
+                                method = "REML", data = ES.recip.lnRR,
+                                random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID), 
+                                R = list(spL.name = tree.spL.recip.lnRR.random.cor),
+                                mods = ~spL.name -1
+                                )
+  
+########################################
+# output results
+########################################
+
+# random meta-analysis
+recip.lnRR.r <- cbind(recip.lnRR_random$beta,   # estimate
+                 recip.lnRR_random$ci.lb,  # 95ci 
+                 recip.lnRR_random$ci.ub,  # 95ci
+                 "meta-analysis",
+                 "meta-analytic mean"
+                 )
+colnames(recip.lnRR.r) <- c("estimate", "ci.lb", "ci.ub", "type", "factors")
+row.names(recip.lnRR.r) <- "meta-analysis"
+write.table(recip.lnRR.r, "../Analysis/random_recip.lnRR.csv",
+            sep = ",", quote = F, row.names = T)
+
+# random meta-regression
+recip.lnRR.reg <- cbind(recip.lnRR_phyl.random.reg$beta,   # regression: estimate
+                   recip.lnRR_phyl.random.reg$ci.lb,  # regression: 95ci 
+                   recip.lnRR_phyl.random.reg$ci.ub,   # regression: 95ci
+                   "regression"
+                   )
+recip.lnRR.reg <- cbind(recip.lnRR.reg, 
+                   rownames(recip.lnRR.reg) # factors
+                   )
+colnames(recip.lnRR.reg) <- c("estimate", "ci.lb", "ci.ub", "type", "factors")
+write.table(recip.lnRR.reg, "../Analysis/reg.recip.lnRR.csv",
+            sep = ",", quote = F, row.names = T)
+
+# all
+recip.lnRR <- rbind(recip.lnRR.r, recip.lnRR.reg)
+write.table(recip.lnRR, "../Analysis/recip.lnRR.csv",
+            sep = ",", quote = F, row.names = T)
+
+```
+
+```{r reciprocal, SMD, warning=FALSE}
+
+########################################
+# random effect model
+########################################
+recip.SMD_random <- rma.mv(yi = SMD.recip.es, V = SMD.recip.sv, 
+                            method = "REML", data = ES.recip.lnRR,
+                            random = list(~1 | spL.name, ~1 | Study.ID)
+                       )
+ # ~1 | ES.ID as a random effect is required
+summary(recip.SMD_random)
+
+########################################
+# phylogenetic random effect model
+########################################
+recip.SMD_phyl.random <- rma.mv(yi = SMD.recip.es, V = SMD.recip.sv, 
+                            method = "REML", data = ES.recip.lnRR,
+                            random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID), 
+                            R = list(spL.name = tree.spL.recip.lnRR.random.cor)
+                            )
+ # ~1 | ES.ID as a random effect is required
+summary(recip.SMD_phyl.random)
+
+# I^2 see http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate?s[]=rma&s[]=mv&s[]=i2 
+W <- diag(1/ES.recip.lnRR$SMD.recip.sv)
+X <- model.matrix(recip.SMD_phyl.random)
+P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+100 * sum(recip.SMD_phyl.random$sigma2) / (sum(recip.SMD_phyl.random$sigma2) +
+                                         (recip.SMD_phyl.random$k-recip.SMD_phyl.random$p)/sum(diag(P)))
+
+########################################
+# regression with random effect including phylogeny
+########################################
+recip.SMD_phyl.random.reg <- rma.mv(yi = SMD.recip.es, V = SMD.recip.sv, 
+                                method = "REML", data = ES.recip.lnRR,
+                                random = list(~1 | spL.name, ~1 | Study.ID), 
+                                R = list(spL.name = tree.spL.recip.lnRR.random.cor),
+                                mods = ~divergence + trait.type + lnL.lnS + hetero.males
+                                )
+summary(recip.SMD_phyl.random.reg)
+
+########################################
+# effect of species
+########################################
+# This basically uses spL.name as a factor and "-1" will make it return an intercept estimate for every level of this factor
+rma.mv(yi = SMD.recip.es, V = SMD.recip.sv, 
+                                method = "REML", data = ES.recip.lnRR,
+                                random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID), 
+                                R = list(spL.name = tree.spL.recip.lnRR.random.cor),
+                                mods = ~spL.name -1
+                                )
+  
+########################################
+# output results
+########################################
+
+# random meta-analysis
+recip.SMD.r <- cbind(recip.SMD_random$beta,   # estimate
+                 recip.SMD_random$ci.lb,  # 95ci 
+                 recip.SMD_random$ci.ub,  # 95ci
+                 "meta-analysis",
+                 "meta-analytic mean"
+                 )
+colnames(recip.SMD.r) <- c("estimate", "ci.lb", "ci.ub", "type", "factors")
+row.names(recip.SMD.r) <- "meta-analysis"
+write.table(recip.SMD.r, "../Analysis/random_recip.SMD.csv",
+            sep = ",", quote = F, row.names = T)
+
+# random meta-regression
+recip.SMD.reg <- cbind(recip.SMD_phyl.random.reg$beta,   # regression: estimate
+                   recip.SMD_phyl.random.reg$ci.lb,  # regression: 95ci 
+                   recip.SMD_phyl.random.reg$ci.ub,   # regression: 95ci
+                   "regression"
+                   )
+recip.SMD.reg <- cbind(recip.SMD.reg, 
+                   rownames(recip.SMD.reg) # factors
+                   )
+colnames(recip.SMD.reg) <- c("estimate", "ci.lb", "ci.ub", "type", "factors")
+write.table(recip.SMD.reg, "../Analysis/recip.SMD.reg.csv",
+            sep = ",", quote = F, row.names = T)
+
+# all
+recip.SMD <- rbind(recip.SMD.r, recip.SMD.reg)
+write.table(recip.SMD, "../Analysis/recip.SMD.csv",
+            sep = ",", quote = F, row.names = T)
+```
+
+
+
+
+# Epistasis   
+Compare variance between hybrid & pure cross by lnCVR for all combinations  
+if lnCVR = 0 -> No difference in variance between pure & hybrid  
+if 0 < lnCVR -> Hybrid more varies than pure  
+if lnCVR < 0 -> Hybrid less varies than pure  
+
+```{r Epistasis, warning=FALSE}
+
+# Does genetic divergence have linear effect on F1 variance?
+plot(y = ES.epistasis$lnCVR.es, x = ES.epistasis$divergence)
+
+########################################
+# random effect model
+########################################
+epi_random <- rma.mv(yi = lnCVR.es, V = lnCVR.sv.corF, 
+                     data = ES.epistasis, method = "REML",
+                     random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID)
+                     )
+summary(epi_random)
+
+########################################
+# phylogenetic random effect model
+########################################
+epi_phyl.random <- rma.mv(yi = lnCVR.es, V = lnCVR.sv.corF, 
+                     data = ES.epistasis, method = "REML",
+                     random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID),
+                     R = list(spL.name = tree.spL.epistasis.random.cor)
+                     )
+summary(epi_phyl.random)
+
+# I^2 see http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate?s[]=rma&s[]=mv&s[]=i2 
+# could not be calculated: too large dataset??
+# W <- diag(1/ES.epistasis$lnCVR.sv.corF)
+# X <- model.matrix(epi_phyl.random)
+# P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+# 100 * sum(epi_phyl.random$sigma2) / (sum(epi_phyl.random$sigma2) +                                       (epi_phyl.random$k-epi_phyl.random$p)/sum(diag(P)))
+
+########################################
+# regression with random effect including phylogeny
+########################################
+epi_random.reg <- rma.mv(yi = lnCVR.es, V = lnCVR.sv.corF, 
+                         mods = ~divergence + trait.type + lnL.lnS + surv.relat.hyb + hetero.males, 
+                         method = "REML", data = ES.epistasis,
+                         random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID),
+                         R = list(spL.name = tree.spL.epistasis.random.cor)
+                         )
+summary(epi_random.reg)
+
+########################################
+# effect of species
+########################################
+# This basically uses spL.name as a factor and "-1" will make it return an intercept estimate for every level of this factor
+rma.mv(yi = lnCVR.es, V = lnCVR.sv.corF, 
+       mods = ~spL.name -1, 
+       method = "REML", data = ES.epistasis,
+       random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID),
+       R = list(spL.name = tree.spL.epistasis.random.cor)
+       )
+
+##############################################
+# Output
+##############################################
+
+# random effect model
+epi_r <- cbind(epi_random$beta,   # estimate
+               epi_random$ci.lb,  # 95ci 
+               epi_random$ci.ub,  # 95ci 
+               "meta-analysis",
+               "meta-analytic mean"
+               )
+colnames(epi_r) <- c("estimate", "ci.lb", "ci.ub", "type","factors")
+row.names(epi_r) <- "meta-analysis"
+write.table(epi_r, "../Analysis/random_epi.csv",
+            sep = ",", quote = F, row.names = T)
+
+# meta-regression
+epistasis.reg <- cbind(epi_random.reg$beta,   # estimate
+                       epi_random.reg$ci.lb,  # 95ci 
+                       epi_random.reg$ci.ub,  # 95ci
+                       "meta-regression"
+                       )
+epistasis.reg <- cbind(epistasis.reg, 
+                   rownames(epistasis.reg) # factors
+                   )
+colnames(epistasis.reg) <- c("estimate", "ci.lb", "ci.ub", "type", "factors")
+write.table(epistasis.reg, "../Analysis/reg.epistasis.csv",
+            sep = ",", quote = F, row.names = T)
+
+# all
+epistasis <- rbind(epi_r, epistasis.reg)
+write.table(epistasis, "../Analysis/epistasis.csv",
+            sep = ",", quote = F, row.names = T)
+
+
+
+
+```
+
+*Phylogenetic random effect model was failed with the error "Elements of 'R' must be square matrices" though R (matrix of taxonomical distance) is 36x36 square matrix.*  
+
+Phenotypic variations in F1 hybrids were significantly smaller compared to those of pure strains. Thus, phenotypic variation due to epistasis is not evident in our analysis. 
+
+
+
+# Maternal or Paternal   
+
+Supplemental for hypothesis 1.  
+Do hybrids resemble to mother species, or father species?  
+
+To examine this,  compare the differences  
+between hybrid and its mother species vs.  
+between hybrid and its father species  
+
+```{r maternal vs paternal, warning=FALSE}
+
+################################################
+# meta-analysis
+################################################
+
+
+########################################
+# forest plot
+########################################
+forest(ES.matpat.2$lnRR.dist.mother.es, ES.matpat.2$lnRR.dist.mother.sv)
+forest(ES.matpat.2$lnRR.dist.father.es, ES.matpat.2$lnRR.dist.father.sv)
+
+########################################
+# fixed effect model
+########################################
+maternal_fix <- rma(yi = lnRR.dist.mother.es, vi = lnRR.dist.mother.sv, 
+                    method = "FE", data = ES.matpat.2)
+summary(maternal_fix)
+paternal_fix <- rma(yi = lnRR.dist.father.es, vi = lnRR.dist.father.sv, 
+                    method = "FE", data = ES.matpat.2)
+summary(paternal_fix)
+
+########################################
+# random effect model
+########################################
+maternal_random <- rma(yi = lnRR.dist.mother.es, vi = lnRR.dist.mother.sv, 
+                    method = "REML", data = ES.matpat.2)
+summary(maternal_random)
+paternal_random <- rma(yi = lnRR.dist.father.es, vi = lnRR.dist.father.sv, 
+                    method = "REML", data = ES.matpat.2)
+summary(paternal_random)
+
+
+########################################
+# phylogenetic random effect model
+########################################
+## mother species vs hybrids
+mat.phyl.random <- rma.mv(yi = lnRR.dist.mother.es, V = lnRR.dist.mother.sv, 
+                          data = ES.matpat.2, method = "REML",
+                          random = list(~1 | spL.name, ~1 | Study.ID), 
+                          R = list(spL.name = tree.spL.matpat.random.cor)
+                          )
+summary(mat.phyl.random)
+## father species vs hybrids with random effects
+pat.phyl.random  <- rma.mv(yi = lnRR.dist.father.es, V = lnRR.dist.father.sv, 
+                           data = ES.matpat.2, method = "REML",
+                           random = list(~1 | spL.name, ~1 | Study.ID), 
+                           R = list(spL.name = tree.spL.matpat.random.cor)
+                           )
+summary(pat.phyl.random)
+
+## combine above two
+comp.matpat <- data.frame(estimate = c(coef(mat.phyl.random), coef(pat.phyl.random)),
+                          stderror = c(mat.phyl.random$se, pat.phyl.random$se),
+                          meta = c("diff.mother.hyb", "diff.father.hyb"),
+                          tau2 = c(mat.phyl.random$tau2, pat.phyl.random$tau2))
+
+##########################################################
+# meta-analysis comparing phenotypic difference between  
+# mother species - hybrids  vs  father species vs hybrids
+##########################################################
+rma(yi = estimate, sei = stderror, mods = ~ meta,
+    method = "FE", data = comp.matpat)
+
+```
+There was no significant difference between paternal (similarity between hybrids and father species) and maternal inheritance (that of hybrids and mother species). 
