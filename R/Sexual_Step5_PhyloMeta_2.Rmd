@@ -22,7 +22,8 @@ library(knitr)
 library(ape)        # Phylogeny
 library(phytools)        # Phylogeny
 
-
+# getting functions functions
+source("../R/function.R", chdir = TRUE)
 
 ```
 
@@ -40,7 +41,7 @@ tree.spL.recip.lnRR.random <- read.tree(file = "../Data/Phyltree.spL.recip.lnRR.
 tree.spL.recip.lnRR.random <- compute.brlen(tree.spL.recip.lnRR.random) # calculate branch length
 tree.spL.recip.lnRR.random.cor <- vcv(tree.spL.recip.lnRR.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
 levels(ES.recip.lnRR$spL.name)
- # we need this 
+recip.lnRR$spL.name2 <- recip.lnRR$spL.name  # we need this later
 
 ## Load effect sizes for "reciprocal cross (SMD)" analysis
 ES.recip.SMD <- read.table("../data/sexual.ES.recip.csv", head = TRUE, sep = "\t")
@@ -91,6 +92,9 @@ recip.lnRR_random <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv,
  # ~1 | ES.ID as a random effect is required
 summary(recip.lnRR_random)
 
+I2(recip.lnRR_random)
+
+
 ########################################
 # phylogenetic random effect model
 ########################################
@@ -101,6 +105,8 @@ recip.lnRR_phyl.random <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv,
                             )
  # ~1 | ES.ID as a random effect is required
 summary(recip.lnRR_phyl.random)
+
+I2(recip.lnRR_phyl.random)
 
 # I^2 see http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate?s[]=rma&s[]=mv&s[]=i2 
 # W <- diag(1/ES.recip.lnRR$lnRR.recip.sv)
@@ -117,16 +123,18 @@ summary(recip.lnRR_phyl.random)
 ########################################
 # what is lnL.lnS??
 # we need to z transform all the continous variables to make beta (regression coefficent) meaningful
-#
+# some of predictors are highly skewed and we need to transform them (prob. log) before z trasnform them....
 
 recip.lnRR_phyl.random.reg <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
                                 method = "REML", data = ES.recip.lnRR,
-                                random = list(~1 | spL.name, ~1 | Study.ID), 
+                                random = list(~1 | spL.name, ~1 | ES.ID), 
                                 R = list(spL.name = tree.spL.recip.lnRR.random.cor),
                                 mods = ~divergence + trait.type + lnL.lnS + hetero.males
                                 )
 
 summary(recip.lnRR_phyl.random.reg)
+
+R2(recip.lnRR_phyl.random.reg)
 
 ########################################
 # effect of species
