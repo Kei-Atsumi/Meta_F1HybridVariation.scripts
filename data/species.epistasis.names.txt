@@ -1,0 +1,43 @@
+Gryllus texensis
+Gryllus rubens
+Chorthippus parallelus eythropus
+Chorthippus parallelus parallelus
+Drosophila silvestris
+Drosophila simulans
+Drosophila mauritiana
+Drosophila sechellia
+Haplochromis burtoni
+Haplochromis nubilus
+Coturnix coturnix coturnix
+Coturnix coturnix japonica
+Hyla chrysoscelis
+Hyla femoralis
+Drosophila persimilis
+Pundamilia nyererei
+Agrotis segetum
+Agrotis ipsilon
+Chorthippus brunneus
+Chorthippus biguttulus
+Teleogryllus oceanicus
+Teleogryllus commodus
+Gryllus armatus
+Gryllus campestris
+Pundamilia pundamilia
+Spodoptera latifascia
+Mus musculus musculus
+Mus musculus domesticus
+Drosophila montana
+Drosophila littoralis
+Drosophila flavomontana
+Laupala paranigra
+Laupala kohalensis
+Drosophila virilis
+Drosophila lummei
+Drosophila kanekoi
+Drosophila lacicola
+Drosophila auraria
+Drosophila triauraria
+Drosophila biauraria
+Drosophila quadraria
+Chrysoperla plorabunda
+Chrysoperla johnsoni

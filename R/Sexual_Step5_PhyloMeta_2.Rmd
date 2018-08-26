@@ -22,6 +22,8 @@ library(knitr)
 library(ape)        # Phylogeny
 library(phytools)        # Phylogeny
 
+
+
 ```
 
 ## *Phylogenetic data*    
@@ -33,27 +35,28 @@ Polytomies were solved randomly using R, not utilizing phylogenetic studies of f
 
 
 ## Load effect sizes for "reciprocal cross (lnRR)" analysis
-ES.recip.lnRR <- read.table("../Analysis/sexual.ES.lnRR.recip.csv", head = TRUE, sep = "\t")
+ES.recip.lnRR <- read.table("../data/sexual.ES.lnRR.recip.csv", head = TRUE, sep = "\t")
 tree.spL.recip.lnRR.random <- read.tree(file = "../Data/Phyltree.spL.recip.lnRR.random.tre")
 tree.spL.recip.lnRR.random <- compute.brlen(tree.spL.recip.lnRR.random) # calculate branch length
 tree.spL.recip.lnRR.random.cor <- vcv(tree.spL.recip.lnRR.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
 levels(ES.recip.lnRR$spL.name)
+ # we need this 
 
 ## Load effect sizes for "reciprocal cross (SMD)" analysis
-ES.recip.SMD <- read.table("../Analysis/sexual.ES.recip.csv", head = TRUE, sep = "\t")
+ES.recip.SMD <- read.table("../data/sexual.ES.recip.csv", head = TRUE, sep = "\t")
 tree.spL.recip.SMD.random <- read.tree(file = "../Data/Phyltree.spL.recip.SMD.random.tre")
 tree.spL.recip.SMD.random <- compute.brlen(tree.spL.recip.SMD.random) # calculate branch length
 tree.spL.recip.SMD.random.cor <- vcv(tree.spL.recip.SMD.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
 
 ## Load effect sizes for "paternal vs maternal" analysis
-ES.matpat.2 <- read.table("../Analysis/sexual.ES.matpat.2.csv", head = TRUE, sep = "\t")
+ES.matpat <- read.table("../data/sexual.ES.matpat.csv", head = TRUE, sep = "\t")
 tree.spL.matpat.random <- read.tree(file = "../Data/PhylTree.spL.matpat.random.tre")
 tree.spL.matpat.random <- compute.brlen(tree.spL.matpat.random) # calculate branch length
 tree.spL.matpat.random.cor <- vcv(tree.spL.matpat.random, cor = T) # calculating correlation matrix (a relatedness matrix among species)
 
 
 ## Load effect sizes for "epistasis" analysis
-ES.epistasis <- read.table("../Analysis/sexual.ES.epistasis.csv", head = TRUE, sep = "\t")
+ES.epistasis <- read.table("../data/sexual.ES.epistasis.csv", head = TRUE, sep = "\t")
 tree.spL.epistasis.random <- read.tree(file = "../Data/PhylTree.spL.epistasis.random.tre")
 tree.spL.epistasis.random <- 
   compute.brlen(tree.spL.epistasis.random) # calculate branch length
@@ -79,9 +82,11 @@ if LnRR < 0  ->  Hybrid LS < Hybrid SL
 ########################################
 # random effect model
 ########################################
+
+# I am takinng this awawy "~1 | Study.ID," as the level 16 is very similar to 22 (species level) - they will not be distingishable form each other (if you do want to do this more stastically you can use AIC diff. - I tried and AIC supports my decision)
 recip.lnRR_random <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
                             method = "REML", data = ES.recip.lnRR,
-                            random = list(~1 | spL.name, ~1 | Study.ID)
+                            random = list(~1 | spL.name,  ~1 | ES.ID )
                        )
  # ~1 | ES.ID as a random effect is required
 summary(recip.lnRR_random)
@@ -91,28 +96,36 @@ summary(recip.lnRR_random)
 ########################################
 recip.lnRR_phyl.random <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
                             method = "REML", data = ES.recip.lnRR,
-                            random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID), 
+                            random = list(~1 | spL.name, ~1 | ES.ID), 
                             R = list(spL.name = tree.spL.recip.lnRR.random.cor)
                             )
  # ~1 | ES.ID as a random effect is required
 summary(recip.lnRR_phyl.random)
 
 # I^2 see http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate?s[]=rma&s[]=mv&s[]=i2 
-W <- diag(1/ES.recip.lnRR$lnRR.recip.sv)
-X <- model.matrix(recip.lnRR_phyl.random)
-P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
-100 * sum(recip.lnRR_phyl.random$sigma2) / (sum(recip.lnRR_phyl.random$sigma2) +
-                                         (recip.lnRR_phyl.random$k-recip.lnRR_phyl.random$p)/sum(diag(P)))
+# W <- diag(1/ES.recip.lnRR$lnRR.recip.sv)
+# X <- model.matrix(recip.lnRR_phyl.random)
+# P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+# 100 * sum(recip.lnRR_phyl.random$sigma2) / (sum(recip.lnRR_phyl.random$sigma2) +
+#                                          (recip.lnRR_phyl.random$k-recip.lnRR_phyl.random$p)/sum(diag(P)))
+
+
+
 
 ########################################
 # regression with random effect including phylogeny
 ########################################
+# what is lnL.lnS??
+# we need to z transform all the continous variables to make beta (regression coefficent) meaningful
+#
+
 recip.lnRR_phyl.random.reg <- rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
                                 method = "REML", data = ES.recip.lnRR,
                                 random = list(~1 | spL.name, ~1 | Study.ID), 
                                 R = list(spL.name = tree.spL.recip.lnRR.random.cor),
                                 mods = ~divergence + trait.type + lnL.lnS + hetero.males
                                 )
+
 summary(recip.lnRR_phyl.random.reg)
 
 ########################################
@@ -121,7 +134,7 @@ summary(recip.lnRR_phyl.random.reg)
 # This basically uses spL.name as a factor and "-1" will make it return an intercept estimate for every level of this factor
 rma.mv(yi = lnRR.recip.es, V = lnRR.recip.sv, 
                                 method = "REML", data = ES.recip.lnRR,
-                                random = list(~1 | spL.name, ~1 | Study.ID, ~1 | ES.ID), 
+                                random = list(~1 | ES.ID), 
                                 R = list(spL.name = tree.spL.recip.lnRR.random.cor),
                                 mods = ~spL.name -1
                                 )
