@@ -33,7 +33,7 @@ mytheme <-
     panel.grid = element_blank(),
     axis.ticks.y=element_blank(),
     axis.title = element_text(size=20),
-    axis.text = element_text(size=17),
+    axis.text = element_text(size=17, color = "black"),
     axis.line.y = element_blank(),
     strip.text = element_text(size=12, lineheight=5.0),
     strip.background = element_rect(fill = "white")
@@ -73,7 +73,7 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 ```{r meta-analysis for each}
 
-for (i in c("lnRR", "SMD")) {
+for (i in c("lnRR")) {
   for (h in c("spL", "hybLS", "hybSL")) {
     
     # Make data for each cross
@@ -120,7 +120,7 @@ for (i in c("lnRR", "SMD")) {
     as.data.frame()
   
   plot.metamean <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
-    geom_bar(stat = "identity", fill = "grey60") +
+    geom_bar(stat = "identity", fill = "grey30") +
     geom_errorbar(
       aes(ymin = ci.lb, ymax = ci.ub), 
       colour="black", width=.1
@@ -133,9 +133,9 @@ for (i in c("lnRR", "SMD")) {
   print(plot.metamean)
   
   ggsave(
-    plot = plot.metamean, 
+    plot = plot.metamean + theme_classic(), 
     file = paste("../Analysis/mean.general.metamean", i, "svg", sep = "."), 
-    height = 4.5, width = 4
+    height = 2.5, width = 2.5
   )
 
 }

@@ -167,7 +167,7 @@ Does TS biased toward father species? -> <i>patmatmother</i> will negative
 
 phylmix <-MCMCglmm(
   fixed = TS ~ 
-    divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction,
+    divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal,
   random = ~ Study.ID + Cross.ID + spL.name + ES.ID,
   family = "categorical",
   verbose = FALSE,
@@ -184,17 +184,16 @@ sum <- summary(phylmix)$solutions %>%
 
 
 metaplot <- ggplot(sum, aes(y = post.mean, x = factors)) +
-  geom_rect(
-    aes(ymin= -0.5, ymax= 0.5,xmin=-Inf,xmax=Inf),
-    fill="Grey 95", inherit.aes = FALSE
+  geom_hline(
+    yintercept = 0, size = 1, 
+    colour = "white" #, linetype = "dotted"         
     ) +
   geom_errorbar(
     aes(ymin = sum[, 'l-95% CI'], ymax = sum[, 'u-95% CI']), 
     colour="black", width=.0001
     ) +
-  geom_point(size=3, colour="black")+
+  geom_point(size=1.5, colour="black")+
   scale_x_discrete(limits = rev(sum$factors))+ # reverse x-axis
-  geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
   coord_flip() +
   mytheme
 
