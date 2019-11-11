@@ -23,7 +23,9 @@ library(metafor)    # meta-analysis!
 library(knitr)
 library(ape)        # Phylogeny
 library(phytools)   # Phylogeny
-library(svglite)
+library(svglite)    # Export SVG plots
+library(reshape2)   # bar-plot
+library(ggsci)      # bar-plot
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
 
 mytheme <- 
@@ -34,7 +36,7 @@ mytheme <-
     axis.text = element_text(size=17),
     axis.line.y = element_blank(),
     strip.text = element_text(size=12, lineheight=5.0),
-    strip.background = element_rect(fill = "lightgrey")
+    strip.background = element_rect(fill = "white")
   )
 
 ```
@@ -117,25 +119,25 @@ for (i in c("lnRR", "SMD")) {
   res.allcrosss <- bind_rows(res.spL, res.hybLS, res.hybSL) %>%
     as.data.frame()
   
-  plot <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
-    geom_rect(
-      aes(ymin= -0.5, ymax= 0.5,xmin=-Inf,xmax=Inf),
-      fill="Grey 95", inherit.aes = FALSE
-      )+
+  plot.metamean <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
+    geom_bar(stat = "identity", fill = "grey60") +
     geom_errorbar(
       aes(ymin = ci.lb, ymax = ci.ub), 
-      colour="black", width=.0001
+      colour="black", width=.1
       ) +
-    geom_point(size=3, colour="black")+
-    scale_shape_manual(values=c(17, 16)) +
     scale_x_discrete(limits = rev(res.allcrosss$factors))+ # reverse x-axis
     geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
-    coord_flip() +
-    ylab(i) + xlab("") +
+    ylab(paste(i, "from spS")) + xlab("") +
     mytheme
   
-  print(plot)
+  print(plot.metamean)
   
+  ggsave(
+    plot = plot.metamean, 
+    file = paste("../Analysis/mean.general.metamean", i, "svg", sep = "."), 
+    height = 4.5, width = 4
+  )
+
 }
 
 
