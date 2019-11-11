@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 Meta_F1HybridVariation.scripts.Rproj
+*.svg
+*.png
