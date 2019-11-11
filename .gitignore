@@ -3,3 +3,8 @@
 .RData
 .Ruserdata
 Meta_F1HybridVariation.scripts.Rproj
+*.html
+.csv
+.tre
+.xlsx
+*.svg
