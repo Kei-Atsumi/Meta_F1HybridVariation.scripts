@@ -1,0 +1,157 @@
+---
+title: "Greater or smaller phenotypic variance in hybrids"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+
+rm(list=ls())  # reset workspace
+sessionInfo()  # show R version etc
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
+library(tidyverse)  # dataset modification
+library(metafor)    # meta-analysis!
+library(knitr)
+library(openxlsx)
+library(ape)        # Phylogeny
+library(phytools)        # Phylogeny
+library(MCMCglmm)
+library(svglite)
+opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
+
+mytheme <- 
+  theme(
+    panel.grid = element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title = element_text(size=12),
+    axis.text = element_text(size=11),
+    axis.line.y = element_blank(),
+    strip.text = element_text(size=12, lineheight=5.0),
+    strip.background = element_rect(fill = "lightgrey")
+  )
+
+```
+
+# transgressive segregation
+
+
+```{r transgressive segregation}
+
+dat <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
+  # Assign transgressive segregation to 1, no TS to 0 for each effect size
+  mutate(TS = ifelse(yi < 0, 1, 0)) %>%
+  ### Join with metadata ###
+  left_join(
+    .,
+    read.xlsx(
+      "../data/original.data.xlsx", sheet = "Metadata"
+      )
+    ) %>%
+  mutate_at(vars(divergence.cytb:surv.relat.hyb21), as.numeric) %>%
+  mutate_at(
+    vars(contains("divergence"), contains("surv.relat")), scale
+    ) %>%
+  as.data.frame %>%
+  select(-trait) %>%
+  drop_na(hetero.sex, pheno.div.diff, trait.type, divergence.COI) %>%
+  # order taxon
+  within(
+    taxa <- ordered(
+      taxa,
+      levels = c(
+        "Teleost", "Amphibian", "Bird", "Mammal",
+        "Diptera", "Lepidoptera", "Neuroptera", 
+        "Orthoptera","Coleoptera" 
+        )
+      )
+    ) %>%
+  mutate_if(is.character, as.factor)
+
+#### Phylogenetic tree for mcmcglmm ####
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.variation.TS.tre") %>%
+  compute.brlen(bin.tree, method = "Grafen", power = 1)
+
+# check tree is ultrametric
+is.ultrametric(phylo_branch) # TRUE
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# generating inverse phylogenetic matrix for MCMCglmm
+# Note one of the tips is called "Lates calcarifer (estimated)"
+phylo_branch$node.label <- NULL
+phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+```
+
+
+
+# Seeking factor influences the frequency of transgressive segregation
+
+```{r mixed model}
+
+
+phylmix <-MCMCglmm(
+  fixed = TS ~ 
+    parental +
+    direction*divergence.COI + direction*sq.divergence.COI + 
+    direction*distribution + direction*reciprocal +
+    direction*pheno.div.ratio, 
+  family = "categorical",
+  random = ~ Study.ID + Cross.ID + spL.name + ES.ID,
+  verbose = FALSE,
+  ginverse = list(spL.name = phylo_MCMC), 
+  data = dat
+)
+
+summary(phylmix)
+
+sum <- summary(phylmix)$solutions %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "factors") %>%
+  mutate_at("factors", as.factor)
+
+
+metaplot <- ggplot(sum, aes(y = post.mean, x = factors)) +
+  geom_rect(
+    aes(ymin= -0.5, ymax= 0.5,xmin=-Inf,xmax=Inf),
+    fill="Grey 95", inherit.aes = FALSE
+    ) +
+  geom_errorbar(
+    aes(ymin = sum[, 'l-95% CI'], ymax = sum[, 'u-95% CI']), 
+    colour="black", width=.0001
+    ) +
+  geom_point(size=3, colour="black")+
+  scale_x_discrete(limits = rev(sum$factors))+ # reverse x-axis
+  geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+  coord_flip() +
+  mytheme
+
+ggsave(
+    plot = metaplot, 
+    file = "../Analysis/variation.TS.result.svg", 
+    height = 4, width = 3.5
+    )
+
+print(metaplot)
+
+
+```
+
+*direction+* greater variation in hybrids  
+ 
+TS in Variation is likely to occur toward father species   
+Variation of F1 hybrids is usually smaller than parentals when TS in Variation occurs  
+
+

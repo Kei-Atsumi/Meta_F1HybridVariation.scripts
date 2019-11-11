@@ -1,0 +1,244 @@
+---
+title: "General pattern of phenotypic mean"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+
+rm(list=ls())  # reset workspace
+sessionInfo()  # show R version etc
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
+library(tidyverse)  # dataset modification
+library(metafor)    # meta-analysis!
+library(knitr)
+library(ape)        # Phylogeny
+library(phytools)   # Phylogeny
+library(svglite)
+opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
+
+mytheme <- 
+  theme(
+    panel.grid = element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title = element_text(size=20),
+    axis.text = element_text(size=17),
+    axis.line.y = element_blank(),
+    strip.text = element_text(size=12, lineheight=5.0),
+    strip.background = element_rect(fill = "lightgrey")
+  )
+
+```
+
+## *Phylogenetic data*    
+
+```{r load data}
+
+# Load effect sizes
+mean.dif <- read.csv("../data/mean.ES.general.csv", head = TRUE)
+
+# Select ESs that can compare maternal and paternal inheritance
+hybrids <- mean.dif %>%
+  filter(cross != "spL")
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.mean.general.tre") %>%
+  compute.brlen(bin.tree, method = "Grafen", power = 1)
+
+# check tree is ultrametric
+is.ultrametric(phylo_branch) # TRUE
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# generating inverse phylogenetic matrix for MCMCglmm
+# Note one of the tips is called "Lates calcarifer (estimated)"
+phylo_branch$node.label <- NULL
+phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+```
+
+# Meta-analysis for each hybrids and parental
+
+```{r meta-analysis for each}
+
+for (i in c("lnRR", "SMD")) {
+  for (h in c("spL", "hybLS", "hybSL")) {
+    
+    # Make data for each cross
+    split.data <- mean.dif %>%
+      # use observations which both crosses are availabe to compare the heterogeneity of both crosses
+      filter(reciprocal == "Viable") %>%
+      filter(cross == h)
+    
+    print(paste(i, "in", h))
+    
+    # Phylogenetic random meta-analysis
+    phyl.random <- rma.mv(
+      yi = split.data[, paste(i, "es", sep = ".")], 
+      V = split.data[, paste(i, "sv", sep = ".")], 
+      data = split.data, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      R = list(spL.name = phylo_cor)
+      )
+    
+    assign(
+      paste("res", h, sep = "."), 
+      cbind(
+        phyl.random$beta,   # regression: estimate
+        phyl.random$ci.lb,  # regression: 95ci 
+        phyl.random$ci.ub,  # regression: 95ci
+        phyl.random$pval   # P
+        ) %>%
+        as.data.frame() %>%
+        rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4) %>%
+      mutate(cross = h)
+      )
+
+    # Calculate I^2 for heterogeneity
+    # http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate
+    W <- diag(1/split.data[, paste(i, "sv", sep = ".")])
+    X <- model.matrix(phyl.random)
+    P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+    I2 <- 100 * sum(phyl.random$sigma2) / (sum(phyl.random$sigma2) + (phyl.random$k-phyl.random$p)/sum(diag(P)))
+    print(paste("I^2 =", I2))
+    
+  }
+  
+  res.allcrosss <- bind_rows(res.spL, res.hybLS, res.hybSL) %>%
+    as.data.frame()
+  
+  plot <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
+    geom_rect(
+      aes(ymin= -0.5, ymax= 0.5,xmin=-Inf,xmax=Inf),
+      fill="Grey 95", inherit.aes = FALSE
+      )+
+    geom_errorbar(
+      aes(ymin = ci.lb, ymax = ci.ub), 
+      colour="black", width=.0001
+      ) +
+    geom_point(size=3, colour="black")+
+    scale_shape_manual(values=c(17, 16)) +
+    scale_x_discrete(limits = rev(res.allcrosss$factors))+ # reverse x-axis
+    geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+    coord_flip() +
+    ylab(i) + xlab("") +
+    mytheme
+  
+  print(plot)
+  
+}
+
+
+```
+
+
+# Assesing maternal inheritance and dominance
+Comparing the differences between parentals and hybrids
+
+```{r maternal vs paternal}
+
+
+for (i in c("lnRR", "SMD")) {
+  
+  ################################################
+  # phylogenetic random regresson (ANOVA)
+  ################################################
+  
+  if (i == "lnRR") {
+    # Regress by lnRR of phenotypic difference between parentals 
+    phyl.random <- rma.mv(
+      yi = hybrids[, paste(i, "es", sep = ".")], 
+      V = hybrids[, paste(i, "sv", sep = ".")], 
+      data = hybrids, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ trait.type + pheno.div.ratio + cross*hetero.sex
+        # + cross*divergence.COI + cross*pheno.div.ratio
+      )
+
+  } else {
+    # Regress by absolute value of phenotypic difference between parentals 
+    phyl.random <- rma.mv(
+      yi = hybrids[, paste(i, "es", sep = ".")], 
+      V = hybrids[, paste(i, "sv", sep = ".")], 
+      data = hybrids, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ trait.type + pheno.div.diff + cross*hetero.sex
+        # + cross*divergence.COI + cross*pheno.div.diff
+      )
+    
+  }
+  
+  # print(summary(phyl.random))
+  
+  ################################################
+  # Output result
+  ################################################
+  
+  reg <- cbind(
+    phyl.random$beta,   # regression: estimate
+    phyl.random$ci.lb,  # regression: 95ci 
+    phyl.random$ci.ub,  # regression: 95ci
+    phyl.random$pval   # P
+    ) %>%
+    cbind(
+      ., row.names(.)
+    ) %>%
+    as.data.frame() %>%
+    rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
+    mutate_all(as.character) %>%
+    mutate_at(vars(estimate:P), as.numeric) %>%
+    mutate_at(vars(factors), as.factor)
+
+  write.csv(
+    reg, 
+    paste("../Analysis/mean.general.result", i, "csv", sep = "."),
+    quote = F, row.names = F
+    )
+  
+  plot <- ggplot(reg, aes(y = estimate, x = factors)) +
+    geom_rect(
+      aes(ymin= -0.5, ymax= 0.5,xmin=-Inf,xmax=Inf),
+      fill="Grey 95", inherit.aes = FALSE
+      )+
+    geom_errorbar(
+      aes(ymin = ci.lb, ymax = ci.ub), 
+      colour="black", width=.0001
+      ) +
+    geom_point(size=3, colour="black")+
+    scale_shape_manual(values=c(17, 16)) +
+    scale_x_discrete(limits = rev(reg$factors))+ # reverse x-axis
+    geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+    coord_flip() +
+    ylab(i) + xlab("") +
+    mytheme
+  
+  print(plot)
+  
+  ggsave(
+    plot = plot, 
+    file = paste("../Analysis/mean.general.result", i, "svg", sep = "."), 
+    height = 4.5, width = 4
+    )
+
+  print(
+    reg %>%
+      as.data.frame() %>%
+      mutate_if(is.numeric, round, 3) %>%
+      column_to_rownames("factors")
+    )
+
+}
+
+```
