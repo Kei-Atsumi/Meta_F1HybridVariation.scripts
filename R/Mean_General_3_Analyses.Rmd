@@ -122,11 +122,10 @@ for (i in c("lnRR")) {
   plot.metamean <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
     geom_bar(stat = "identity", fill = "grey30") +
     geom_errorbar(
-      aes(ymin = ci.lb, ymax = ci.ub), 
-      colour="black", width=.1
+      aes(ymin = estimate, ymax = ci.ub), 
+      colour="black", width=.00001
       ) +
     scale_x_discrete(limits = rev(res.allcrosss$factors))+ # reverse x-axis
-    geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
     ylab(paste(i, "from spS")) + xlab("") +
     mytheme
   
@@ -135,7 +134,7 @@ for (i in c("lnRR")) {
   ggsave(
     plot = plot.metamean + theme_classic(), 
     file = paste("../Analysis/mean.general.metamean", i, "svg", sep = "."), 
-    height = 2.5, width = 2.5
+    height = 2.5, width = 2.3
   )
 
 }
