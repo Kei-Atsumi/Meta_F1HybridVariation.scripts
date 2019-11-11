@@ -1,5 +1,6 @@
 # Meta_F1HybridVariation
 
-# To investigate phenotypic variation in F1 hybrids of various animals, 
-# (a) difference in mean trait value is compared between reciprocal crosses using SMD or lnRR
-# (b) phenotypic variance is compared between pure and hybrids using lnCVR
+# Explore general patterns of the mean and variation of F1 hybrids in mating traits
+# Conduct analogous analyses for mean and variation
+# 1, general pattern of both reciprocal hybrids and parental species 
+# 2, exploring the factors affecting hybrids' transgressive segregation (hybrids exceed phenotypiic range of parentals, or exceed phenotypic variation of prentals)
