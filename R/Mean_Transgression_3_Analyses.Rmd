@@ -153,7 +153,6 @@ plot
 
 ggsave(plot = plot, file = "../Analysis/mean.TS.frequency.svg", height = 5, width = 5)
 
-
 ```
 
 # Seeking factor influences the frequency of TS
@@ -165,12 +164,18 @@ Does TS biased toward father species? -> <i>patmatmother</i> will negative
 
 ```{r mixed model}
 
-prior<-list(B=list(mu = rep(0, 10),  V=gelman.prior(~ 
-    divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal, data=TS, scale=sqrt(pi^2/3+1))),
-             R=list(V=1,fix=1),
-            G = list(G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-                        G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-                        G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)))
+### Setting prior to logistic regression ###
+prior <- list(
+  B=list(mu = rep(0, 10), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors  
+         V=gelman.prior(~ divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal, data=TS, # formula and data
+                        scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  R=list(V=1,fix=1),
+  # Replicating same G for the number of random effects (here, 3)
+  G = list(
+    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000))
+  )
 
 phylmix <-MCMCglmm(
   fixed = TS ~ 
@@ -183,25 +188,32 @@ phylmix <-MCMCglmm(
   data = TS
 )
 
+print("uncorrected summary")
 summary(phylmix)
 
+# Correcting estimate 
 c2 <- (16 * sqrt(3)/(15 * pi))^2
-phylmix$Sol/sqrt(1+c2)
 
-
-sum <- summary(phylmix)$solutions %>%
+sum <- left_join(
+  # corrected estimates & SD
+  summary(phylmix$Sol/sqrt(1+c2))$statistics %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "factors") %>%
+    mutate_at("factors", as.factor),
+  # P
+  summary(phylmix)$solutions %>%
   as.data.frame() %>%
   rownames_to_column(var = "factors") %>%
   mutate_at("factors", as.factor)
+)
 
-
-metaplot <- ggplot(sum, aes(y = post.mean, x = factors)) +
+metaplot <- ggplot(sum, aes(y = Mean, x = factors)) +
   geom_hline(
     yintercept = 0, size = 1, 
     colour = "white" #, linetype = "dotted"         
     ) +
   geom_errorbar(
-    aes(ymin = sum[, 'l-95% CI'], ymax = sum[, 'u-95% CI']), 
+    aes(ymin = Mean - SD, ymax = Mean + SD), 
     colour="black", width=.0001
     ) +
   geom_point(size=1.5, colour="black")+
@@ -223,44 +235,9 @@ print(metaplot)
 # logistic regression #
 #######################
 
-prior2<-list(B=list(mu=c(0,0), V=gelman.prior(~x, data=dat, scale=sqrt(pi^2/3+1))),
-             R=list(V=1,fix=1))
-
-m2<-MCMCglmm(y~x, prior=prior2, data=dat, family="categorical", verbose=FALSE)
-
-c2 <- (16 * sqrt(3)/(15 * pi))^2
-p2<-plogis(m2$Sol[,1]/sqrt(1+c2)) # marginal probability when x=1
-
-plot(mcmc.list(p1,p2))
-
-# plot.phenodiv <- ggplot(
-#   od %>%
-#   within(levels(TS) <- c("No", "TS")),
-#   aes(x = Mn.spL/Mn.spS, y = TS)
-#   ) +
-#   geom_point() +
-#   xlab("Phenotypic divergence between parentals (Larger/Smaller)") +
-#   ylab("") +
-#   mytheme
-
-# plot.genediv <- ggplot(
-#   od %>%
-#   within(levels(TS) <- c("No", "TS")),
-#   aes(x = divergence.COI, y = TS)
-#   ) +
-#   geom_point() +
-#   xlab("Genetic divergence between parentals (mtDNA COI)") +
-#   ylab("") +
-#   mytheme
+# p2<-plogis(m2$Sol[,1]/sqrt(1+c2)) # marginal probability when x=1
 # 
-# 
-# print(plot.phenodiv)
-# print(plot.genediv)
-# ggsave(
-#     plot = plot.phenodiv, 
-#     file = "../Analysis/TS.phenodiv.svg", 
-#     height = 3, width = 4.5
-#     )
+# plot(mcmc.list(p1,p2))
 
 ```
 
