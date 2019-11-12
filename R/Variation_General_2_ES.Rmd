@@ -153,8 +153,19 @@ CV.dif <- bind_rows(
   arrange(ES.ID) %>%
   left_join(., dat) 
 
+plot(x = CV.dif$yi, y = CV.dif$vi)
+
+print("show outliers")
+CV.dif %>%
+  filter(vi > 10) %>%
+  select("ES.ID", "File", "Cross.ID", yi, vi, "trait", contains("Mn"), contains("SD"))
+
+print("remove observatons included the outliers")
+CV.dif.2 <- CV.dif %>%
+  filter(!ES.ID %in% c("ES169", "ES276", "ES343"))
+
 write.csv(
-  CV.dif, "../data/variation.ES.general.csv", row.names = F
+  CV.dif.2, "../data/variation.ES.general.csv", row.names = F
   )
 
 ```
