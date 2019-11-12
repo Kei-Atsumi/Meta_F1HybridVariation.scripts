@@ -69,6 +69,7 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 ```
 
+
 # Meta-analysis for each hybrids and parental
 
 ```{r meta-analysis for each}
@@ -138,6 +139,91 @@ for (i in c("lnRR")) {
   )
 
 }
+
+
+```
+
+
+# Assessing dominance
+Compare midparent and hybrids by comparing phenotypic difference from spS to midparent (spL+spS/2) and to hybrids.    
+phenotypic difference from spS to midparent: *ln((spL+spS/2)/SS)*   
+phenotypic difference from spS to hybrids: *ln(hyb/SS)*  
+As the variance of *ln((spL+spS/2)/SS)*, we use the variance of *ln(LL/SS)* for simplicity
+
+```{r comparing mean across all crosses}
+
+# Calculate midparent 
+midparent <- mean.dif %>%
+  # Divide mean by 2 in spL whereas hybrids are constant
+  mutate(
+    lnRR.midparent.es = 
+      ifelse(
+        cross == "spL",
+        log(((Mn.spL + Mn.spS)/2)/Mn.spS), lnRR.es
+        )
+    # Divide variance by 4 in spL whereas hybrids are constant
+    ) %>%
+  mutate_at("cross", as.factor) %>%
+  within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
+
+
+################################################
+# phylogenetic random regresson (ANOVA)
+################################################
+# Regress by lnRR of phenotypic difference between parentals 
+midparent.random <- rma.mv(
+  yi = lnRR.midparent.es, 
+  V = lnRR.sv, 
+  data = midparent, method = "REML",
+  random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+  R = list(spL.name = phylo_cor),
+  mods = ~ relevel(cross, ref = "midparent")
+  )
+  
+summary(midparent.random)
+
+print("percent larger in hybrids compared to midparent")
+(exp(summary(midparent.random)$beta))*100 - 100
+
+```
+
+Dominance for the greater phenotype was shown. Both hybrids (LS & SL) were greater than midparent in 1.5 or 1.2 percent
+
+
+
+# comparing mean across all crosses
+Comparing the differences between parentals and hybrids
+
+```{r comparing mean across all crosses}
+
+for (i in c("lnRR")) {
+  
+  ################################################
+  # phylogenetic random regresson (ANOVA)
+  ################################################
+    # Regress by lnRR of phenotypic difference between parentals 
+    phyl.random.spL <- rma.mv(
+      yi = mean.dif[, paste(i, "es", sep = ".")], 
+      V = mean.dif[, paste(i, "sv", sep = ".")], 
+      data = mean.dif, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ relevel(cross, ref = "spL")
+      )
+    
+    phyl.random.hybLS <- rma.mv(
+      yi = mean.dif[, paste(i, "es", sep = ".")], 
+      V = mean.dif[, paste(i, "sv", sep = ".")], 
+      data = mean.dif, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ cross
+      )
+
+  }
+  
+summary(phyl.random.spL)
+summary(phyl.random.hybLS)
 
 
 ```
@@ -243,3 +329,4 @@ for (i in c("lnRR", "SMD")) {
 }
 
 ```
+
