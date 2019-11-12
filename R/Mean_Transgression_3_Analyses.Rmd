@@ -166,7 +166,7 @@ Does TS biased toward father species? -> <i>patmatmother</i> will negative
 ```{r mixed model}
 
 prior<-list(B=list(mu = rep(0, 10),  V=gelman.prior(~ 
-    divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal, data=dat, scale=sqrt(pi^2/3+1))),
+    divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal, data=TS, scale=sqrt(pi^2/3+1))),
              R=list(V=1,fix=1),
             G = list(G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
                         G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
@@ -175,11 +175,11 @@ prior<-list(B=list(mu = rep(0, 10),  V=gelman.prior(~
 phylmix <-MCMCglmm(
   fixed = TS ~ 
     divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal,
-  random = ~ Study.ID + Cross.ID + spL.name + ES.ID,
+  random = ~ Study.ID + Cross.ID + spL.name,
   family = "categorical",
   verbose = FALSE,
   ginverse = list(spL.name = phylo_MCMC), 
-  prior = prior
+  prior = prior,
   data = TS
 )
 
