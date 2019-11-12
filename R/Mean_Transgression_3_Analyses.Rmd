@@ -185,8 +185,11 @@ phylmix <-MCMCglmm(
 
 summary(phylmix)
 
+# transformation for b 
 c2 <- (16 * sqrt(3)/(15 * pi))^2
-phylmix$Sol/sqrt(1+c2)
+sumamry(phylmix$Sol/sqrt(1+c2))
+# transformation for varaince
+sumamry(phylmix$VCV/(1+c2))
 
 
 sum <- summary(phylmix)$solutions %>%
