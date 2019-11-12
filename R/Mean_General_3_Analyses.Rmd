@@ -94,6 +94,8 @@ for (i in c("lnRR")) {
       R = list(spL.name = phylo_cor)
       )
     
+    funnel(phyl.random)
+    
     assign(
       paste("res", h, sep = "."), 
       cbind(
@@ -150,7 +152,7 @@ phenotypic difference from spS to midparent: *ln((spL+spS/2)/SS)*
 phenotypic difference from spS to hybrids: *ln(hyb/SS)*  
 As the variance of *ln((spL+spS/2)/SS)*, we use the variance of *ln(LL/SS)* for simplicity
 
-```{r comparing mean across all crosses}
+```{r assessing dominance}
 
 # Calculate midparent 
 midparent <- mean.dif %>%
@@ -182,12 +184,22 @@ midparent.random <- rma.mv(
   
 summary(midparent.random)
 
-print("percent larger in hybrids compared to midparent")
-(exp(summary(midparent.random)$beta))*100 - 100
+print(paste("hybLS is larger than midparent in",
+    round(
+      (exp(midparent.random$beta[1]+midparent.random$beta[2]) -
+         exp(midparent.random$beta[1])
+       )*100,
+      2),
+    "percent"))
+print(paste("hybSL is larger than midparent in",
+    round(
+      (exp(midparent.random$beta[1]+midparent.random$beta[3]) -
+         exp(midparent.random$beta[1])
+       )*100,
+      2),
+    "percent"))
 
 ```
-
-Dominance for the greater phenotype was shown. Both hybrids (LS & SL) were greater than midparent in 1.5 or 1.2 percent
 
 
 
@@ -229,7 +241,7 @@ summary(phyl.random.hybLS)
 ```
 
 
-# Assesing maternal inheritance and dominance
+# Assesing maternal inheritance
 Comparing the differences between parentals and hybrids
 
 ```{r maternal vs paternal}
