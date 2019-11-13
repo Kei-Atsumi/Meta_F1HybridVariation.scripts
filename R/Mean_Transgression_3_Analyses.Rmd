@@ -166,8 +166,10 @@ Does TS biased toward father species? -> <i>patmatmother</i> will negative
 
 ### Setting prior to logistic regression ###
 prior <- list(
-  B=list(mu = rep(0, 10), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors  
-         V=gelman.prior(~ divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal, data=TS, # formula and data
+  B=list(mu = rep(0, 16), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors  
+         V=gelman.prior(~ direction + divergence.COI + sq.divergence.COI + pheno.div.ratio + parental + trait.type + distribution + reciprocal +
+    direction*divergence.COI + direction*sq.divergence.COI +     direction*pheno.div.ratio + direction*parental + direction*trait.type + direction*distribution + direction*reciprocal, 
+    data=TS, # formula and data
                         scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
   R=list(V=1,fix=1),
   # Replicating same G for the number of random effects (here, 3)
@@ -177,9 +179,11 @@ prior <- list(
     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000))
   )
 
+### Phylogenetic binomial regression ###
 phylmix <-MCMCglmm(
   fixed = TS ~ 
-    divergence.COI + sq.divergence.COI + trait.type + pheno.div.diff + hetero.sex + distribution + parental + direction + reciprocal,
+    direction + divergence.COI + sq.divergence.COI + pheno.div.ratio + parental + trait.type + distribution + reciprocal +
+    direction*divergence.COI + direction*sq.divergence.COI +     direction*pheno.div.ratio + direction*parental + direction*trait.type + direction*distribution + direction*reciprocal,
   random = ~ Study.ID + Cross.ID + spL.name,
   family = "categorical",
   verbose = FALSE,
@@ -188,20 +192,14 @@ phylmix <-MCMCglmm(
   data = TS
 )
 
-print("uncorrected summary")
-summary(phylmix)
 
-<<<<<<< HEAD
-# Correcting estimate 
+### Correcting estimate ###
 c2 <- (16 * sqrt(3)/(15 * pi))^2
-=======
-# transformation for b 
-c2 <- (16 * sqrt(3)/(15 * pi))^2
-sumamry(phylmix$Sol/sqrt(1+c2))
+
+# transformation for estimate
+# summary(phylmix$Sol/sqrt(1+c2))
 # transformation for varaince
-sumamry(phylmix$VCV/(1+c2))
-
->>>>>>> 685398d7b6a5eb8f88c1852d8787061d47e424f7
+summary(phylmix$VCV/(1+c2))
 
 sum <- left_join(
   # corrected estimates & SD
