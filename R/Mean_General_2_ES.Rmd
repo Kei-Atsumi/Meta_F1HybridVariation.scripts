@@ -24,7 +24,7 @@ library(phytools)
 library(rotl)
 library(MCMCglmm)
 library(svglite)
-opts_chunk$set(prompt=TRUE, message=FALSE, comment="") 
+opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
 # check multicolinearity (calculate VIF)
 # https://github.com/pedroj/RCode_Master_UPO/blob/master/Statistical%20protocol_Zuur%20etal/sm001/HighstatLib.r
@@ -174,6 +174,50 @@ plot
 # ggsave(plot = plot, file = "../Analysis/phenodat.additive.svg", height = 5, width = 3.5)
 
 ```
+
+
+# Funnel plots
+
+```{r funnel plot}
+
+res <- rma(
+  yi = lnRR.es, vi = lnRR.sv, 
+  data = mean.dif, method="FE"
+  )
+
+### set up 2x2 array for plotting
+par(mfrow=c(2,2))
+ 
+### draw funnel plots
+funnel(res, main="Standard Error", xlim = c(-2, 4))
+funnel(res, yaxis="vi", main="Sampling Variance", xlim = c(-2, 4))
+funnel(res, yaxis="seinv", main="Inverse Standard Error", xlim = c(-2, 4))
+funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-2, 4))
+
+```
+# Check data
+Checked data of extremely high/low standard error and confirmed that those data were correctly imported. 
+
+```{r check}
+
+outliers <- mean.dif %>%
+  # vi (sampling variance) 
+  mutate(SE = sqrt(lnRR.sv)) %>%
+  arrange(desc(SE)) %>%
+  filter(SE > 1.2 | 1/SE > 140) %>%
+  select(ES.ID, File, SE, cross, reciprocal, trait, Cross.ID) %>%
+  mutate_if(is.numeric, round, 3)
+
+print(outliers)
+
+
+write.csv(
+  mean.dif, "../data/variation.ES.general.csv", row.names = F
+  )
+
+
+```
+
 
 # Phylogeny
 
