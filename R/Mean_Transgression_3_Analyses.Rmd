@@ -210,23 +210,29 @@ sum <- left_join(
   as.data.frame() %>%
   rownames_to_column(var = "factors") %>%
   mutate_at("factors", as.factor)
-)
+  ) %>%
+  mutate(significance = ifelse(pMCMC < 0.05, "*", ""))
 
 ### Plot ###
-
-metaplot <- ggplot(sum, aes(y = Mean, x = factors)) +
+metaplot <- ggplot(sum, aes(y = post.mean, x = factors)) +
   geom_hline(
     yintercept = 0, size = 1, 
     colour = "white" #, linetype = "dotted"         
     ) +
   geom_errorbar(
-    aes(ymin = Mean - SD, ymax = Mean + SD), 
-    colour="black", width=.0001
+    aes(
+      ymin = sum[, 'l-95% CI'], ymax = sum[, 'u-95% CI'],
+      colour=significance 
+      ), 
+    width=.0001
     ) +
-  geom_point(size=1.5, colour="black")+
+  scale_colour_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+  geom_point(size = 1.5, aes(colour=significance))+
+  scale_fill_manual(values = c("black", "#D41159"), aesthetics = "colour") +
   scale_x_discrete(limits = rev(sum$factors))+ # reverse x-axis
   coord_flip() +
-  mytheme
+  mytheme +
+  theme(legend.position = "none")
 
 ggsave(
     plot = metaplot, 
@@ -240,9 +246,8 @@ print(metaplot)
 
 print(
   sum %>% 
-    select(factors, Mean, SD, pMCMC) %>%
-    mutate_at(c("Mean", "SD"), round, 2) %>%
-    mutate(significance = ifelse(pMCMC < 0.05, "*", ""))
+    select(factors, Mean, SD, pMCMC, significance) %>%
+    mutate_at(c("Mean", "SD"), round, 2)
   )
 
 # transformation for estimate
