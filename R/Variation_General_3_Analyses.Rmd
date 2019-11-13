@@ -181,8 +181,7 @@ midparent <- mean.dif %>%
 ################################################
 # Regress by lnRR of phenotypic difference between parentals 
 midparent.random <- rma.mv(
-  yi = lnRR.midparent.es, 
-  V = lnRR.sv, 
+  yi = yi, V = vi, 
   data = midparent, method = "REML",
   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
   R = list(spL.name = phylo_cor),
