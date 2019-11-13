@@ -191,8 +191,17 @@ phylmix <-MCMCglmm(
 print("uncorrected summary")
 summary(phylmix)
 
+<<<<<<< HEAD
 # Correcting estimate 
 c2 <- (16 * sqrt(3)/(15 * pi))^2
+=======
+# transformation for b 
+c2 <- (16 * sqrt(3)/(15 * pi))^2
+sumamry(phylmix$Sol/sqrt(1+c2))
+# transformation for varaince
+sumamry(phylmix$VCV/(1+c2))
+
+>>>>>>> 685398d7b6a5eb8f88c1852d8787061d47e424f7
 
 sum <- left_join(
   # corrected estimates & SD
