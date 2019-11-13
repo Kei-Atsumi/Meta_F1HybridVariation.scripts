@@ -200,9 +200,40 @@ print(paste("hybSL is larger than midparent in",
 
 ```
 
+Both reciprocal hybrids had smaller variance than midparent-of-variance
+
+# comparing mean across all crosses
+Comparing the differences between parentals and hybrids
+
+```{r comparing mean across all crosses}
 
 
+################################################
+# phylogenetic random regresson (ANOVA)
+################################################
+# Regress by lnRR of phenotypic difference between parentals 
+phyl.random.spL <- rma.mv(
+  yi = yi, V = vi, 
+  data = mean.dif, method = "REML",
+  random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+  R = list(spL.name = phylo_cor),
+  mods = ~ relevel(cross, ref = "spL")
+  )
 
+phyl.random.hybLS <- rma.mv(
+  yi = yi, V = vi, 
+  data = mean.dif, method = "REML",
+  random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+  R = list(spL.name = phylo_cor),
+  mods = ~ cross
+  )
+
+
+summary(phyl.random.spL)
+summary(phyl.random.hybLS)
+
+
+```
 
 
 
