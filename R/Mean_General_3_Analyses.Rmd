@@ -300,11 +300,11 @@ for (i in c("lnRR", "SMD")) {
     mutate_at(vars(estimate:P), as.numeric) %>%
     mutate_at(vars(factors), as.factor)
 
-  write.csv(
-    reg, 
-    paste("../Analysis/mean.general.result", i, "csv", sep = "."),
-    quote = F, row.names = F
-    )
+  # write.csv(
+  #   reg, 
+  #   paste("../Analysis/mean.general.result", i, "csv", sep = "."),
+  #   quote = F, row.names = F
+  #   )
   
   plot <- ggplot(reg, aes(y = estimate, x = factors)) +
     geom_rect(

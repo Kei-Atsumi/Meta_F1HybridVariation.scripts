@@ -156,16 +156,24 @@ As the variance of *((spL+spS/2)/SS)*, we use the variance of *(LL/SS)* for simp
 # Calculate midparent 
 midparent <- mean.dif %>%
   # Divide mean by 2 in spL whereas hybrids are constant
-  mutate(
-    lnRR.midparent.es = 
-      ifelse(
-        cross == "spL",
-        log(((Mn.spL + Mn.spS)/2)/Mn.spS), lnRR.es
-        )
-    # Divide variance by 4 in spL whereas hybrids are constant
-    ) %>%
-  mutate_at("cross", as.factor) %>%
-  within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
+   mutate(
+     CV.spL = SD.spL/Mn.spL,
+     CV.spS = SD.spS/Mn.spS
+     ) %>%
+   mutate(
+     lnCVR.midparent.es =
+       ifelse(
+         cross == "spL",
+         # log(CVe/CVc)
+         log((CV.spL + CV.spS)/2) - log(CV.spS) +  
+           # 1/2(Ne-1) - 1/2(Nc-1)
+           1/(N.spL + N.spS -2) - 1/(2*N.spS - 2), 
+         yi
+         )
+     # Divide variance by 4 in spL whereas hybrids are constant
+     ) %>%
+   mutate_at("cross", as.factor) %>%
+   within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
 
 
 ################################################
