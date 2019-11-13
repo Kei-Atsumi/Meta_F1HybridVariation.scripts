@@ -172,11 +172,13 @@ prior <- list(
     data=TS, # formula and data
                         scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
   R=list(V=1,fix=1),
-  # Replicating same G for the number of random effects (here, 3)
+  # Replicating same G for the number of random effects (here, 4)
   G = list(
     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000))
+    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+    )
   )
 
 ### Phylogenetic binomial regression ###
@@ -184,7 +186,8 @@ phylmix <-MCMCglmm(
   fixed = TS ~ 
     direction + divergence.COI + sq.divergence.COI + pheno.div.ratio + parental + trait.type + distribution + reciprocal +
     direction*divergence.COI + direction*sq.divergence.COI +     direction*pheno.div.ratio + direction*parental + direction*trait.type + direction*distribution + direction*reciprocal,
-  random = ~ Study.ID + Cross.ID + spL.name,
+  # idh(SE):units | weight by SE of effect size
+  random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
   family = "categorical",
   verbose = FALSE,
   ginverse = list(spL.name = phylo_MCMC), 
@@ -195,11 +198,6 @@ phylmix <-MCMCglmm(
 
 ### Correcting estimate ###
 c2 <- (16 * sqrt(3)/(15 * pi))^2
-
-# transformation for estimate
-# summary(phylmix$Sol/sqrt(1+c2))
-# transformation for varaince
-summary(phylmix$VCV/(1+c2))
 
 sum <- left_join(
   # corrected estimates & SD
@@ -213,6 +211,8 @@ sum <- left_join(
   rownames_to_column(var = "factors") %>%
   mutate_at("factors", as.factor)
 )
+
+### Plot ###
 
 metaplot <- ggplot(sum, aes(y = Mean, x = factors)) +
   geom_hline(
@@ -235,6 +235,20 @@ ggsave(
     )
 
 print(metaplot)
+
+### Output result ###
+
+print(
+  sum %>% 
+    select(factors, Mean, SD, pMCMC) %>%
+    mutate_at(c("Mean", "SD"), round, 2) %>%
+    mutate(significance = ifelse(pMCMC < 0.05, "*", ""))
+  )
+
+# transformation for estimate
+# summary(phylmix$Sol/sqrt(1+c2))
+# transformation for varaince
+summary(phylmix$VCV/(1+c2))
 
 # note for running binary GLMM with MCMCglmm
 

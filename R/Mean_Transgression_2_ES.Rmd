@@ -108,8 +108,15 @@ for (i in c("spL")) { # identify type of hybrids
           rename(SMD.es = yi, SMD.sv = vi)
         ) %>%
         select(ES.ID, contains("lnRR"), contains("SMD")) %>%
-        # direction of transgressve segregation - greater than parent
-        mutate(direction = "+")
+        mutate(
+          # direction of transgressve segregation - greater than parent
+          direction = "+",
+          # SE for logistic distribution, for the weighted binomial regression
+          # SE = pi/sqrt(3*(n_e + n_c))
+          SE = pi/sqrt(3*(
+            dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
+          ))
+        )
     )
   }
 }
@@ -161,10 +168,16 @@ for (i in c("hybLS", "hybSL")) { # identify type of hybrids
           ) %>%
           rename(SMD.es = yi, SMD.sv = vi)
         ) %>%
-        
         select(ES.ID, contains("lnRR"), contains("SMD")) %>%
-        # direction of transgressve segregation - smaller than parent
-        mutate(direction = "-")
+        mutate(
+          # direction of transgressve segregation - smaller than parent
+          direction = "-",
+          # SE for logistic distribution, for the weighted binomial regression
+          # SE = pi/sqrt(3*(n_e + n_c))
+          SE = pi/sqrt(3*(
+            dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
+          ))
+        )
     )
   }
 }
