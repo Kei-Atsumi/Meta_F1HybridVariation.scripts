@@ -139,7 +139,7 @@ for (i in c("spL")) { # identify type of hybrids
           data = dat
           ) %>%
         select(ES.ID, yi, vi) %>%
-        # indicate direction of overdominance - toward spL or spS
+        # direction of transgressve segregation - greater than parent
         mutate(direction = "+")
     )
   }
@@ -170,7 +170,7 @@ for (i in c("hybLS", "hybSL")) { # identify type of hybrids
           data = dat
           ) %>%
         select(ES.ID, yi, vi) %>%
-        # indicate direction of overdominance - toward spL or spS
+        # direction of transgressve segregation - smaller than parent
         mutate(direction = "-")
     )
   }
