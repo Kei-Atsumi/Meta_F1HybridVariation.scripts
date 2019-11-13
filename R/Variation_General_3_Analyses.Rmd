@@ -95,6 +95,9 @@ for (h in c("spL", "hybLS", "hybSL")) {
     R = list(spL.name = phylo_cor)
     )
   
+  # Funnel plot
+  funnel(phyl.random)
+
   assign(
     paste("res", h, sep = "."), 
     cbind(
@@ -140,6 +143,67 @@ ggsave(
 )
 
 ```
+
+
+# Assessing dominance in variance
+Compare midparent and hybrids by comparing difference in CV from spS to midparent (spL+spS/2) and to hybrids.    
+phenotypic difference from spS to midparent: *((spL+spS/2)/SS)*   
+phenotypic difference from spS to hybrids: *(hyb/SS)*  
+As the variance of *((spL+spS/2)/SS)*, we use the variance of *(LL/SS)* for simplicity
+
+```{r assessing dominance}
+
+# Calculate midparent 
+midparent <- mean.dif %>%
+  # Divide mean by 2 in spL whereas hybrids are constant
+  mutate(
+    lnRR.midparent.es = 
+      ifelse(
+        cross == "spL",
+        log(((Mn.spL + Mn.spS)/2)/Mn.spS), lnRR.es
+        )
+    # Divide variance by 4 in spL whereas hybrids are constant
+    ) %>%
+  mutate_at("cross", as.factor) %>%
+  within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
+
+
+################################################
+# phylogenetic random regresson (ANOVA)
+################################################
+# Regress by lnRR of phenotypic difference between parentals 
+midparent.random <- rma.mv(
+  yi = lnRR.midparent.es, 
+  V = lnRR.sv, 
+  data = midparent, method = "REML",
+  random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+  R = list(spL.name = phylo_cor),
+  mods = ~ relevel(cross, ref = "midparent")
+  )
+  
+summary(midparent.random)
+
+print(paste("hybLS is larger than midparent in",
+    round(
+      (exp(midparent.random$beta[1]+midparent.random$beta[2]) -
+         exp(midparent.random$beta[1])
+       )*100,
+      2),
+    "percent"))
+print(paste("hybSL is larger than midparent in",
+    round(
+      (exp(midparent.random$beta[1]+midparent.random$beta[3]) -
+         exp(midparent.random$beta[1])
+       )*100,
+      2),
+    "percent"))
+
+```
+
+
+
+
+
 
 
 # Meta-analysis & regression for lnCVR in hybrids crosses
