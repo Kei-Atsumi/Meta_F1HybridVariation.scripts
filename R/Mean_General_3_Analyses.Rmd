@@ -10,22 +10,27 @@ output:
     toc_float: yes
 ---
 
+# Setup 
+
+## Loading packages
 ```{r setup, include=FALSE}
 
 rm(list=ls())  # reset workspace
 sessionInfo()  # show R version etc
 options(scipen=100)  # do not show numbers using exponential
 
-# install & load packages
-# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
-library(tidyverse)  # dataset modification
-library(metafor)    # meta-analysis!
-library(knitr)
-library(ape)        # Phylogeny
-library(phytools)   # Phylogeny
-library(svglite)    # Export SVG plots
-library(reshape2)   # bar-plot
-library(ggsci)      # bar-plot
+# load packages
+pacman::p_load(
+  tidyverse,
+  metafor,
+  knitr,
+  ape,
+  phytools,
+  svglite,    # Export SVG plots
+  ggbeeswarm, # bee-swarm plots
+  plotly     # interactive plots using ggplot2
+)
+  
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
 
 mytheme <- 
@@ -41,12 +46,29 @@ mytheme <-
 
 ```
 
+
 ## *Phylogenetic data*    
 
 ```{r load data}
 
 # Load effect sizes
-mean.dif <- read.csv("../data/mean.ES.general.csv", head = TRUE)
+mean.dif <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
+  # indicate dataset including TS
+  mutate(data.type = "withTS")
+
+# Observations with TS
+TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
+  filter(lnRR.es < 0) %>%
+  distinct(ES.ID)
+# Effect sizes without observations with TS
+noTS <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
+  filter(!ES.ID %in% unique(TS$ES.ID)) %>%
+  # indicate dataset without TS
+  mutate(data.type = "withoutTS")
+
+# combine dataset with/without TS
+with.without.TS <- bind_rows(mean.dif, noTS) %>%
+  mutate(metaunit =  str_c(data.type, cross, sep = "_"))
 
 # Select ESs that can compare maternal and paternal inheritance
 hybrids <- mean.dif %>%
@@ -75,73 +97,112 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 ```{r meta-analysis for each}
 
 for (i in c("lnRR")) {
-  for (h in c("spL", "hybLS", "hybSL")) {
-    
-    # Make data for each cross
-    split.data <- mean.dif %>%
-      # use observations which both crosses are availabe to compare the heterogeneity of both crosses
-      filter(reciprocal == "Viable") %>%
-      filter(cross == h)
-    
-    print(paste(i, "in", h))
-    
-    # Phylogenetic random meta-analysis
-    phyl.random <- rma.mv(
-      yi = split.data[, paste(i, "es", sep = ".")], 
-      V = split.data[, paste(i, "sv", sep = ".")], 
-      data = split.data, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      R = list(spL.name = phylo_cor)
-      )
-    
-    funnel(phyl.random)
-    
-    assign(
-      paste("res", h, sep = "."), 
-      cbind(
-        phyl.random$beta,   # regression: estimate
-        phyl.random$ci.lb,  # regression: 95ci 
-        phyl.random$ci.ub,  # regression: 95ci
-        phyl.random$pval   # P
-        ) %>%
-        as.data.frame() %>%
-        rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4) %>%
-      mutate(cross = h)
-      )
-
-    # Calculate I^2 for heterogeneity
-    # http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate
-    W <- diag(1/split.data[, paste(i, "sv", sep = ".")])
-    X <- model.matrix(phyl.random)
-    P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
-    I2 <- 100 * sum(phyl.random$sigma2) / (sum(phyl.random$sigma2) + (phyl.random$k-phyl.random$p)/sum(diag(P)))
-    print(paste("I^2 =", I2))
-    
+  for (j in c("withTS", "withoutTS")) {
+    for (h in c("spL", "hybLS", "hybSL")) {
+      
+      # Make data for each cross
+      split.data <- with.without.TS %>%
+        # use observations which both crosses are availabe to compare the heterogeneity of both crosses
+        filter(
+          reciprocal == "Viable",
+          cross == h,
+          data.type == j
+          )
+      
+      print(paste(j, i, "in", h))
+      
+      # Phylogenetic random meta-analysis
+      phyl.random <- rma.mv(
+        yi = split.data[, paste(i, "es", sep = ".")], 
+        V = split.data[, paste(i, "sv", sep = ".")], 
+        data = split.data, method = "REML",
+        random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+        R = list(spL.name = phylo_cor)
+        )
+      
+      funnel(phyl.random)
+      
+      # creating summary table of results
+      assign(
+        paste("res", j, h, sep = "."), 
+        cbind(
+          phyl.random$beta,   # regression: estimate
+          phyl.random$ci.lb,  # regression: 95ci 
+          phyl.random$ci.ub,  # regression: 95ci
+          phyl.random$pval,   # P
+          length(split.data$ES.ID) # N
+          ) %>%
+          as.data.frame() %>%
+          rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, N = V5) %>%
+        mutate(
+          # indicate cross name (spL, hybLS, hybSL)
+          cross = h,
+          # indicate dataset without TS
+          data.type = j
+          ) %>%
+        mutate(metaunit =  str_c(data.type, cross, sep = "_"))
+        )
+      
+      # Calculate I^2 for heterogeneity
+      # http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate
+      W <- diag(1/split.data[, paste(i, "sv", sep = ".")])
+      X <- model.matrix(phyl.random)
+      P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+      I2 <- 100 * sum(phyl.random$sigma2) / (sum(phyl.random$sigma2) + (phyl.random$k-phyl.random$p)/sum(diag(P)))
+      print(paste("I^2 =", I2))
+      
+    }
   }
-  
-  res.allcrosss <- bind_rows(res.spL, res.hybLS, res.hybSL) %>%
+    
+  res.all.ma <-
+    bind_rows(
+      res.withTS.spL, res.withTS.hybLS, res.withTS.hybSL,
+      res.withoutTS.spL, res.withoutTS.hybLS, res.withoutTS.hybSL  
+      ) %>%
     as.data.frame()
-  
-  plot.metamean <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
-    geom_bar(stat = "identity", fill = "grey30") +
-    geom_errorbar(
-      aes(ymin = estimate, ymax = ci.ub), 
-      colour="black", width=.00001
-      ) +
-    scale_x_discrete(limits = rev(res.allcrosss$factors))+ # reverse x-axis
-    ylab(paste(i, "from spS")) + xlab("") +
-    mytheme
+  # %>%
+  #   within(metaunit <-ordered(metaunit, c("withTS.spL", "withTS.hybLS", "withTS.hybSL", "withoutTS.spL", "withoutTS.hybLS", "withTS.hybSL")))
+
+  # creating a forest plot
+  plot.metamean <- ggplot(
+    data = res.all.ma, 
+    aes(x = tanh(estimate), y = metaunit)
+    ) +
+    scale_x_continuous(
+      limits = c(-1, 1), 
+      breaks = seq(-1, 1, by = 0.2)
+      )+ 
+    geom_quasirandom(
+      data = with.without.TS, 
+      aes(x = tanh(lnRR.es), y = metaunit, size = 1/lnRR.sv), 
+      alpha = 0.2, groupOnX = FALSE
+      ) + 
+    geom_errorbarh(
+      aes(xmin = tanh(ci.lb), xmax = tanh(ci.ub)), 
+      height = 0, size = 0.5, alpha = 0.6
+      ) + # CI
+    geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) + # creating dots and different size (bee-swarm and bubbles)
+    geom_point(size = 3, shape = 21, fill = "black") + 
+    annotate("text", x = -0.93, y = res.all.ma$metaunit, label = paste("italic(N)==", res.all.ma$N), parse = TRUE, hjust = "left", 
+    size = 3.5) + 
+    ylab("") +
+    theme_bw() +
+    theme(
+      legend.position = c(0, 1), 
+      legend.justification = c(0, 1),
+      legend.direction = "horizontal",
+      legend.background = element_blank()
+      )
   
   print(plot.metamean)
-  
+      
+
   ggsave(
-    plot = plot.metamean + theme_classic(), 
-    file = paste("../Analysis/mean.general.metamean", i, "svg", sep = "."), 
+    plot = plot.metamean + theme_classic(),
+    file = paste("../Analysis/mean.general.metamean", i, "svg", sep = "."),
     height = 2.5, width = 2.3
   )
-
 }
-
 
 ```
 
@@ -235,8 +296,7 @@ for (i in c("lnRR")) {
   }
   
 summary(phyl.random.spL)
-summary(phyl.random.hybLS)
-
+# summary(phyl.random.hybLS)
 
 ```
 
@@ -273,7 +333,7 @@ for (i in c("lnRR", "SMD")) {
       data = hybrids, method = "REML",
       random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
       R = list(spL.name = phylo_cor),
-      mods = ~ trait.type + pheno.div.diff + cross*hetero.sex
+      mods = ~ cross*hetero.sex + divergence.COI + sq.divergence.COI + pheno.div.ratio
         # + cross*divergence.COI + cross*pheno.div.diff
       )
     
