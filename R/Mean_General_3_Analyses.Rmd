@@ -345,7 +345,7 @@ for (j in c("withTS", "withoutTS")) {
   trait.type + distribution + cross*hetero.sex
         # + cross*divergence.COI + cross*pheno.div.ratio
       )
-    
+
     # print(summary(phyl.random))
     
     ################################################
