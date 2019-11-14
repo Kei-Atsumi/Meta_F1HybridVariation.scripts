@@ -255,7 +255,7 @@ phyl.random <- rma.mv(
   data = hybrids, method = "REML",
   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
   R = list(spL.name = phylo_cor),
-  mods = ~ cross + pheno.div.ratio + cross*hetero.sex + divergence.COI + sq.divergence.COI + distribution
+  mods = ~ cross*hetero.sex + divergence.COI + sq.divergence.COI + pheno.div.ratio
   )
 
 # print(summary(phyl.random))
