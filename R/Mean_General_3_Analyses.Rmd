@@ -22,10 +22,6 @@ options(scipen=100)  # do not show numbers using exponential
 # load packages
 pacman::p_load(
   tidyverse,
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> ee1d956a2f8b1dafe5ea20811006f257c8ccf990
   metafor,    # Meta-analysis
   knitr,
   magrittr,    # Extend pipe
@@ -34,18 +30,6 @@ pacman::p_load(
   svglite,    # Export SVG plots
   ggbeeswarm, # bee-swarm plots
   plotly      # interactive plots using ggplot2
-<<<<<<< HEAD
-=======
-=======
-  metafor,
-  knitr,
-  ape,
-  phytools,
-  svglite,    # Export SVG plots
-  ggbeeswarm, # bee-swarm plots
-  plotly     # interactive plots using ggplot2
->>>>>>> 8d772e38272b594df9486cd41bd437611934cbb5
->>>>>>> ee1d956a2f8b1dafe5ea20811006f257c8ccf990
 )
   
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
