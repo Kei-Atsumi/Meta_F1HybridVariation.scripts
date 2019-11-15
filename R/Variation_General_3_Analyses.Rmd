@@ -149,11 +149,7 @@ noTS <- read.csv("../data/variation.ES.general.csv", head = TRUE) %>%
 with.without.TS <- bind_rows(mean.dif, noTS) %>%
   mutate(metaunit =  str_c(data.type, cross, sep = "_")) %>%
   # Use observations with both reciprocal crosses
-<<<<<<< HEAD
   drop_na(contains("Mn"), contains("SD"))
-=======
-  filter(reciprocal == "Viable")
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
 
 
 ### Phylogeny ###
@@ -386,15 +382,10 @@ for (j in c("withTS", "withoutTS")) {
       ) +
     ### Midparent estimate ###
     geom_vline(
-<<<<<<< HEAD
       xintercept = midparent.ma.2$estimate, colour = "grey20", 
       alpha = 0.3, size = 1
       ) +
     ### Orchard plot ###
-=======
-      xintercept = midparent.ma.2$estimate, colour = "black", alpha = 0.3
-      ) +
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
     geom_quasirandom(
       data = with.without.TS %>%
         filter(data.type == j), 
@@ -402,11 +393,8 @@ for (j in c("withTS", "withoutTS")) {
       alpha = 0.2, groupOnX = FALSE
       ) + 
     scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
-<<<<<<< HEAD
     # Delete legend for colors
     guides(fill = "none", colour = "none") +
-=======
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
     ### Confidential interval ###
     geom_errorbarh(
       aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
@@ -422,16 +410,11 @@ for (j in c("withTS", "withoutTS")) {
     geom_point(size = 3, shape = 21, fill = "black") + 
     ### N ###
     annotate(
-<<<<<<< HEAD
       "text", x = -0.93, y = c(1.15, 2.15, 3.15),
-=======
-      "text", x = -0.93, y = res.ma$cross, 
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
       label = paste("italic(N)==", res.ma$N), 
       parse = TRUE, hjust = "left", size = 3.5
       ) + 
     ylab("") +
-<<<<<<< HEAD
     theme_bw() +
     theme(
       legend.position = c(0, 1),
@@ -439,28 +422,13 @@ for (j in c("withTS", "withoutTS")) {
       legend.direction = "horizontal",
       legend.background = element_blank()
       )
-=======
-    theme_bw()
-    # theme(
-    #   legend.position = c(0, 2), 
-    #   legend.justification = c(0, 2),
-    #   legend.direction = "horizontal",
-    #   legend.background = element_blank()
-    #   )
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
 
   print(plot.metamean)
   
   ggsave(
-<<<<<<< HEAD
     plot = plot.metamean,
     file = paste("../Analysis/variation.general.metamean", j, "svg", sep = "."), 
   height = 5, width = 6
-=======
-    plot = plot.metamean + theme_classic(),
-    file = paste("../Analysis/variation.general.metamean", j, "svg", sep = "."), 
-  height = 2.5, width = 2.3
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
   )
 
 }
