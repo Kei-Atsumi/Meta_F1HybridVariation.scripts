@@ -147,9 +147,15 @@ noTS <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
 
 # combine dataset with/without TS
 with.without.TS <- bind_rows(mean.dif, noTS) %>%
+<<<<<<< HEAD
   mutate(metaunit =  str_c(data.type, cross, sep = "_"))%>%
   # Use observations with both reciprocal crosses
   drop_na(contains("Mn"), contains("SD"))
+=======
+  mutate(metaunit =  str_c(data.type, cross, sep = "_")) %>%
+  # Use observations with both reciprocal crosses
+  filter(reciprocal == "Viable")
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
 
 
 ### Phylogeny ###
@@ -213,7 +219,11 @@ for (j in c("withTS", "withoutTS")) {
     )
   
   print(j)  
+<<<<<<< HEAD
   print(summary(midparent.random))
+=======
+  summary(midparent.random)
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
 
   print(paste("hybLS is larger than midparent in",
       round(
@@ -239,7 +249,11 @@ for (j in c("withTS", "withoutTS")) {
     yi = lnRR.midparent.es, 
     V = lnRR.sv, 
     data = midparent %>%
+<<<<<<< HEAD
       filter(cross == "midparent" | data.type == j), 
+=======
+      filter(cross == "midparent"), 
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
     method = "REML",
     random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
     R = list(spL.name = phylo_cor)
@@ -359,7 +373,11 @@ for (i in c("lnRR")) {
     ) +
     scale_x_continuous(
       limits = c(-1, 1), 
+<<<<<<< HEAD
       breaks = seq(-1, 1, by = 0.25)
+=======
+      breaks = seq(-1, 1, by = 0.2)
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
       ) + 
     ### Midparent CI ###
     geom_rect(
@@ -372,16 +390,22 @@ for (i in c("lnRR")) {
       ) +
     ### Midparent estimate ###
     geom_vline(
+<<<<<<< HEAD
       xintercept = midparent.ma.2$estimate, colour = "grey20", 
       alpha = 0.3, size = 1
       ) +
     ### Orchard plot ###
+=======
+      xintercept = midparent.ma.2$estimate, colour = "black", alpha = 0.3
+      ) +
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
     geom_quasirandom(
       data = with.without.TS, 
       aes(x = tanh(lnRR.es), y = cross, size = 1/lnRR.sv, color = cross), 
       alpha = 0.2, groupOnX = FALSE
       ) + 
     scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+<<<<<<< HEAD
     # Delete legend for colors
     guides(fill = "none", colour = "none") +
     # Confidential interval : thicker line
@@ -410,14 +434,44 @@ for (i in c("lnRR")) {
       legend.direction = "horizontal",
       legend.background = element_blank()
       )
+=======
+    # Confidential interval : thicker line
+    geom_errorbarh(
+      aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
+      height = 0, size = 1.2, alpha = 0.6
+      ) + 
+    # Prediction interval : thinner line
+    geom_errorbarh(
+      aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
+      height = 0, size = 0.5, alpha = 0.6
+      ) +
+    geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) + # creating dots and different size (bee-swarm and bubbles)
+    geom_point(size = 3, shape = 21, fill = "black") + 
+    annotate("text", x = -0.93, y = res.ma$cross, label = paste("italic(N)==", res.ma$N), parse = TRUE, hjust = "left", 
+    size = 3.5) + 
+    ylab("") +
+    theme_bw()
+    # theme(
+    #   legend.position = c(0, 1), 
+    #   legend.justification = c(0, 1),
+    #   legend.direction = "horizontal",
+    #   legend.background = element_blank()
+    #   )
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
   
   print(plot.metamean)
       
 
   ggsave(
+<<<<<<< HEAD
     plot = plot.metamean,
     file = paste("../Analysis/mean.general.metamean", j, "svg", sep = "."),
     height = 5, width = 6
+=======
+    plot = plot.metamean + theme_classic(),
+    file = paste("../Analysis/mean.general.metamean", j, "svg", sep = "."),
+    height = 2.5, width = 2.3
+>>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
     )
   }
 }
