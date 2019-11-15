@@ -213,11 +213,7 @@ for (j in c("withTS", "withoutTS")) {
     )
   
   print(j)  
-<<<<<<< HEAD
   print(summary(midparent.random))
-=======
-  summary(midparent.random)
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
 
   print(paste("hybLS is larger than midparent in",
       round(
