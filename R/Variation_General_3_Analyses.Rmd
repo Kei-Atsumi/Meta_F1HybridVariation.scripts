@@ -219,12 +219,8 @@ for (j in c("withTS", "withoutTS")) {
     )
   
   print(j)    
-<<<<<<< HEAD
   print(summary(midparent.random))
-=======
-  summary(midparent.random)
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
-  
+
   print(paste("hybLS is larger than midparent in",
       round(
         (exp(midparent.random$beta[1]+midparent.random$beta[2]) -
@@ -250,11 +246,7 @@ for (j in c("withTS", "withoutTS")) {
     yi = lnCVR.midparent.es, 
     V = vi, 
     data = midparent %>%
-<<<<<<< HEAD
       filter(cross == "midparent" | data.type == j), 
-=======
-      filter(cross == "midparent"), 
->>>>>>> 740d7ec229ba6cfe2d6e5a87a1010f9c8cc44df1
     method = "REML",
     random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
     R = list(spL.name = phylo_cor)
