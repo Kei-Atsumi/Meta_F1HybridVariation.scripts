@@ -10,22 +10,28 @@ output:
     toc_float: yes
 ---
 
+# Setup 
+
+## Loading packages
 ```{r setup, include=FALSE}
 
 rm(list=ls())  # reset workspace
 sessionInfo()  # show R version etc
 options(scipen=100)  # do not show numbers using exponential
 
-# install & load packages
-# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
-library(tidyverse)  # dataset modification
-library(metafor)    # meta-analysis!
-library(knitr)
-library(ape)        # Phylogeny
-library(phytools)   # Phylogeny
-library(svglite)    # Export SVG plots
-library(reshape2)   # bar-plot
-library(ggsci)      # bar-plot
+
+# load packages
+pacman::p_load(
+  tidyverse,  
+  metafor,    # Meta-analysis
+  knitr,      # rmarkdown
+  magrittr,   # Extend pipe
+  ape,        # Phylogeny
+  phytools,   # Phylogeny
+  svglite,    # Export SVG plots
+  ggbeeswarm, # bee-swarm plots
+  plotly      # interactive plots using ggplot2
+)
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
 
@@ -42,16 +48,111 @@ mytheme <-
 
 ```
 
-## *Phylogenetic data*    
 
+## Custom functions
+
+```{r custom functions}
+
+# General modeling functions Functions for I2
+
+#' Title Function to obtain total and separate I2 from multilevel-meta-analytic model
+#'
+#' @param model 
+#' @param method 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+I2 <- function(model, method = c("Wolfgang", "Shinichi")) {
+    
+    ## evaluate choices
+    method <- match.arg(method)
+    
+    # Wolfgang's method
+    if (method == "Wolfgang") {
+        W <- solve(model$V)
+        X <- model.matrix(model)
+        P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
+        I2_total <- sum(model$sigma2)/(sum(model$sigma2) + (model$k - model$p)/sum(diag(P)))
+        I2_each <- model$sigma2/(sum(model$sigma2) + (model$k - model$p)/sum(diag(P)))
+        names(I2_each) = paste0("I2_", model$s.names)
+        
+        # putting all together
+        I2s <- c(I2_total = I2_total, I2_each)
+        
+        # or my way
+    } else {
+        # sigma2_v = typical sampling error variance
+        sigma2_v <- sum(1/model$vi) * (model$k - 1)/(sum(1/model$vi)^2 - sum((1/model$vi)^2))
+        I2_total <- sum(model$sigma2)/(sum(model$sigma2) + sigma2_v)  #s^2_t = total variance
+        I2_each <- model$sigma2/(sum(model$sigma2) + sigma2_v)
+        names(I2_each) = paste0("I2_", model$s.names)
+        
+        # putting all together
+        I2s <- c(I2_total = I2_total, I2_each)
+    }
+    return(I2s)
+}
+
+
+#' Title: the function to get prediction intervals (crediblity intervals) from rma objects (metafor)
+#'
+#' @param model: rma.mv object 
+#' @param mod: the name of a moderator 
+get_pred <- function(model, mod = " ") {
+    name <- as.factor(str_replace(row.names(model$beta), mod, ""))
+    len <- length(name)
+    
+    if (len != 1) {
+        newdata <- matrix(NA, ncol = len, nrow = len)
+        for (i in 1:len) {
+            # getting the position of unique case from X (design matrix)
+            pos <- which(model$X[, i] == 1)[[1]]
+            newdata[, i] <- model$X[pos, ]
+        }
+        pred <- predict.rma(model, newmods = newdata)
+    } else {
+        pred <- predict.rma(model)
+    }
+    lowerPR <- pred$cr.lb
+    upperPR <- pred$cr.ub
+    
+    table <- tibble(name = name, lowerPR = lowerPR, upperPR = upperPR)
+}
+
+
+```
+
+
+## Load data   
 ```{r load data}
 
-# Load effect sizes
-mean.dif <- read.csv("../data/variation.ES.general.csv", head = TRUE)
+### Phenotypic and metadata ###
 
-# Select ESs that can compare maternal and paternal inheritance
-hybrids <- mean.dif %>%
-  filter(cross != "spL")
+# Load effect sizes
+mean.dif <- read.csv("../data/variation.ES.general.csv", head = TRUE)%>%
+  # indicate dataset including TS
+  mutate(data.type = "withTS")
+
+# Observations with TS
+TS <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
+  filter(yi < 0) %>%
+  distinct(ES.ID)
+# Effect sizes without observations with TS
+noTS <- read.csv("../data/variation.ES.general.csv", head = TRUE) %>%
+  filter(!ES.ID %in% unique(TS$ES.ID)) %>%
+  # indicate dataset without TS
+  mutate(data.type = "withoutTS")
+
+# combine dataset with/without TS
+with.without.TS <- bind_rows(mean.dif, noTS) %>%
+  mutate(metaunit =  str_c(data.type, cross, sep = "_")) %>%
+  # Use observations with both reciprocal crosses
+  drop_na(contains("Mn"), contains("SD"))
+
+
+### Phylogeny ###
 
 # compute branch lengths of tree
 phylo_branch <- read.tree(file = "../data/phylo.variation.general.tre") %>%
@@ -70,81 +171,6 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 ```
 
-# Meta-analysis for each hybrids and parental
-Calculate meta-analytic mean of lnCVR between less varied parental and the other crosses (hybrids and more varied parental)
-
-```{r meta-analysis for each}
-
-
-for (h in c("spL", "hybLS", "hybSL")) {
-  
-  # Make data for each cross
-  split.data <- mean.dif %>%
-    # use observations which both crosses are availabe to compare the heterogeneity of both crosses
-    filter(reciprocal == "Viable") %>%
-    filter(cross == h)
-  
-  print(paste(h))
-  
-  # Phylogenetic random meta-analysis
-  phyl.random <- rma.mv(
-    yi = yi, 
-    V = vi, 
-    data = split.data, method = "REML",
-    random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-    R = list(spL.name = phylo_cor)
-    )
-  
-  # Funnel plot
-  funnel(phyl.random)
-
-  assign(
-    paste("res", h, sep = "."), 
-    cbind(
-      phyl.random$beta,   # regression: estimate
-      phyl.random$ci.lb,  # regression: 95ci 
-      phyl.random$ci.ub,  # regression: 95ci
-      phyl.random$pval   # P
-      ) %>%
-      as.data.frame() %>%
-      rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4) %>%
-    mutate(cross = h)
-    )
-
-  # Calculate I^2 for heterogeneity
-  # http://www.metafor-project.org/doku.php/tips:i2_multilevel_multivariate
-  W <- diag(1/split.data$vi)
-  X <- model.matrix(phyl.random)
-  P <- W - W %*% X %*% solve(t(X) %*% W %*% X) %*% t(X) %*% W
-  I2 <- 100 * sum(phyl.random$sigma2) / (sum(phyl.random$sigma2) + (phyl.random$k-phyl.random$p)/sum(diag(P)))
-  print(paste("I^2 =", I2))
-  
-}
-  
-res.allcrosss <- bind_rows(res.spL, res.hybLS, res.hybSL) %>%
-  as.data.frame()
-
-plot.metamean <- ggplot(res.allcrosss, aes(y = estimate, x = cross)) +
-  geom_bar(stat = "identity", fill = "grey30") +
-  geom_errorbar(
-    aes(ymin = estimate, ymax = ci.ub), 
-    colour="black", width=.00001
-    ) +
-  scale_x_discrete(limits = rev(res.allcrosss$factors))+ # reverse x-axis
-  ylab("lnCVR from spS") + xlab("") +
-  mytheme
-
-print(plot.metamean)
-
-ggsave(
-  plot = plot.metamean + theme_classic(), 
-  file = "../Analysis/variation.general.metamean.svg", 
-  height = 2.5, width = 2.3
-)
-
-```
-
-
 # Assessing dominance in variance
 Compare midparent and hybrids by comparing difference in CV from spS to midparent (spL+spS/2) and to hybrids.    
 phenotypic difference from spS to midparent: *((spL+spS/2)/SS)*   
@@ -154,7 +180,7 @@ As the variance of *((spL+spS/2)/SS)*, we use the variance of *(LL/SS)* for simp
 ```{r assessing dominance}
 
 # Calculate midparent 
-midparent <- mean.dif %>%
+midparent <- with.without.TS %>%
   # Divide mean by 2 in spL whereas hybrids are constant
    mutate(
      CV.spL = SD.spL/Mn.spL,
@@ -175,44 +201,245 @@ midparent <- mean.dif %>%
    mutate_at("cross", as.factor) %>%
    within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
 
-
 ################################################
 # phylogenetic random regresson (ANOVA)
 ################################################
-# Regress by lnRR of phenotypic difference between parentals 
-midparent.random <- rma.mv(
-  yi = yi, V = vi, 
-  data = midparent, method = "REML",
-  random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-  R = list(spL.name = phylo_cor),
-  mods = ~ relevel(cross, ref = "midparent")
-  )
-  
-summary(midparent.random)
 
-print(paste("hybLS is larger than midparent in",
-    round(
-      (exp(midparent.random$beta[1]+midparent.random$beta[2]) -
-         exp(midparent.random$beta[1])
-       )*100,
-      2),
-    "percent"))
-print(paste("hybSL is larger than midparent in",
-    round(
-      (exp(midparent.random$beta[1]+midparent.random$beta[3]) -
-         exp(midparent.random$beta[1])
-       )*100,
-      2),
-    "percent"))
+for (j in c("withTS", "withoutTS")) {
+
+  # Regress by lnRR of phenotypic difference between parentals 
+  midparent.random <- rma.mv(
+    yi = yi, V = vi, 
+    data = midparent %>% 
+      filter(data.type == j), 
+    method = "REML",
+    random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    R = list(spL.name = phylo_cor),
+    mods = ~ relevel(cross, ref = "midparent")
+    )
+  
+  print(j)    
+  print(summary(midparent.random))
+  
+  print(paste("hybLS is larger than midparent in",
+      round(
+        (exp(midparent.random$beta[1]+midparent.random$beta[2]) -
+           exp(midparent.random$beta[1])
+         )*100,
+        2),
+      "percent"))
+  print(paste("hybSL is larger than midparent in",
+      round(
+        (exp(midparent.random$beta[1]+midparent.random$beta[3]) -
+           exp(midparent.random$beta[1])
+         )*100,
+        2),
+      "percent"))
+  
+  
+  #############################################
+  # Meta-analysis for midparent to plot band
+  #############################################
+  
+  # Phylogenetic random meta-analysis
+  midparent.random <- rma.mv(
+    yi = lnCVR.midparent.es, 
+    V = vi, 
+    data = midparent %>%
+      filter(cross == "midparent" | data.type == j), 
+    method = "REML",
+    random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    R = list(spL.name = phylo_cor)
+    )
+  
+  # creating summary table of results
+  pred_ma <- get_pred(midparent.random)
+  assign(
+    paste("midparent.ma", j, sep = "."), 
+    cbind(
+      midparent.random$beta,   # regression: estimate
+      midparent.random$ci.lb,  # regression: 95ci 
+      midparent.random$ci.ub,  # regression: 95ci
+      pred_ma$lowerPR,    # lower prediction range
+      pred_ma$upperPR    # lower prediction range
+      ) %>%
+      as.data.frame() %>%
+      rename(
+        estimate = V1, lowerCI = V2, upperCI = V3, lowerPR = V4, upperPR = V5
+        ) %>%
+      mutate(data.type = j)
+  )
+}
+
+### Midparent meta-analysis result for plot below ###
+midparent.ma <- bind_rows(
+  midparent.ma.withTS, midparent.ma.withoutTS
+)
 
 ```
 
 Both reciprocal hybrids had smaller variance than midparent-of-variance
 
+# Meta-analysis for each hybrids and parental
+Calculate meta-analytic mean of lnCVR between less varied parental and the other crosses (hybrids and more varied parental)
+
+```{r meta-analysis for each}
+
+for (j in c("withTS", "withoutTS")) {
+  for (h in c("spL", "hybLS", "hybSL")) {
+  
+    # Make data for each cross
+    split.data <- with.without.TS %>%
+      # use observations which both crosses are availabe to compare the heterogeneity of both crosses
+      filter(
+        cross == h,
+        data.type == j
+        )
+    
+    print(paste(h))
+    
+    # Phylogenetic random meta-analysis
+    phyl.random <- rma.mv(
+      yi = yi, 
+      V = vi, 
+      data = split.data, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      R = list(spL.name = phylo_cor)
+      )
+    
+    # Funnel plot
+    funnel(phyl.random)
+    
+    # creating summary table of results
+    pred_ma <- get_pred(phyl.random)
+    assign(
+      paste("res", h, sep = "."), 
+      cbind(
+        phyl.random$beta,   # regression: estimate
+        phyl.random$ci.lb,  # regression: 95ci 
+        phyl.random$ci.ub,  # regression: 95ci
+        phyl.random$pval,   # P
+        length(split.data$ES.ID), # N
+        pred_ma$lowerPR,    # lower prediction range
+        pred_ma$upperPR    # lower prediction range
+        ) %>%
+        as.data.frame() %>%
+        rename(
+          estimate = V1, lowerCI = V2, upperCI = V3, P = V4, 
+          N = V5, lowerPR = V6, upperPR = V7) %>%
+        mutate(
+          cross = h,    # indicate cross name (spL, hybLS, hybSL)
+          data.type = j # indicate dataset without TS
+          ) %>%
+        mutate(metaunit =  str_c(data.type, cross, sep = "_"))
+        )
+    
+    print(paste(
+      "I^2 =", 
+      I2(phyl.random)["I2_total"] %>%
+        round(3)
+        ))
+
+  }
+  
+  assign(
+    paste("res.ma", j, sep = "."),
+    res.ma <- bind_rows(
+      res.spL, res.hybLS, res.hybSL
+      ) %>%
+    as.data.frame()
+  )
+  
+  ### Midparent estimate & CI ###
+  midparent.ma.2 <- midparent.ma %>%
+    filter(data.type == j)
+  
+  # creating a forest plot
+  plot.metamean <- ggplot(
+    data = res.ma, 
+    aes(x = tanh(estimate), y = cross)
+    ) +
+    scale_x_continuous(
+      limits = c(-1, 1), 
+      breaks = seq(-1, 1, by = 0.2)
+      ) +
+    ### Midparent CI ###
+    geom_rect(
+      aes(
+        xmin = midparent.ma.2$lowerCI,
+        xmax = midparent.ma.2$upperCI,
+        ymin = -Inf, ymax = Inf
+        ),
+      fill="Grey 95", inherit.aes = FALSE
+      ) +
+    ### Midparent estimate ###
+    geom_vline(
+      xintercept = midparent.ma.2$estimate, colour = "grey20", 
+      alpha = 0.3, size = 1
+      ) +
+    ### Orchard plot ###
+    geom_quasirandom(
+      data = with.without.TS %>%
+        filter(data.type == j), 
+      aes(x = tanh(yi), y = cross, size = 1/vi, color = cross),
+      alpha = 0.2, groupOnX = FALSE
+      ) + 
+    scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+    # Delete legend for colors
+    guides(fill = "none", colour = "none") +
+    ### Confidential interval ###
+    geom_errorbarh(
+      aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
+      height = 0, size = 1.2, alpha = 0.6
+      ) + 
+    ### Prediction interval ### 
+    geom_errorbarh(
+      aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
+      height = 0, size = 0.5, alpha = 0.6
+      ) +
+    geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) + 
+    ### Estimate ###
+    geom_point(size = 3, shape = 21, fill = "black") + 
+    ### N ###
+    annotate(
+      "text", x = -0.93, y = c(1.15, 2.15, 3.15),
+      label = paste("italic(N)==", res.ma$N), 
+      parse = TRUE, hjust = "left", size = 3.5
+      ) + 
+    ylab("") +
+    theme_bw() +
+    theme(
+      legend.position = c(0, 1),
+      legend.justification = c(0, 1),
+      legend.direction = "horizontal",
+      legend.background = element_blank()
+      )
+
+  print(plot.metamean)
+  
+  ggsave(
+    plot = plot.metamean,
+    file = paste("../Analysis/variation.general.metamean", j, "svg", sep = "."), 
+  height = 5, width = 6
+  )
+
+}
+
+# res.all.ma <- bind_rows(res.ma.withTS, res.ma.withoutTS) %>%
+#   as.data.frame()
+
+```
+
+
 # comparing mean across all crosses
 Comparing the differences between parentals and hybrids
 
 ```{r comparing mean across all crosses}
+
+for (j in c("withTS", "withoutTS")) {
+
+  mean.dif <- with.without.TS %>% 
+    filter(data.type == j)
 
 
 ################################################
@@ -238,7 +465,7 @@ phyl.random.hybLS <- rma.mv(
 
 summary(phyl.random.spL)
 summary(phyl.random.hybLS)
-
+}
 
 ```
 
@@ -249,66 +476,78 @@ Which hybrids hybrid more phenotypically vary? What are the affecting factor? Co
 
 ```{r maternal vs paternal}
 
-phyl.random <- rma.mv(
-  yi = yi, 
-  V = vi, 
-  data = hybrids, method = "REML",
-  random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-  R = list(spL.name = phylo_cor),
-  mods = ~ cross*hetero.sex + divergence.COI + sq.divergence.COI + pheno.div.ratio
-  )
+for (j in c("withTS", "withoutTS")) {
 
-# print(summary(phyl.random))
-
-################################################
-# Output result
-################################################
-
-reg <- cbind(
-  phyl.random$beta,   # regression: estimate
-  phyl.random$ci.lb,  # regression: 95ci 
-  phyl.random$ci.ub,  # regression: 95ci
-  phyl.random$pval   # P
-  ) %>%
-  cbind(., row.names(.)) %>%
-  as.data.frame() %>%
-  rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
-  mutate_all(as.character) %>%
-  mutate_at(vars(estimate:P), as.numeric) %>%
-  mutate_at(vars(factors), as.factor)
-
-
-plot <- ggplot(reg, aes(y = estimate, x = factors)) +
-  geom_rect(
-    aes(ymin= -0.5, ymax= 0.5,xmin=-Inf,xmax=Inf),
-    fill="Grey 95", inherit.aes = FALSE
-    )+
-  geom_errorbar(
-    aes(ymin = ci.lb, ymax = ci.ub), 
-    colour="black", width=.0001
-    ) +
-  geom_point(size=3, colour="black")+
-  scale_shape_manual(values=c(17, 16)) +
-  scale_x_discrete(limits = rev(reg$factors))+ # reverse x-axis
-  geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
-  coord_flip() +
-  ylab("") + xlab("") +
-  mytheme
-
-print(plot)
-
-ggsave(
-  plot = plot, 
-  file = "../Analysis/variation.general.result.svg", 
-  height = 4.5, width = 4
-  )
-
-print(
-  reg %>%
+      hybrids <- with.without.TS %>%
+        filter(
+          cross != "spL",
+          data.type == j
+          )
+  
+  
+  phyl.random <- rma.mv(
+    yi = yi, 
+    V = vi, 
+    data = hybrids, method = "REML",
+    random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    R = list(spL.name = phylo_cor),
+    mods = ~ cross*hetero.sex + divergence.COI + sq.divergence.COI + pheno.div.ratio
+    )
+  
+  # print(summary(phyl.random))
+  
+  ################################################
+  # Output result
+  ################################################
+  
+  reg <- cbind(
+    phyl.random$beta,   # regression: estimate
+    phyl.random$ci.lb,  # regression: 95ci 
+    phyl.random$ci.ub,  # regression: 95ci
+    phyl.random$pval   # P
+    ) %>%
+    cbind(., row.names(.)) %>%
     as.data.frame() %>%
-    mutate_if(is.numeric, round, 3) %>%
-    column_to_rownames("factors")
-  )
+    rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
+    mutate_all(as.character) %>%
+    mutate_at(vars(estimate:P), as.numeric) %>%
+    mutate_at(vars(factors), as.factor) %>%
+    mutate(significance = ifelse(P < 0.05, "*", ""))
+  
+  
+    plot <- ggplot(reg, aes(y = estimate, x = factors)) +
+      geom_errorbar(
+        aes(ymin = ci.lb, ymax = ci.ub, colour=significance), 
+        width=.0001
+        ) +
+      scale_colour_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+      geom_point(aes(colour=significance))+
+      scale_fill_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+      scale_x_discrete(limits = rev(reg$factors))+ # reverse x-axis
+      geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+      coord_flip() +
+      ylab("") + xlab(j) +
+      mytheme +
+      theme(legend.position = "none")
+  
+  print(plot)
+  
+  print(
+    reg %>%
+      as.data.frame() %>%
+      mutate_if(is.numeric, round, 3) %>%
+      column_to_rownames("factors")
+    )
+  
+  if(j == "withTS") {
+    ggsave(
+      plot = plot, 
+      file = "../Analysis/variation.general.result.svg", 
+      height = 4.5, width = 4
+      )  
+  } 
+
+}
 
 ```
 

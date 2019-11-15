@@ -37,6 +37,8 @@ pheno <- read.xlsx(
     ) %>%
   # to numeric
   mutate_at(vars(Mn.sp1:Bottleneck.sp2M), as.numeric) %>%
+  # delete observations with negative mean trait value
+  filter(Mn.sp1 > 0, Mn.sp2 > 0) %>%   
   ### Calculate phenotypic divergence between parental species ###
   mutate(
     # Difference
@@ -44,17 +46,12 @@ pheno <- read.xlsx(
     # lnRR
     pheno.div.ratio = abs(log(Mn.sp1/Mn.sp2))
     ) %>%
-  # delete observations with negative mean trait value
-  filter(Mn.sp1 > 0, Mn.sp2 > 0) %>%   
-  # calculate phenotypic difference between parental species
   mutate_at(vars(contains("pheno.div")), scale) %>%
   # describe whether full cross or not
   mutate(
     reciprocal = ifelse(
-      is.na(Mn.hyb12), "Inviable",
-      ifelse(
-        is.na(Mn.hyb21), "Inviable", "Viable"
-        )
+      is.na(Mn.hyb12 & Mn.hyb21), 
+      "Inviable", "Viable"
       )
     )
 
