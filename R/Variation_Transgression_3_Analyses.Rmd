@@ -35,8 +35,7 @@ mytheme <-
     axis.title = element_text(size=12),
     axis.text = element_text(size=11),
     axis.line.y = element_blank(),
-    strip.text = element_text(size=12, lineheight=5.0),
-    strip.background = element_rect(fill = "lightgrey")
+    strip.text = element_text(size=12, lineheight=5.0)
   )
 
 ```
@@ -163,11 +162,11 @@ ggsave(plot = plot, file = "../Analysis/Variation.TS.frequency.svg", height = 5,
 ### Setting prior to logistic regression ###
 prior <- list(
   B=list(
-    mu = rep(0, 16), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
-    V=gelman.prior(~ direction + divergence.COI + sq.divergence.COI + pheno.div.ratio + parental + trait.type + distribution + reciprocal +
-                     direction*divergence.COI + direction*sq.divergence.COI + direction*pheno.div.ratio + direction*parental + direction*trait.type + direction*distribution + direction*reciprocal, 
-                        data = dat, # formula and data
-                        scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+    mu = rep(0, 18), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
+    V = gelman.prior(
+      ~ direction*divergence.COI + direction*sq.divergence.COI + direction*pheno.div.ratio + direction*parental + direction*trait.type + direction*distribution + direction*reciprocal + parental*hetero.sex, 
+      data = dat, # formula and data
+      scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
   R=list(V=1,fix=1),
   # Replicating same G for the number of random effects (here, 4)
   G = list(
@@ -181,12 +180,11 @@ prior <- list(
 ### Phylogenetic binomial regression ###
 phylmix <-MCMCglmm(
   fixed = TS ~  
-    direction + divergence.COI + sq.divergence.COI + pheno.div.ratio +
-    parental + trait.type + distribution + reciprocal +
     direction*divergence.COI + direction*sq.divergence.COI + 
     direction*pheno.div.ratio +
     direction*parental + direction*trait.type +
-    direction*distribution + direction*reciprocal,
+    direction*distribution + direction*reciprocal +
+    parental*hetero.sex,
   family = "categorical",
   # idh(SE):units | weight by SE of effect size
   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
@@ -217,8 +215,8 @@ sum <- left_join(
 ### Plot ###
 metaplot <- ggplot(sum, aes(y = post.mean, x = factors)) +
   geom_hline(
-    yintercept = 0, size = 1, 
-    colour = "white" #, linetype = "dotted"         
+    yintercept = 0, size = 0.5, 
+    colour = "grey20", linetype = "dotted"         
     ) +
   geom_errorbar(
     aes(
@@ -227,18 +225,22 @@ metaplot <- ggplot(sum, aes(y = post.mean, x = factors)) +
       ), 
     width=.0001
     ) +
-  scale_colour_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+  scale_colour_manual(values = c("grey50", "black"), aesthetics = "colour") +
   geom_point(size = 1.5, aes(colour=significance))+
-  scale_fill_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+  scale_fill_manual(values = c("grey50", "black"), aesthetics = "colour") +
   scale_x_discrete(limits = rev(sum$factors))+ # reverse x-axis
   coord_flip() +
-  mytheme +
-  theme(legend.position = "none")
+  xlab("") + ylab("estimate with CI") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "none"
+    )
 
 ggsave(
     plot = metaplot, 
     file = "../Analysis/variation.TS.result.svg", 
-    height = 5.5, width = 4.5
+    height = 5.55, width = 4.5
     )
 
 print(metaplot)
