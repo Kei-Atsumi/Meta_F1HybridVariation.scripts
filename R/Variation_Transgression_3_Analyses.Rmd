@@ -18,10 +18,7 @@ options(scipen=100)  # do not show numbers using exponential
 
 # install & load packages
 pacman::p_load(
-<<<<<<< HEAD
   openxlsx,   # open excel
-=======
->>>>>>> 7608b28a2b9882ce01e9d34fa88b52788b9e7bb5
   tidyverse,  
   MCMCglmm,   # glmm
   knitr,      # rmarkdown
@@ -217,25 +214,15 @@ sum <- left_join(
   ### Grouping factors ###
   mutate(
     group = ifelse(str_detect(factors, "direction.:"), 
-<<<<<<< HEAD
                    "increasing variation",
                    ifelse(str_detect(factors, "parentalMother:"),
                           "exceed mother species",
-=======
-                   "increasing trait value",
-                   ifelse(str_detect(factors, "parentalMother:"),
-                          "polar overdominance",
->>>>>>> 7608b28a2b9882ce01e9d34fa88b52788b9e7bb5
                           "transgressive segregation"
                           )
                    )
   ) %>%
   mutate_at("group", as.factor) %>%
-<<<<<<< HEAD
   within(group <- ordered(group, c("transgressive segregation", "increasing variation", "exceed mother species"))) %>%
-=======
-  within(group <- ordered(group, c("transgressive segregation", "increasing trait value", "polar overdominance"))) %>%
->>>>>>> 7608b28a2b9882ce01e9d34fa88b52788b9e7bb5
   ### Change factor names ###
   within(
     factors <- str_remove_all(
