@@ -43,8 +43,8 @@ pheno <- read.xlsx(
   filter(Mn.sp1 > 0 & Mn.sp2 > 0) %>%   
   # calculate phenotypic difference between parental species
   mutate(
-    pheno.div.diff = abs(Mn.sp11 - Mn.sp22),
-    pheno.div.ratio = abs(log(Mn.sp11/Mn.sp22))
+    pheno.div.diff = abs(Mn.sp1 - Mn.sp2),
+    pheno.div.ratio = abs(log(Mn.sp1/Mn.sp2))
     ) %>%
   mutate_at(vars(contains("pheno.div")), scale) %>%
   # describe whether full cross or not
