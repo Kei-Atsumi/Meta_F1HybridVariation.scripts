@@ -35,17 +35,6 @@ pacman::p_load(
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
 
-mytheme <- 
-  theme(
-    panel.grid = element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.title = element_text(size=20),
-    axis.text = element_text(size=17, color = "black"),
-    axis.line.y = element_blank(),
-    strip.text = element_text(size=12, lineheight=5.0),
-    strip.background = element_rect(fill = "white")
-  )
-
 ```
 
 
@@ -405,10 +394,17 @@ for (j in c("withTS", "withoutTS")) {
       "text", x = -0.93, y = c(1.15, 2.15, 3.15),
       label = paste("italic(N)==", res.ma$N), 
       parse = TRUE, hjust = "left", size = 3.5
-      ) + 
+    ) + 
     ylab("") +
+    xlab(expression(
+      paste("hyperbolic tangent of lnCVR from ", italic("spSS")), 
+      parse = TRUE
+      )) +
     theme_bw() +
     theme(
+      axis.text.y = element_text(size = 13, color = "black", face = "italic"),
+      axis.text.x = element_text(size = 11, color = "grey20"),
+      axis.title = element_text(size = 13, color = "black"),
       legend.position = c(0, 1),
       legend.justification = c(0, 1),
       legend.direction = "horizontal",
