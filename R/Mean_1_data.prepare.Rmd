@@ -19,11 +19,12 @@ sessionInfo()  # show R version etc
 options(scipen=100)  # do not show numbers using exponential
 
 # install & load packages
-# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
-library(tidyverse)  # dataset modification
-library(openxlsx)  # read Excel file
-library(knitr)
-library(schoolmath)
+pacman::p_load(
+  tidyverse,
+  openxlsx,    # read Excel file
+  knitr,       # rmarkdown
+  schoolmath
+)
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", echo = FALSE, warning = FALSE) 
 
 ```
@@ -42,8 +43,8 @@ pheno <- read.xlsx(
   filter(Mn.sp1 > 0 & Mn.sp2 > 0) %>%   
   # calculate phenotypic difference between parental species
   mutate(
-    pheno.div.diff = abs(Mn.sp1 - Mn.sp2),
-    pheno.div.ratio = abs(log(Mn.sp1/Mn.sp2))
+    pheno.div.diff = abs(Mn.sp11 - Mn.sp22),
+    pheno.div.ratio = abs(log(Mn.sp11/Mn.sp22))
     ) %>%
   mutate_at(vars(contains("pheno.div")), scale) %>%
   # describe whether full cross or not
