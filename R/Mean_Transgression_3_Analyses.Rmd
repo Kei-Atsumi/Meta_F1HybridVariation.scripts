@@ -168,9 +168,9 @@ Does TS biased toward father species? -> <i>patmatmother</i> will negative
 ### Setting prior to logistic regression ###
 prior <- list(
   B=list(
-    mu = rep(0, 18), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
+    mu = rep(0, 19), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
     V = gelman.prior(
-      ~ parental*hetero.sex + parental*direction + direction*divergence.COI + direction*sq.divergence.COI + direction*pheno.div.ratio + direction*trait.type + direction*distribution + direction*reciprocal, 
+      ~ parental*hetero.sex + parental*direction + direction*divergence.COI + direction*sq.divergence.COI + direction*pheno.div.ratio + direction*hetero.sex + direction*trait.type + direction*distribution + direction*reciprocal, 
       data = TS, # formula and data
       scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
   R=list(V=1,fix=1),
@@ -187,7 +187,7 @@ phylmix <-MCMCglmm(
   fixed = TS ~ 
     parental*hetero.sex + parental*direction +
     direction*divergence.COI + direction*sq.divergence.COI + 
-    direction*pheno.div.ratio + direction*trait.type +
+    direction*pheno.div.ratio + direction*hetero.sex + direction*trait.type +
     direction*distribution + direction*reciprocal,
   # idh(SE):units | weight by SE of effect size
   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
@@ -220,7 +220,10 @@ sum <- left_join(
                    "increasing trait value",
                    ifelse(str_detect(factors, "parentalMother:"),
                           "polar overdominance",
-                          "transgressive segregation"
+                          ifelse(factors == "hetero.sexmale:direction+",
+                                 "increasing trait value",
+                                 "transgressive segregation"
+                                 )
                           )
                    )
   ) %>%
@@ -231,7 +234,8 @@ sum <- left_join(
     factors <- str_remove_all(
       factors, "direction.:"
       ) %>%
-      str_remove_all(., "parentalMother:")
+      str_remove_all(., "parentalMother:") %>%
+      str_remove_all(., ":direction.")
     ) %>%
   within(
     factors <- factor(
@@ -282,7 +286,7 @@ print(metaplot)
 ggsave(
     plot = metaplot, 
     file = "../Analysis/mean.TS.result.svg", 
-    height = 6.5, width = 4.5
+    height = 6.75, width = 4.5
     )
 
 ### Output result ###
