@@ -456,8 +456,16 @@ for (j in c("withTS", "withoutTS")) {
       )
     
     print(j)
-    print(summary(phyl.random.spL))
     print(summary(phyl.random.hybLS))
+    print(paste("hybSL is larger than hybLS in",
+    round(
+      (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
+         exp(phyl.random.hybLS$beta[1])
+       )*100,
+      2),
+    "percent"))
+    print(summary(phyl.random.spL))
+    
 
   }
 }
@@ -530,9 +538,17 @@ for (j in c("withTS", "withoutTS")) {
       geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
       coord_flip() +
       ylab(i) + xlab(j) +
-      mytheme +
-      theme(legend.position = "none")
-    
+        # Themes
+      theme_bw() +
+      theme(
+        panel.grid = element_blank(),
+        legend.position = "none",
+        panel.border=element_blank(),
+        axis.text.x = element_text(size = 11),
+        axis.text.y = element_text(size = 12),
+        axis.line=element_line(colour = "grey70")
+        )
+
     print(plot)
     
     print(
