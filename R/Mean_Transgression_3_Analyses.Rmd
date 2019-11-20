@@ -29,17 +29,6 @@ pacman::p_load(
 )
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
-mytheme <- 
-  theme(
-    panel.grid = element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.title = element_text(size=12),
-    axis.text = element_text(size=11),
-    axis.line.y = element_blank(),
-    strip.text = element_text(size=12, lineheight=5.0),
-    strip.background = element_rect(fill = "lightgrey")
-  )
-
 ```
 
 # Exploring frequency of transgressive segregation and it affecting factors
@@ -83,9 +72,6 @@ TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
 phylo_branch <- read.tree(file = "../data/phylo.mean.TS.tre") %>%
   compute.brlen(bin.tree, method = "Grafen", power = 1)
 
-# check tree is ultrametric
-is.ultrametric(phylo_branch) # TRUE
-
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
 
@@ -99,13 +85,15 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 # Frequency of TS
 How frequent the TS is?  
 
-```{r freq of od}
+```{r freq of TS}
 
-print("overall frequency of TS")
-TS %>%
-  group_by(TS) %>%
-  summarise(length(unique(ES.ID)))
+# TS.ES <- TS %>% filter(TS == "1") %>% 
+#   distinct(ES.ID)
+# noTS <- TS %>%
+#   filter(!ES.ID %in% TS.ES$ES.ID) %>%
+#   distinct(ES.ID, .keep_all = TRUE)
 
+### N of TS in each taxa and each direction ###
 summary <- bind_rows(
   # All observations
   TS %>%
@@ -115,9 +103,9 @@ summary <- bind_rows(
       observations = length(unique(ES.ID)),
       study = length(unique(Study.ID))
       ) %>%
-    mutate(inherit.pattern = "all")
+    mutate(direction = "All Observations")
   ,
-  # TS observations
+  # TS for any direction
   TS %>%
     filter(TS == "1") %>%
     group_by(taxa) %>%
@@ -126,33 +114,77 @@ summary <- bind_rows(
       observations = length(unique(ES.ID)),
       study = length(unique(Study.ID))
       ) %>%
-    mutate(inherit.pattern = "Transgressive segregation")
+    mutate(direction = "Any directions")
+  ,
+  # TS for each direction
+  TS %>%
+    filter(TS == "1") %>%
+    group_by(taxa, direction) %>%
+    summarise(
+      species.pair = length(unique(species.pair)),
+      observations = length(unique(ES.ID)),
+      study = length(unique(Study.ID))
+      )
   ) %>%
   # Assign 0 for no observation of TS
-  replace(., is.na(.), "0")
-  
-  
-# Order by taxon
-
-sum.forplot <- summary %>% 
-  gather(key = metrics, value = N, -c(taxa, inherit.pattern)) %>%
+  replace(., is.na(.), "0") %>% 
+  # Make tidy data
+  gather(key = metrics, value = N, -c(taxa, direction)) %>%
+  # Order factors
+  mutate_at(vars("metrics", "direction"), as.factor) %>%
+  # Order taxon
   within(
     metrics <- ordered(
       metrics,
       levels = c("study", "species.pair", "observations")
       )
-    )
-  
+  ) %>%
+  # Order TS category
+  within(
+    direction <- ordered(
+      direction,
+      levels = c("All Observations", "Any directions", "+", "-")
+      )
+    ) %>%
+  # Change names of TS category to more intuitive name
+  within(
+    levels(direction) <- c("All Observations", "All deviations", "Greater trait value", "Smaller trait value")
+      ) %>%
+  filter(metrics != "study")
 
-plot <- ggplot(sum.forplot, aes(x = "", y = N, fill = taxa)) +
+### Plot ###
+plot <- ggplot(summary, aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
   scale_fill_brewer() +
-  facet_grid(scale = "free", metrics ~ inherit.pattern) +
+  facet_grid(
+    scale = "free", metrics ~ direction,
+    # strip text into two lines
+    labeller = label_wrap_gen(width = 13)
+    ) +
   xlab("") +
-  mytheme
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(), 
+  )
 plot
 
-ggsave(plot = plot, file = "../Analysis/mean.TS.frequency.svg", height = 5, width = 5)
+ggsave(plot = plot, file = "../Analysis/mean.TS.frequency.svg", height = 4, width = 6)
+
+### Total number of observations and percentage ###
+summary %>%
+  group_by(direction, metrics) %>%
+  # Count number of observaitons and species pairs
+  summarise(sum(N)) %>%
+  spread(key = metrics, value = "sum(N)") %>%
+  as.data.frame() %>%
+  # Calculate percentage
+  mutate(
+    percent.species.pair = species.pair/.[1, "species.pair"]*100,
+    percent.observations = observations/.[1, "observations"]*100
+  ) %>%
+  mutate_at(vars(contains("percent")), round, 2)
+
 
 ```
 

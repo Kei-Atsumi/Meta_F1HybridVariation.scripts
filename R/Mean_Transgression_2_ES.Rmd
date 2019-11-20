@@ -16,14 +16,14 @@ rm(list=ls())  # reset workspace
 options(scipen=100)  # do not show numbers using exponential
 
 # install & load packages
-# install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
-library(tidyverse)  # dataset modification
-library(metafor)    # meta-analysis!
-library(knitr)
-library(phytools)
-library(rotl)
-library(MCMCglmm)
-library(svglite)
+pacman::p_load(
+  tidyverse,
+  metafor,
+  knitr,
+  phytools,
+  rotl,
+  svglite
+)
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
 # check multicolinearity (calculate VIF)
