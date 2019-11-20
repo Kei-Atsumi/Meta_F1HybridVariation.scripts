@@ -1588,7 +1588,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">General pattern of phenotypic variation</h1>
 <h4 class="author">Keisuke Atsumi</h4>
-<h4 class="date">19/11/16 19:49</h4>
+<h4 class="date">19/11/21 10:22</h4>
 
 </div>
 
@@ -1748,7 +1748,7 @@ As the variance of <em>((spL+spS/2)/SS)</em>, we use the variance of <em>(LL/SS)
 + 
 +   # Regress by lnRR of phenotypic difference between parentals 
 +   midparent.random &lt;- rma.mv(
-+     yi = yi, V = vi, 
++     yi = lnCVR.midparent.es, V = vi, 
 +     data = midparent %&gt;% 
 +       filter(data.type == j), 
 +     method = &quot;REML&quot;,
@@ -1814,73 +1814,73 @@ As the variance of <em>((spL+spS/2)/SS)</em>, we use the variance of <em>(LL/SS)
 Multivariate Meta-Analysis Model (k = 354; method: REML)
 
    logLik   Deviance        AIC        BIC       AICc 
--469.1426   938.2851   950.2851   973.4498   950.5293   
+-404.4826   808.9651   820.9651   844.1299   821.2093   
 
 Variance Components:
 
             estim    sqrt  nlvls  fixed    factor    R 
-sigma^2.1  0.5451  0.7383     27     no  spL.name  yes 
-sigma^2.2  0.0019  0.0431     20     no  Study.ID   no 
-sigma^2.3  0.0057  0.0755     27     no  Cross.ID   no 
+sigma^2.1  0.4905  0.7004     27     no  spL.name  yes 
+sigma^2.2  0.0028  0.0528     20     no  Study.ID   no 
+sigma^2.3  0.0032  0.0563     27     no  Cross.ID   no 
 
 Test for Residual Heterogeneity:
-QE(df = 351) = 1370.5235, p-val &lt; .0001
+QE(df = 351) = 1207.2261, p-val &lt; .0001
 
 Test of Moderators (coefficients 2:3):
-QM(df = 2) = 77.3753, p-val &lt; .0001
+QM(df = 2) = 9.2878, p-val = 0.0096
 
 Model Results:
 
                                         estimate      se     zval    pval 
-intrcpt                                   0.5239  0.4058   1.2912  0.1966 
-relevel(cross, ref = &quot;midparent&quot;)hybLS   -0.2356  0.0339  -6.9486  &lt;.0001 
-relevel(cross, ref = &quot;midparent&quot;)hybSL   -0.2746  0.0339  -8.1100  &lt;.0001 
+intrcpt                                   0.3477  0.3850   0.9032  0.3664 
+relevel(cross, ref = &quot;midparent&quot;)hybLS   -0.0646  0.0339  -1.9046  0.0568 
+relevel(cross, ref = &quot;midparent&quot;)hybSL   -0.1018  0.0339  -3.0076  0.0026 
                                           ci.lb    ci.ub 
-intrcpt                                 -0.2714   1.3193      
-relevel(cross, ref = &quot;midparent&quot;)hybLS  -0.3020  -0.1691  *** 
-relevel(cross, ref = &quot;midparent&quot;)hybSL  -0.3410  -0.2083  *** 
+intrcpt                                 -0.4069   1.1023     
+relevel(cross, ref = &quot;midparent&quot;)hybLS  -0.1310   0.0019   . 
+relevel(cross, ref = &quot;midparent&quot;)hybSL  -0.1682  -0.0355  ** 
 
 ---
 Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 
-[1] &quot;hybLS is larger than midparent in -35.44 percent&quot;
-[1] &quot;hybSL is larger than midparent in -40.55 percent&quot;
+[1] &quot;hybLS is larger than midparent in -8.85 percent&quot;
+[1] &quot;hybSL is larger than midparent in -13.71 percent&quot;
 [1] &quot;withoutTS&quot;
 
 Multivariate Meta-Analysis Model (k = 93; method: REML)
 
   logLik  Deviance       AIC       BIC      AICc 
--46.6112   93.2224  105.2224  120.2213  106.2345   
+-34.4131   68.8262   80.8262   95.8251   81.8382   
 
 Variance Components:
 
             estim    sqrt  nlvls  fixed    factor    R 
-sigma^2.1  2.2235  1.4911     16     no  spL.name  yes 
-sigma^2.2  0.0298  0.1725     11     no  Study.ID   no 
-sigma^2.3  0.0104  0.1018     14     no  Cross.ID   no 
+sigma^2.1  1.5938  1.2625     16     no  spL.name  yes 
+sigma^2.2  0.0469  0.2165     11     no  Study.ID   no 
+sigma^2.3  0.0019  0.0440     14     no  Cross.ID   no 
 
 Test for Residual Heterogeneity:
-QE(df = 90) = 295.6557, p-val &lt; .0001
+QE(df = 90) = 237.2901, p-val &lt; .0001
 
 Test of Moderators (coefficients 2:3):
-QM(df = 2) = 38.5302, p-val &lt; .0001
+QM(df = 2) = 1.6967, p-val = 0.4281
 
 Model Results:
 
                                         estimate      se     zval    pval 
-intrcpt                                   0.9967  0.8297   1.2013  0.2296 
-relevel(cross, ref = &quot;midparent&quot;)hybLS   -0.3624  0.0657  -5.5191  &lt;.0001 
-relevel(cross, ref = &quot;midparent&quot;)hybSL   -0.3366  0.0649  -5.1860  &lt;.0001 
-                                          ci.lb    ci.ub 
-intrcpt                                 -0.6295   2.6229      
-relevel(cross, ref = &quot;midparent&quot;)hybLS  -0.4911  -0.2337  *** 
-relevel(cross, ref = &quot;midparent&quot;)hybSL  -0.4638  -0.2094  *** 
+intrcpt                                   0.7050  0.7046   1.0006  0.3170 
+relevel(cross, ref = &quot;midparent&quot;)hybLS   -0.0826  0.0657  -1.2585  0.2082 
+relevel(cross, ref = &quot;midparent&quot;)hybSL   -0.0591  0.0649  -0.9109  0.3624 
+                                          ci.lb   ci.ub 
+intrcpt                                 -0.6760  2.0860    
+relevel(cross, ref = &quot;midparent&quot;)hybLS  -0.2113  0.0461    
+relevel(cross, ref = &quot;midparent&quot;)hybSL  -0.1863  0.0681    
 
 ---
 Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 
-[1] &quot;hybLS is larger than midparent in -82.37 percent&quot;
-[1] &quot;hybSL is larger than midparent in -77.43 percent&quot;</code></pre>
+[1] &quot;hybLS is larger than midparent in -16.05 percent&quot;
+[1] &quot;hybSL is larger than midparent in -11.62 percent&quot;</code></pre>
 <pre class="r"><code>&gt; ### Midparent meta-analysis result for plot below ###
 &gt; midparent.ma &lt;- bind_rows(
 +   midparent.ma.withTS, midparent.ma.withoutTS

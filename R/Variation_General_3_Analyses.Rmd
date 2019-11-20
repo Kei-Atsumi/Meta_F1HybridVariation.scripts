@@ -198,7 +198,7 @@ for (j in c("withTS", "withoutTS")) {
 
   # Regress by lnRR of phenotypic difference between parentals 
   midparent.random <- rma.mv(
-    yi = yi, V = vi, 
+    yi = lnCVR.midparent.es, V = vi, 
     data = midparent %>% 
       filter(data.type == j), 
     method = "REML",
