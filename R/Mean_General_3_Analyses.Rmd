@@ -475,7 +475,8 @@ for (j in c("withTS", "withoutTS")) {
 
 
 # Assesing maternal inheritance
-Comparing the differences between parentals and hybrids
+Comparing the differences between parentals and hybrids  
+Indicates that maternal inheritance become stronger in male-heterogametic species, but, dataset is heavily biased toward male-heterogametic species so this effect is still uncertain
 
 ```{r maternal vs paternal}
 
@@ -489,6 +490,15 @@ for (j in c("withTS", "withoutTS")) {
         cross != "spL",
         data.type == j
         )
+    
+    print("metadata for species pair")
+    print(
+      hybrids %>%
+        distinct(species.pair, .keep_all = TRUE) %>%
+        select(hetero.sex, distribution) %>%
+        drop_na() %>%
+        count(hetero.sex, distribution)
+    )
 
     ################################################
     # phylogenetic random regresson (ANOVA)
@@ -562,4 +572,97 @@ for (j in c("withTS", "withoutTS")) {
 }
 
 ```
+
+
+# Assesing maternal inheritance part 2
+Comparing the differences between parentals and hybrids
+
+```{r maternal vs paternal categorical}
+
+# Select ESs that can compare maternal and paternal inheritance
+
+for (j in c("withTS", "withoutTS")) {
+  for (i in c("lnRR")) {
+
+    hybrids <- with.without.TS %>%
+      filter(
+        cross != "spL",
+        data.type == j
+        ) %>%
+      mutate(cross.sex = str_c(hetero.sex, cross, sep = "_"))
+    
+    ################################################
+    # phylogenetic random regresson (ANOVA)
+    ################################################
+    phyl.random <- rma.mv(
+      yi = hybrids[, paste(i, "es", sep = ".")], 
+      V = hybrids[, paste(i, "sv", sep = ".")], 
+      data = hybrids, method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ divergence.COI + sq.divergence.COI + pheno.div.ratio + cross.sex -1
+        # + cross*divergence.COI + cross*pheno.div.ratio
+      )
+    
+    print(summary (phyl.random))
+
+    ################################################
+    # Output result
+    ################################################
+
+    reg <- cbind(
+      phyl.random$beta,   # regression: estimate
+      phyl.random$ci.lb,  # regression: 95ci
+      phyl.random$ci.ub,  # regression: 95ci
+      phyl.random$pval   # P
+      ) %>%
+      cbind(
+        ., row.names(.)
+      ) %>%
+      as.data.frame() %>%
+      rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
+      mutate_all(as.character) %>%
+      mutate_at(vars(estimate:P), as.numeric) %>%
+      mutate_at(vars(factors), as.factor) %>%
+      mutate(significance = ifelse(P < 0.05, "*", ""))
+
+    plot <- ggplot(reg, aes(y = estimate, x = factors)) +
+      geom_errorbar(
+        aes(ymin = ci.lb, ymax = ci.ub, colour=significance),
+        width=.0001
+        ) +
+      scale_colour_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+      geom_point(aes(colour=significance))+
+      scale_fill_manual(values = c("black", "#D41159"), aesthetics = "colour") +
+      scale_x_discrete(limits = rev(reg$factors))+ # reverse x-axis
+      geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+      coord_flip() +
+      ylab(i) + xlab(j) +
+        # Themes
+      theme_bw() +
+      theme(
+        panel.grid = element_blank(),
+        legend.position = "none",
+        panel.border=element_blank(),
+        axis.text.x = element_text(size = 11),
+        axis.text.y = element_text(size = 12),
+        axis.line=element_line(colour = "grey70")
+        )
+
+    print(plot)
+
+    print(
+      reg %>%
+        as.data.frame() %>%
+        mutate_if(is.numeric, round, 3) %>%
+        column_to_rownames("factors")
+      )
+
+  }
+}
+
+```
+
+
+
 
