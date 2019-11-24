@@ -32,6 +32,9 @@ pacman::p_load(
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
+### Correcting estimate of binomial regression###
+c2 <- (16 * sqrt(3)/(15 * pi))^2
+
 ```
 
 # transgressive segregation
@@ -193,51 +196,52 @@ summary %>%
 
 ```{r mixed model}
 
-### Setting prior to logistic regression ###
-prior <- list(
-  B=list(
-    mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
-    V = gelman.prior(~ 
-    parental*hetero.sex + parental*direction +
-    direction*divergence.COI + direction*pheno.div.ratio + 
-    direction*hetero.sex + direction*trait.type +
-    direction*distribution + direction*reciprocal,
-    data = dat, # formula and data
-    scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-  R=list(V=1,fix=1),
-  # Replicating same G for the number of random effects (here, 4)
-  G = list(
-    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-    )
-  )
-
-# ### Phylogenetic binomial regression ###
-# phylmix <-MCMCglmm(
-#   fixed = TS ~  
+# ### Setting prior to logistic regression ###
+# prior <- list(
+#   B=list(
+#     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
+#     V = gelman.prior(~ 
 #     parental*hetero.sex + parental*direction +
 #     direction*divergence.COI + direction*pheno.div.ratio + 
+#     direction*hetero.sex + direction*trait.type +
+#     direction*distribution + direction*reciprocal,
+#     data = dat, # formula and data
+#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+#   R=list(V=1,fix=1),
+#   # Replicating same G for the number of random effects (here, 4)
+#   G = list(
+#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#     )
+#   )
+# ### Phylogenetic binomial regression ###
+# phylmix <-MCMCglmm(
+#   fixed = TS ~
+#     parental*hetero.sex + parental*direction +
+#     direction*divergence.COI + direction*pheno.div.ratio +
 #     direction*hetero.sex + direction*trait.type +
 #     direction*distribution + direction*reciprocal,
 #   family = "categorical",
 #   # idh(SE):units | weight by SE of effect size
 #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
 #   verbose = FALSE,
-#   ginverse = list(spL.name = phylo_MCMC), 
+#   ginverse = list(spL.name = phylo_MCMC),
 #   prior = prior,
-#   data = dat
+#   data = dat,
+#   nitt = 60000,  # Increase the number of iterations, default is 13000
+#   burnin = 5000  # Increase the number of burnin, default is 3000
 # )
+# ### Correcting estimate ###
+# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+# ### Save model ###
+# saveRDS(phylmix, file = "../Analysis/Variation.transgression.allfactors.obj")
 
-### Correcting estimate ###
-c2 <- (16 * sqrt(3)/(15 * pi))^2
-phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-### Save model ###
-save(phylmix, file = "../Analysis/Variation.transgression.allfactors.Rdata")
+
 
 ### Load model ###
-phylmix <- load("../Analysis/Variation.transgression.allfactors.Rdata")
+phylmix <- readRDS("../Analysis/Variation.transgression.allfactors.obj")
 
 sum <- left_join(
   # corrected estimates & SD
@@ -350,49 +354,61 @@ summary(phylmix$VCV/(1+c2))
 # Direct test for the significant categorical factors
 #####################################################
 
-### Correcting estimate ###
-c2 <- (16 * sqrt(3)/(15 * pi))^2
-
 for (i in c("reciprocal", "trait.type")) {
 
   # Make new categorical data combining direction of TS and target categorical factor
   dat %<>%
     mutate(interaction = str_c(direction, .[, i], sep = "_"))
 
-  ### Setting prior to logistic regression ###
-  prior <- list(
-    B=list(
-      mu = rep(0, 4), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-      V = gelman.prior(~ interaction,
-      data = dat, # formula and data
-      scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-    R=list(V=1,fix=1),
-    # Replicating same G for the number of random effects (here, 4)
-    G = list(
-      G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-      G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-      G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-      G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-      )
+  # ### Setting prior to logistic regression ###
+  # prior <- list(
+  #   B=list(
+  #     mu = rep(0, 4), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+  #     V = gelman.prior(~ interaction,
+  #     data = dat, # formula and data
+  #     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  #   R=list(V=1,fix=1),
+  #   # Replicating same G for the number of random effects (here, 4)
+  #   G = list(
+  #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+  #     )
+  #   )
+  # ### Run model ###
+  # phylmix <-MCMCglmm(
+  #   fixed = TS ~  interaction -1, # + trait.direction
+  #   family = "categorical",
+  #   # idh(SE):units | weight by SE of effect size
+  #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+  #   verbose = FALSE,
+  #   ginverse = list(spL.name = phylo_MCMC),
+  #   prior = prior,
+  #   data = dat
+  # )
+  # # Correcting estimate
+  # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+  # ### Save model ###
+  # saveRDS(
+  #   phylmix, 
+  #   file = 
+  #     paste("../Analysis/Variation.transgression", i, "obj", sep = ".")
+  #     )
+  
+  
+  
+  ### Load model ###
+  phylmix <- readRDS(
+    paste("../Analysis/Variation.transgression", i, "obj", sep = ".")
     )
-  
-  phylmix <-MCMCglmm(
-    fixed = TS ~  interaction -1, # + trait.direction
-    family = "categorical",
-    # idh(SE):units | weight by SE of effect size
-    random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-    verbose = FALSE,
-    ginverse = list(spL.name = phylo_MCMC),
-    prior = prior,
-    data = dat
-  )
-  
+
   ##############################
   # Contrast for summary
   ##############################
   sum <- left_join(
       # corrected estimates & SD
-      summary(phylmix$Sol/sqrt(1+c2))$statistics %>%
+      summary(phylmix$Sol)$statistics %>%
         as.data.frame() %>%
         rownames_to_column(var = "factors"),
       # P
@@ -514,7 +530,7 @@ for (i in c("reciprocal", "trait.type")) {
 
 ```
 
-```{r trash include = FALSE}
+```{r trash, include = FALSE}
 
 #   ##############################
 #   # Contrast for summary
