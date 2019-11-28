@@ -21,7 +21,6 @@ pacman::p_load(
   openxlsx,   # open excel
   tidyverse,  
   MCMCglmm,   # glmm
-  MuMIn,      # model selection
   knitr,      # rmarkdown
   magrittr,   # Extend pipe
   ape,        # Phylogeny
