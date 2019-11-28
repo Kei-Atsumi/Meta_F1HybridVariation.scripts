@@ -1,1 +1,242 @@
+---
+title: "Conceptual plots"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+
+rm(list=ls())  # reset workspace
+sessionInfo()  # show R version etc
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+pacman::p_load(
+  tidyverse,  
+  openxlsx,    # read Excel file
+  knitr,      # rmarkdown
+  magrittr,   # Extend pipe
+  svglite,    # Export SVG plots
+  ggridges    # Density plot
+)
+opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
+
+```
+
+
+```{r hypothetical simulation}
+
+simudat <- bind_rows(
+  ### spSS ###
+  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spSS"),
+  ### spLL ###
+  rnorm(10000, 100, 10) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spLL"),
+  ### hybLS ###
+  rnorm(10000, 55, 7) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybLS"),
+  ### hybSL ###
+  rnorm(10000, 65, 8) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybSL")
+) %>%
+  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
+  
+ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
+
+simudat <- bind_rows(
+  ### spSS ###
+  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spSS"),
+  ### spLL ###
+  rnorm(10000, 300, 10) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spLL"),
+  ### hybLS ###
+  rnorm(10000, 150, 15) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybLS"),
+  ### hybSL ###
+  rnorm(10000, 170, 15) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybSL")
+  ) %>%
+  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
+  
+ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
+
+
+```
+
+```{r data}
+
+### Phylogeny ###
+
+
+for (i in c("mean", "variation")) {
+  
+# compute branch lengths of tree
+phylo_branch <- read.tree(
+  file = 
+    paste("../data/phylo", i, "general.tre", sep = ".")
+  ) %>%
+  compute.brlen(bin.tree, method = "Grafen", power = 1)
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+  # Load effect sizes
+  dat <- read.csv(
+    paste("../data/", i, ".ES.general.csv", sep = ""), 
+    head = TRUE) %>%
+    select(-pheno.div.ratio, -divergence.COI) %>%
+    mutate(pheno.div.ratio = log(Mn.spL/Mn.spS)) %>%
+    mutate_at("surv.Study.name", as.character) %>%
+    left_join(
+      .,
+      read.xlsx(
+        "../data/original.data.xlsx", sheet = "Metadata"
+        )
+    ) %>%
+    filter(cross != "spL")
+
+  ################################################
+  # phylogenetic random regresson (ANOVA)
+  ################################################
+  
+  if (i == "mean") {
+    # Regress lnRR by phenotypic difference between parentals 
+    phyl.random <- rma.mv(
+      yi = lnRR.es, 
+      V = lnRR.sv, 
+      data = dat, method = "REML",
+      random = list(~1 | spL.name),
+      R = list(spL.name = phylo_cor),
+      mods = ~ pheno.div.ratio + cross
+      )
+  } else {
+    # Regress lnCVR by phenotypic difference between parentals 
+    phyl.random <- rma.mv(
+      yi = yi, 
+      V = vi, 
+      data = dat, method = "REML",
+      random = list(~1 | spL.name),
+      R = list(spL.name = phylo_cor),
+      mods = ~ pheno.div.ratio + divergence.COI + cross
+      )
+  }
+  
+
+  ################################################
+  # Output result
+  ################################################
+  
+  reg <- cbind(
+    phyl.random$beta,   # regression: estimate
+    phyl.random$ci.lb,  # regression: 95ci 
+    phyl.random$ci.ub,  # regression: 95ci
+    phyl.random$pval   # P
+    ) %>%
+    cbind(
+      ., row.names(.)
+    ) %>%
+    as.data.frame() %>%
+    rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
+    mutate_all(as.character) %>%
+    mutate_at(vars(estimate:P), as.numeric)
+  
+  print(
+    reg %>%
+      as.data.frame() %>%
+      mutate_if(is.numeric, round, 3) %>%
+      column_to_rownames("factors")
+    )
+
+}
+
+  
+```
+
+
+Assuming dominance does not change by phenotypic differentiation
+
+```{r parametarized simulation}
+
+simudat <- bind_rows(
+  ### spSS ###
+  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spSS"),
+  ### spLL ###
+  rnorm(10000, 100, 10) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spLL"),
+  ### hybLS ###
+  rnorm(10000, (100+20)/2*(100-8.35)/100, 15) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybLS"),
+  ### hybSL ###
+  rnorm(10000, (100+20)/2*(100-11.56)/100, 15) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybSL")
+  ) %>%
+  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
+  
+ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
+
+
+
+simudat <- bind_rows(
+  ### spSS ###
+  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spSS"),
+  ### spLL ###
+  rnorm(10000, 300, 10) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "spLL"),
+  ### hybLS ###
+  rnorm(10000, (300+20)/2*(100-8.35)/100, 15) %>% # Here, var indicates SD   
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybLS"),
+  ### hybSL ###
+  rnorm(10000, (300+20)/2*(100-11.56)/100, 15) %>% # No difference in CV
+  as.data.frame() %>%
+  rename("simu" = ".") %>%
+  mutate(cross = "hybSL")
+  ) %>%
+  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
+  
+ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
+
+
+```
+
+
+
 

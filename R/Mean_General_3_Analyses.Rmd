@@ -480,6 +480,8 @@ Indicates that maternal inheritance become stronger in male-heterogametic specie
 
 ```{r maternal vs paternal}
 
+mean(hybrids$pheno.div.ratio)
+
 # Select ESs that can compare maternal and paternal inheritance
 
 for (j in c("withTS", "withoutTS")) {
