@@ -26,8 +26,12 @@ pacman::p_load(
   magrittr,   # Extend pipe
   ape,        # Phylogeny
   phytools,   # Phylogeny
-  svglite    # Export SVG plots
+  svglite,    # Export SVG plots
+  devtools,    # Install from Github
+  ggiraphExtra # Geom predict
 )
+
+
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
@@ -195,47 +199,47 @@ summary %>%
 
 ```{r mixed model}
 
-# ### Setting prior to logistic regression ###
-# prior <- list(
-#   B=list(
-#     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept  
-#     V = gelman.prior(~ 
-#     parental*hetero.sex + parental*direction +
-#     direction*divergence.COI + direction*pheno.div.ratio + 
-#     direction*hetero.sex + direction*trait.type +
-#     direction*distribution + direction*reciprocal,
-#     data = dat, # formula and data
-#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-#   R=list(V=1,fix=1),
-#   # Replicating same G for the number of random effects (here, 4)
-#   G = list(
-#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-#     )
-#   )
-# ### Phylogenetic binomial regression ###
-# phylmix <-MCMCglmm(
-#   fixed = TS ~
-#     parental*hetero.sex + parental*direction +
-#     direction*divergence.COI + direction*pheno.div.ratio +
-#     direction*hetero.sex + direction*trait.type +
-#     direction*distribution + direction*reciprocal,
-#   family = "categorical",
-#   # idh(SE):units | weight by SE of effect size
-#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-#   verbose = FALSE,
-#   ginverse = list(spL.name = phylo_MCMC),
-#   prior = prior,
-#   data = dat,
-#   nitt = 60000,  # Increase the number of iterations, default is 13000
-#   burnin = 5000  # Increase the number of burnin, default is 3000
-# )
-# ### Correcting estimate ###
-# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-# ### Save model ###
-# saveRDS(phylmix, file = "../Analysis/Variation.transgression.allfactors.obj")
+### Setting prior to logistic regression ###
+prior <- list(
+  B=list(
+    mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+    V = gelman.prior(~
+    parental*hetero.sex + parental*direction +
+    direction*divergence.COI + direction*pheno.div.ratio +
+    direction*hetero.sex + direction*trait.type +
+    direction*distribution + direction*reciprocal,
+    data = dat, # formula and data
+    scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  R=list(V=1,fix=1),
+  # Replicating same G for the number of random effects (here, 4)
+  G = list(
+    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+    )
+  )
+### Phylogenetic binomial regression ###
+phylmix <-MCMCglmm(
+  fixed = TS ~
+    parental*hetero.sex + parental*direction +
+    direction*divergence.COI + direction*pheno.div.ratio +
+    direction*hetero.sex + direction*trait.type +
+    direction*distribution + direction*reciprocal,
+  family = "categorical",
+  # idh(SE):units | weight by SE of effect size
+  random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+  verbose = FALSE,
+  ginverse = list(spL.name = phylo_MCMC),
+  prior = prior,
+  data = dat,
+  nitt = 60000,  # Increase the number of iterations, default is 13000
+  burnin = 5000  # Increase the number of burnin, default is 3000
+)
+### Correcting estimate ###
+phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+### Save model ###
+saveRDS(phylmix, file = "../Analysis/Variation.transgression.allfactors.obj")
 
 
 
@@ -528,6 +532,29 @@ for (i in c("reciprocal", "trait.type")) {
 
 
 ```
+
+
+```{r continuous factors plot}
+
+fit = glm(
+  TS ~ divergence.COI*direction, 
+  data = dat %>%
+    mutate_at("divergence.COI", as.vector), 
+  family = binomial
+  )
+ggPredict(fit, se=TRUE,interactive=TRUE,digits=3)
+
+fit = glm(
+  TS ~ pheno.div.ratio*direction, 
+  data = dat %>%
+    mutate_at("divergence.COI", as.vector), 
+  family = binomial
+  )
+ggPredict(fit, se=TRUE,interactive=TRUE,digits=3)
+
+
+```
+
 
 ```{r trash, include = FALSE}
 

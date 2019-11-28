@@ -248,9 +248,5 @@ for (i in c("original", "fullcross", "fullmodifiers", "full")) {
 
 }
 
-corvif(
-  fullmodifiers %>%
-    select(trait.type, reciprocal, distribution, )
-    )
 
 ```

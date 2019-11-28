@@ -495,9 +495,9 @@ for (j in c("withTS", "withoutTS")) {
     print(
       hybrids %>%
         distinct(species.pair, .keep_all = TRUE) %>%
-        select(hetero.sex, distribution) %>%
+        select(hetero.sex) %>%
         drop_na() %>%
-        count(hetero.sex, distribution)
+        count(hetero.sex)
     )
 
     ################################################
@@ -511,8 +511,7 @@ for (j in c("withTS", "withoutTS")) {
       data = hybrids, method = "REML",
       random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
       R = list(spL.name = phylo_cor),
-      mods = ~ divergence.COI + sq.divergence.COI + pheno.div.ratio +
-  trait.type + distribution + cross*hetero.sex
+      mods = ~ pheno.div.ratio + cross*hetero.sex
         # + cross*divergence.COI + cross*pheno.div.ratio
       )
 
@@ -600,7 +599,7 @@ for (j in c("withTS", "withoutTS")) {
       data = hybrids, method = "REML",
       random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
       R = list(spL.name = phylo_cor),
-      mods = ~ divergence.COI + sq.divergence.COI + pheno.div.ratio + cross.sex -1
+      mods = ~ pheno.div.ratio + cross.sex -1
         # + cross*divergence.COI + cross*pheno.div.ratio
       )
     
