@@ -179,9 +179,6 @@ with.without.TS <- bind_rows(mean.dif, noTS) %>%
 phylo_branch <- read.tree(file = "../data/phylo.variation.general.tre") %>%
   compute.brlen(bin.tree, method = "Grafen", power = 1)
 
-# check tree is ultrametric
-is.ultrametric(phylo_branch) # TRUE
-
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
 
@@ -222,33 +219,41 @@ midparent <- with.without.TS %>%
    mutate_at("cross", as.factor) %>%
    within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
 
+
 ################################################
 # phylogenetic random regresson (ANOVA)
 ################################################
 
-for (j in c("withTS", "withoutTS")) {
-  for (k in c("all", "insect")) {
+for (j in c("withTS")) {
+  for (k in c("alltaxon", "insect")) {
+    
+    if (k == "alltaxon") {
+      dat <- midparent %>% 
+        filter(data.type == j)
+    } else {
+      dat <- midparent %>% 
+        filter(data.type == j, insect == k)
+    }
 
-    # # Regress by lnRR of phenotypic difference between parentals 
-    # midparent.compare <- rma.mv(
-    #   yi = lnCVR.midparent.es, V = vi, 
-    #   data = midparent %>% 
-    #     filter(data.type == j), 
-    #   method = "REML",
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-    #   R = list(spL.name = phylo_cor),
-    #   mods = ~ relevel(cross, ref = "midparent")
-    #   )
-    # ### Save model ###
-    # saveRDS(
-    #   midparent.compare, 
-    #   file = paste("../Analysis/Variation.midparent.compare", j, "obj", sep = ".")
-    #   )
+    # Regress by lnRR of phenotypic difference between parentals
+    midparent.compare <- rma.mv(
+      yi = lnCVR.midparent.es, V = vi,
+      data = dat,
+      method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ relevel(cross, ref = "midparent")
+      )
+    ### Save model ###
+    saveRDS(
+      midparent.compare,
+      file = paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = ".")
+      )
   
     ### Load model ###
-    midparent.compare <- readRDS(paste("../Analysis/Variation.midparent.compare", j, "obj", sep = "."))
+    midparent.compare <- readRDS(paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = "."))
     
-    print(j)    
+    print(paste(j, k))    
     print(summary(midparent.compare))
   
     print(paste("hybLS is larger than midparent in",
@@ -257,45 +262,51 @@ for (j in c("withTS", "withoutTS")) {
              exp(midparent.compare$beta[1])
            )*100,
           2),
-        "percent"))
+        "percent | P =",
+        round(midparent.compare$pval[2],4)
+        ))
     print(paste("hybSL is larger than midparent in",
         round(
           (exp(midparent.compare$beta[1]+midparent.compare$beta[3]) -
              exp(midparent.compare$beta[1])
            )*100,
           2),
-        "percent"))
-    
+        "percent | P =",
+        round(midparent.compare$pval[3],4)
+        ))
     
     #############################################
     # Meta-analysis for midparent to plot band
     #############################################
     
-    # # Phylogenetic random meta-analysis
-    # midparent.random <- rma.mv(
-    #   yi = lnCVR.midparent.es, 
-    #   V = vi, 
-    #   data = midparent %>%
-    #     filter(cross == "midparent" | data.type == j), 
-    #   method = "REML",
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-    #   R = list(spL.name = phylo_cor)
-    #   )
-    # ### Save model ###
-    # saveRDS(
-    #   midparent.random, 
-    #   file = paste("../Analysis/Variation.midparent", j, "obj", sep = ".")
-    #   )
+    # Phylogenetic random meta-analysis
+    midparent.random <- rma.mv(
+      yi = lnCVR.midparent.es,
+      V = vi,
+      data = dat %>%
+        filter(cross == "midparent"),
+      method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      R = list(spL.name = phylo_cor)
+      )
+    ### Save model ###
+    saveRDS(
+      midparent.random,
+      file = paste("../Analysis/Variation.midparent", j, k, "obj", sep = ".")
+      )
   
     
     ### Load model ###
-    midparent.random <- readRDS(paste("../Analysis/Variation.midparent", j, "obj", sep = "."))
+    midparent.random <- readRDS(paste("../Analysis/Variation.midparent", j, k, "obj", sep = "."))
     # creating summary table of results
     assign(
-      paste("midparent.ma", j, sep = "."),
+      paste("midparent.ma", j, k, sep = "."),
       get_pred(midparent.random) %>%
         as.data.frame() %>%
-        mutate(data.type = j)
+        mutate(
+          data.type = j,
+          taxon = k
+          )
     )
     
   }
@@ -303,8 +314,10 @@ for (j in c("withTS", "withoutTS")) {
 
 ### Midparent meta-analysis result for plot below ###
 midparent.ma <- bind_rows(
-  midparent.ma.withTS, midparent.ma.withoutTS
+  midparent.ma.withTS.alltaxon, midparent.ma.withoutTS.alltaxon,
+  midparent.ma.withTS.insect, midparent.ma.withoutTS.insect
 )
+
 ```
 
 Both reciprocal hybrids had smaller variance than midparent-of-variance
@@ -314,145 +327,142 @@ Calculate meta-analytic mean of lnCVR between less varied parental and the other
 
 ```{r meta-analysis for each}
 
-for (j in c("withTS")) {
-  for (h in c("spL", "hybLS", "hybSL")) {
-  
-    # Make data for each cross
-    split.data <- with.without.TS %>%
-      # use observations which both crosses are availabe to compare the heterogeneity of both crosses
-      filter(
-        cross == h,
-        data.type == j
+for (j in c("withTS", "withoutTS")) {
+  for (k in c("alltaxon", "insect")) {
+    for (h in c("spL", "hybLS", "hybSL")) {
+
+      if (k == "alltaxon") {
+        dat <- with.without.TS %>% 
+          filter(cross == h, data.type == j)
+      } else {
+        dat <- with.without.TS %>% 
+          filter(cross == h, data.type == j, insect == k)
+      }
+      
+      # Phylogenetic random meta-analysis
+      phyl.random <- rma.mv(
+        yi = yi, 
+        V = vi, 
+        data = dat, method = "REML",
+        random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+        R = list(spL.name = phylo_cor),
+        control=list(maxiter=2000, stepadj=0.5, optimizer="optim", optmethod="Nelder-Mead"),
         )
+      
+      # Funnel plot
+      funnel(phyl.random, xlab = paste(j, k, h))
+      print(summary(phyl.random))
+ 
+      # creating summary table of results
+      assign(
+        paste("res", h, sep = "."), 
+        get_pred(phyl.random) %>%
+          as.data.frame() %>%
+          mutate(N = length(dat$ES.ID)) %>%
+          mutate(
+            I2 = I2(phyl.random)["I2_total"] %>%
+              round(3),
+            cross = h,    # indicate cross name (spL, hybLS, hybSL)
+            data.type = j # indicate dataset without TS
+            ) %>%
+          mutate(metaunit =  str_c(data.type, cross, sep = "_"))
+          )
+      
+    }
     
-    print(paste(h))
-    
-    # Phylogenetic random meta-analysis
-    phyl.random <- rma.mv(
-      yi = yi, 
-      V = vi, 
-      data = split.data, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      R = list(spL.name = phylo_cor),
-      control=list(maxiter=2000, stepadj=0.5),
-      )
-    
-    # Funnel plot
-    funnel(phyl.random)
-    
-    # creating summary table of results
     assign(
-      paste("res", h, sep = "."), 
-      get_pred(phyl.random) %>%
-        as.data.frame() %>%
-        mutate(N = length(split.data$ES.ID)) %>%
-        mutate(
-          cross = h,    # indicate cross name (spL, hybLS, hybSL)
-          data.type = j # indicate dataset without TS
-          ) %>%
-        mutate(metaunit =  str_c(data.type, cross, sep = "_"))
+      paste("res.ma", j, sep = "."),
+      res.ma <- bind_rows(
+        res.spL, res.hybLS, res.hybSL
+        ) %>%
+      as.data.frame()
+    )
+    
+    ### Midparent estimate & CI ###
+    midparent.ma.2 <- midparent.ma %>%
+      filter(
+        data.type == j,
+        taxon == k
         )
     
-    print(paste(
-      "I^2 =", 
-      I2(phyl.random)["I2_total"] %>%
-        round(3)
-        ))
+    # creating a forest plot
+    plot.metamean <- ggplot(
+      data = res.ma, 
+      aes(x = tanh(estimate), y = cross)
+      ) +
+      scale_x_continuous(
+        limits = c(-1, 1), 
+        breaks = seq(-1, 1, by = 0.2)
+        ) +
+      ### Midparent CI ###
+      geom_rect(
+        aes(
+          xmin = midparent.ma.2$lowerCI,
+          xmax = midparent.ma.2$upperCI,
+          ymin = -Inf, ymax = Inf
+          ),
+        fill="Grey 95", inherit.aes = FALSE
+        ) +
+      ### Midparent estimate ###
+      geom_vline(
+        xintercept = midparent.ma.2$estimate, colour = "grey20", 
+        alpha = 0.3, size = 1
+        ) +
+      ### Orchard plot ###
+      geom_quasirandom(
+        data = with.without.TS %>%
+          filter(data.type == j), 
+        aes(x = tanh(yi), y = cross, size = 1/vi, color = cross),
+        alpha = 0.2, groupOnX = FALSE
+        ) + 
+      scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+      # Delete legend for colors
+      guides(fill = "none", colour = "none") +
+      ### Confidential interval ###
+      geom_errorbarh(
+        aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
+        height = 0, size = 1.2, alpha = 0.6
+        ) + 
+      ### Prediction interval ### 
+      geom_errorbarh(
+        aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
+        height = 0, size = 0.5, alpha = 0.6
+        ) +
+      geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) + 
+      ### Estimate ###
+      geom_point(size = 3, shape = 21, fill = "black") + 
+      ### N ###
+      annotate(
+        "text", x = -0.93, y = c(1.15, 2.15, 3.15),
+        label = paste("italic(N)==", res.ma$N, "| italic(I^2)==", res.ma$I2), 
+        parse = TRUE, hjust = "left", size = 3.5
+      ) + 
+      ylab("") +
+      xlab(expression(
+        paste("hyperbolic tangent of lnCVR from ", italic("spSS")), 
+        parse = TRUE
+        )) +
+      theme_bw() +
+      theme(
+        axis.text.y = element_text(size = 13, color = "black", face = "italic"),
+        axis.text.x = element_text(size = 11, color = "grey20"),
+        axis.title = element_text(size = 13, color = "black"),
+        legend.position = c(0, 1),
+        legend.justification = c(0, 1),
+        legend.direction = "horizontal",
+        legend.background = element_blank()
+        )
+  
+    print(plot.metamean)
+    
+    ggsave(
+      plot = plot.metamean,
+      file = paste("../Analysis/variation.general.metamean", j, k, "svg", sep = "."), 
+    height = 5, width = 6
+    )
 
   }
-  
-  assign(
-    paste("res.ma", j, sep = "."),
-    res.ma <- bind_rows(
-      res.spL, res.hybLS, res.hybSL
-      ) %>%
-    as.data.frame()
-  )
-  
-  ### Midparent estimate & CI ###
-  midparent.ma.2 <- midparent.ma %>%
-    filter(data.type == j)
-  
-  # creating a forest plot
-  plot.metamean <- ggplot(
-    data = res.ma, 
-    aes(x = tanh(estimate), y = cross)
-    ) +
-    scale_x_continuous(
-      limits = c(-1, 1), 
-      breaks = seq(-1, 1, by = 0.2)
-      ) +
-    ### Midparent CI ###
-    geom_rect(
-      aes(
-        xmin = midparent.ma.2$lowerCI,
-        xmax = midparent.ma.2$upperCI,
-        ymin = -Inf, ymax = Inf
-        ),
-      fill="Grey 95", inherit.aes = FALSE
-      ) +
-    ### Midparent estimate ###
-    geom_vline(
-      xintercept = midparent.ma.2$estimate, colour = "grey20", 
-      alpha = 0.3, size = 1
-      ) +
-    ### Orchard plot ###
-    geom_quasirandom(
-      data = with.without.TS %>%
-        filter(data.type == j), 
-      aes(x = tanh(yi), y = cross, size = 1/vi, color = cross),
-      alpha = 0.2, groupOnX = FALSE
-      ) + 
-    scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
-    # Delete legend for colors
-    guides(fill = "none", colour = "none") +
-    ### Confidential interval ###
-    geom_errorbarh(
-      aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
-      height = 0, size = 1.2, alpha = 0.6
-      ) + 
-    ### Prediction interval ### 
-    geom_errorbarh(
-      aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
-      height = 0, size = 0.5, alpha = 0.6
-      ) +
-    geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) + 
-    ### Estimate ###
-    geom_point(size = 3, shape = 21, fill = "black") + 
-    ### N ###
-    annotate(
-      "text", x = -0.93, y = c(1.15, 2.15, 3.15),
-      label = paste("italic(N)==", res.ma$N), 
-      parse = TRUE, hjust = "left", size = 3.5
-    ) + 
-    ylab("") +
-    xlab(expression(
-      paste("hyperbolic tangent of lnCVR from ", italic("spSS")), 
-      parse = TRUE
-      )) +
-    theme_bw() +
-    theme(
-      axis.text.y = element_text(size = 13, color = "black", face = "italic"),
-      axis.text.x = element_text(size = 11, color = "grey20"),
-      axis.title = element_text(size = 13, color = "black"),
-      legend.position = c(0, 1),
-      legend.justification = c(0, 1),
-      legend.direction = "horizontal",
-      legend.background = element_blank()
-      )
-
-  print(plot.metamean)
-  
-  ggsave(
-    plot = plot.metamean,
-    file = paste("../Analysis/variation.general.metamean", j, "svg", sep = "."), 
-  height = 5, width = 6
-  )
-
 }
-
-# res.all.ma <- bind_rows(res.ma.withTS, res.ma.withoutTS) %>%
-#   as.data.frame()
 
 ```
 

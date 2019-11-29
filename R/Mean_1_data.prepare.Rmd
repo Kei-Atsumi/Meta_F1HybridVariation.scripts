@@ -40,7 +40,7 @@ pheno <- read.xlsx(
   # to numeric
   mutate_at(vars(Mn.sp1:Bottleneck.sp2M), as.numeric) %>%
   # delete observation with negative mean trait value
-  filter(Mn.sp1 > 0 & Mn.sp2 > 0) %>%   
+  filter(Mn.sp1 > 0 & Mn.sp2 > 0 & homologous == "Yes") %>%   
   # calculate phenotypic difference between parental species
   mutate(
     pheno.div.diff = abs(Mn.sp1 - Mn.sp2),

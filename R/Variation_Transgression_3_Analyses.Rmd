@@ -391,8 +391,8 @@ for (i in c("reciprocal", "trait.type")) {
   # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
   # ### Save model ###
   # saveRDS(
-  #   phylmix, 
-  #   file = 
+  #   phylmix,
+  #   file =
   #     paste("../Analysis/Variation.transgression", i, "obj", sep = ".")
   #     )
   
