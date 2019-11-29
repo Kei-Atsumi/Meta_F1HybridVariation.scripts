@@ -55,7 +55,6 @@ TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
     ) %>%
   as.data.frame %>%
   select(-trait) %>%
-  drop_na(hetero.sex, pheno.div.diff, trait.type, divergence.COI) %>%
   mutate_at("taxa", as.factor) %>%
   within(levels(TS) <- c("No", "Transgressive segregation")) %>%
   within(
@@ -67,7 +66,8 @@ TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
         "Orthoptera","Coleoptera" 
         )
       )
-    )
+    ) %>%
+  drop_na(hetero.sex, pheno.div.diff, trait.type, divergence.COI)
 
 
 #### Phylogenetic tree for mcmcglmm ####
