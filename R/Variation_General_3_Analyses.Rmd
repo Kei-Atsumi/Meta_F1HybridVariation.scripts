@@ -19,10 +19,11 @@ rm(list=ls())  # reset workspace
 sessionInfo()  # show R version etc
 options(scipen=100)  # do not show numbers using exponential
 
-
 # load packages
 pacman::p_load(
-  tidyverse,  
+  tidyverse,
+  kableExtra,
+  pander,     # nice tables
   metafor,    # Meta-analysis
   knitr,      # rmarkdown
   magrittr,   # Extend pipe
@@ -34,6 +35,7 @@ pacman::p_load(
 )
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
+options(knitr.kable.NA = '') # Hide NAs in kable table
 
 ```
 
@@ -104,18 +106,22 @@ get_pred <- function(model, mod = " ") {
     } else {
         pred <- predict.rma(model)
     }
-    lowerPR <- pred$cr.lb  # lower prediction range
-    upperPR <- pred$cr.ub  # lower prediction range
-    estimate <- model$beta # regression: estimate
-    lowerCI <- model$ci.lb # regression: 95ci
-    upperCI <- model$ci.ub # regression: 95ci
-    P       <- model$pval
-    
+
     table <- tibble(
-      name = name, estimate = estimate,
-      lowerPR = lowerPR, upperPR = upperPR,
-      lowerCI = lowerCI, upperCI = upperCI,
-      P = P
+      'Dataset' = "",
+      'Fixed effects' = name, 
+      'Estimate' = model$beta, # regression: estimate
+      'LowerCI' = model$ci.lb, # regression: 95ci, 
+      'UpperCI'  = model$ci.ub, # regression: 95ci
+      'lowerPR' = pred$cr.lb,  # lower prediction range
+      'upperPR' = pred$cr.ub, # lower prediction range
+      'P'        = model$pval,
+      'V[species with phylogeny]' =
+        c(model$sigma2[1], rep("", length(model$beta)-1)),
+      'V[study]' =
+        c(model$sigma2[2], rep("", length(model$beta)-1)),
+      'V[crossed strain]' =
+        c(model$sigma2[3], rep("", length(model$beta)-1))
       )  %>%
     mutate(significance = ifelse(P < 0.05, "*", ""))
 }
@@ -278,31 +284,30 @@ for (j in c("withTS", "withoutTS")) {
     ### Load model ###
     midparent.compare <- readRDS(paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = "."))
     
-    get_reg(midparent.compare) %>%
-      mutate_if(is.numeric, round, 3) %>%
-      # Show dataset name
-      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
-      # Rename fixed effects
-      within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "spSL")) %>%
-      print()
-    print(paste("hybLS is larger than midparent in",
-        round(
-          (exp(midparent.compare$beta[1]+midparent.compare$beta[2]) -
-             exp(midparent.compare$beta[1])
-           )*100,
-          2),
-        "percent | P =",
-        round(midparent.compare$pval[2],4)
-        ))
-    print(paste("hybSL is larger than midparent in",
-        round(
-          (exp(midparent.compare$beta[1]+midparent.compare$beta[3]) -
-             exp(midparent.compare$beta[1])
-           )*100,
-          2),
-        "percent | P =",
-        round(midparent.compare$pval[3],4)
-        ))
+    assign(
+      paste("Dominance", j,k, sep = "."),
+      get_reg(midparent.compare) %>%
+        # Show dataset name
+        within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+        # Rename fixed effects
+        within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "spSL")) %>%
+        # Difference with midparent in %
+        mutate('Comparison with midparent' = c(
+          rep("", 2),
+          paste(
+            round(
+            100*(exp(midparent.compare$beta[1]+midparent.compare$beta[2])            -exp(midparent.compare$beta[1])), # hybrid LS
+            2),
+            "% larger"
+            ),
+          paste(
+            round(
+            100*(exp(midparent.compare$beta[1]+midparent.compare$beta[3])-exp(midparent.compare$beta[1])), # hybrid SL
+            2),
+            "% larger"
+            )
+          ))
+      )
     
     #############################################
     # Meta-analysis for midparent to plot band
@@ -342,6 +347,13 @@ for (j in c("withTS", "withoutTS")) {
   }
 }
 
+bind_rows(
+  Dominance.withTS.alltaxon, Dominance.withoutTS.alltaxon,
+  Dominance.withTS.insect, Dominance.withoutTS.insect
+  ) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+
+
 ### Midparent meta-analysis result for plot below ###
 midparent.ma <- bind_rows(
   midparent.ma.withTS.alltaxon, midparent.ma.withoutTS.alltaxon,
@@ -353,7 +365,9 @@ midparent.ma <- bind_rows(
 Both reciprocal hybrids had smaller variance than midparent-of-variance
 
 # Meta-analysis for each hybrids and parental
-Calculate meta-analytic mean of lnCVR between less varied parental and the other crosses (hybrids and more varied parental)
+Calculate meta-analytic mean of lnCVR between less varied parental and the other crosses (hybrids and more varied parental)  
+Confidential interval : thick line  
+Prediction interval : thin line
 
 ```{r meta-analysis for each}
 
@@ -369,43 +383,45 @@ for (j in c("withTS", "withoutTS")) {
           filter(cross == h, data.type == j, insect == k)
       }
       
-      # Phylogenetic random meta-analysis
-      phyl.random <- rma.mv(
-        yi = yi, 
-        V = vi, 
-        data = dat, method = "REML",
-        random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-        R = list(spL.name = phylo_cor),
-        control=list(maxiter=2000, stepadj=0.5, optimizer="optim", optmethod="Nelder-Mead"),
-        )
-      
+      # # Phylogenetic random meta-analysis
+      # phyl.random <- rma.mv(
+      #   yi = yi, V = vi, 
+      #   data = dat, method = "REML",
+      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      #   R = list(spL.name = phylo_cor)
+      #   )
+      # saveRDS(phyl.random,
+      #   file = paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
+
+          
+      ### Load model ###
+      phyl.random <- readRDS(paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
+
       # Funnel plot
       funnel(phyl.random, xlab = paste(j, k, h))
-      print(summary(phyl.random))
  
       # creating summary table of results
       assign(
         paste("res", h, sep = "."), 
         get_pred(phyl.random) %>%
           as.data.frame() %>%
-          mutate(N = length(dat$ES.ID)) %>%
           mutate(
-            I2 = I2(phyl.random)["I2_total"] %>%
-              round(3),
-            cross = h,    # indicate cross name (spL, hybLS, hybSL)
-            data.type = paste(j,k) # indicate dataset without TS
-            ) %>%
-          mutate(metaunit =  str_c(data.type, cross, sep = "_"))
+            N = length(dat$ES.ID),
+            I2 = I2(phyl.random)["I2_total"] %>% round(3),
+            cross = h # indicate cross (spL, hybLS, hybSL)
+            )
           )
       
     }
     
+    # Bind result of all crosses at each dataset
     assign(
       paste("res.ma", j,k, sep = "."),
       res.ma <- bind_rows(
         res.spL, res.hybLS, res.hybSL
         ) %>%
-      as.data.frame()
+        as.data.frame() %>%
+        within('Dataset' <- c(paste(j,k), "", "")) # Show dataset name in first row
     )
     
     ### Midparent estimate & CI ###
@@ -415,7 +431,7 @@ for (j in c("withTS", "withoutTS")) {
     # creating a forest plot
     plot.metamean <- ggplot(
       data = res.ma, 
-      aes(x = tanh(estimate), y = cross)
+      aes(x = tanh(Estimate), y = cross)
       ) +
       scale_x_continuous(
         limits = c(-1, 1), 
@@ -424,8 +440,8 @@ for (j in c("withTS", "withoutTS")) {
       ### Midparent CI ###
       geom_rect(
         aes(
-          xmin = midparent.ma.2$lowerCI,
-          xmax = midparent.ma.2$upperCI,
+          xmin = midparent.ma.2$LowerCI,
+          xmax = midparent.ma.2$UpperCI,
           ymin = -Inf, ymax = Inf
           ),
         fill="Grey 95", inherit.aes = FALSE
@@ -447,13 +463,13 @@ for (j in c("withTS", "withoutTS")) {
       guides(fill = "none", colour = "none") +
       ### Confidential interval ###
       geom_errorbarh(
-        aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
+        aes(xmin = tanh(LowerCI), xmax = tanh(UpperCI)), 
         height = 0, size = 1.2, alpha = 0.6
         ) + 
       ### Prediction interval ### 
       geom_errorbarh(
         aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
-        height = 0, size = 0.5, alpha = 0.6
+        height = 0.1, size = 0.5, alpha = 0.6
         ) +
       geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) + 
       ### Estimate ###
@@ -469,6 +485,7 @@ for (j in c("withTS", "withoutTS")) {
         paste("hyperbolic tangent of lnCVR from ", italic("spSS")), 
         parse = TRUE
         )) +
+      ggtitle(paste("Dataset", j, k)) +
       theme_bw() +
       theme(
         axis.text.y = element_text(size = 13, color = "black", face = "italic"),
@@ -490,6 +507,15 @@ for (j in c("withTS", "withoutTS")) {
 
   }
 }
+
+bind_rows(
+  res.ma.withTS.alltaxon, res.ma.withoutTS.alltaxon,
+  res.ma.withTS.insect, res.ma.withoutTS.insect
+  ) %>%
+  as.data.frame() %>%
+  mutate_at(vars('Estimate':'V[crossed strain]'), as.numeric) %>%
+  select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("V")) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 ```
 
@@ -543,26 +569,37 @@ for (j in c("withTS", "withoutTS")) {
   # phyl.random.spL <- readRDS(paste("../Analysis/Variation.compare.from.spL", j, k, "obj", sep = "."))
   phyl.random.hybLS <- readRDS(paste("../Analysis/Variation.compare.from.hybLS", j, k, "obj", sep = "."))
   
-  
-  get_reg(phyl.random.hybLS) %>%
-    mutate_if(is.numeric, round, 3) %>%
-    # Show dataset name
-    within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
-    # Rename fixed effects
-    within('Fixed effects' <- c("", "hybLS (intrcpt)", "hybSL", "spLL")) %>%
-    print()
-
-  print(paste("hybSL is larger than hybLS in",
-  round(
-    (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
-       exp(phyl.random.hybLS$beta[1])
-     )*100,
-    2),
-  "percent"))
-  # print(summary(phyl.random.spL))
-  
+  assign(
+    paste("Reciprocal", j,k, sep = "."),
+    get_reg(phyl.random.hybLS) %>%
+      # Show dataset name
+      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+      # Rename fixed effects
+      within('Fixed effects' <- c("", "hybLS (intrcpt)", "hybSL", "spLL")) %>%
+      # Difference with midparent in %
+      mutate('Comparison with hybridLS' = c(
+        rep("", 2),
+        paste(
+          round(
+            (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
+               exp(phyl.random.hybLS$beta[1])
+             )*100,
+            2),
+          "% larger"
+          ), 
+        ""
+        )
+      )
+    )
   }
 }
+
+bind_rows(
+  Reciprocal.withTS.alltaxon, Reciprocal.withoutTS.alltaxon,
+  Reciprocal.withTS.insect, Reciprocal.withoutTS.insect
+  ) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+
 
 ```
 
@@ -627,6 +664,7 @@ for (j in c("withTS", "withoutTS")) {
       # Show dataset name
       within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
       print()
+
     
     # if(j == "withTS") {
     #   ggsave(
