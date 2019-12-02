@@ -290,7 +290,7 @@ for (j in c("withTS", "withoutTS")) {
         # Show dataset name
         within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
         # Rename fixed effects
-        within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "spSL")) %>%
+        within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "hybSL")) %>%
         # Difference with midparent in %
         mutate('Comparison with midparent' = c(
           rep("", 2),

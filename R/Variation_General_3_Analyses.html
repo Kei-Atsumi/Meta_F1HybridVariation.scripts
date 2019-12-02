@@ -1597,11 +1597,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">General pattern of phenotypic variation</h1>
 <h4 class="author">Keisuke Atsumi</h4>
-<<<<<<< HEAD
-<h4 class="date">19/12/02 09:54</h4>
-=======
-<h4 class="date">19/12/01 19:16</h4>
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
+<h4 class="date">19/12/02 10:01</h4>
 
 </div>
 
@@ -1846,14 +1842,13 @@ As the variance of <em>((spL+spS/2)/SS)</em>, we use the variance of <em>(LL/SS)
 +     ### Load model ###
 +     midparent.compare &lt;- readRDS(paste(&quot;../Analysis/Variation.midparent.compare&quot;, j, k, &quot;obj&quot;, sep = &quot;.&quot;))
 +     
-<<<<<<< HEAD
 +     assign(
 +       paste(&quot;Dominance&quot;, j,k, sep = &quot;.&quot;),
 +       get_reg(midparent.compare) %&gt;%
 +         # Show dataset name
 +         within(Dataset &lt;- c(paste(j,k), rep(&quot;&quot;, length(.$Estimate)-1))) %&gt;%
 +         # Rename fixed effects
-+         within(&#39;Fixed effects&#39; &lt;- c(&quot;&quot;, &quot;midparent (intrcpt)&quot;, &quot;hybLS&quot;, &quot;spSL&quot;)) %&gt;%
++         within(&#39;Fixed effects&#39; &lt;- c(&quot;&quot;, &quot;midparent (intrcpt)&quot;, &quot;hybLS&quot;, &quot;hybSL&quot;)) %&gt;%
 +         # Difference with midparent in %
 +         mutate(&#39;Comparison with midparent&#39; = c(
 +           rep(&quot;&quot;, 2),
@@ -1871,35 +1866,7 @@ As the variance of <em>((spL+spS/2)/SS)</em>, we use the variance of <em>(LL/SS)
 +             )
 +           ))
 +       )
-=======
-+     get_reg(midparent.compare) %&gt;%
-+       mutate_if(is.numeric, round, 3) %&gt;%
-+       # Show dataset name
-+       within(Dataset &lt;- c(paste(j,k), rep(&quot;&quot;, length(.$Estimate)-1))) %&gt;%
-+       # Rename fixed effects
-+       within(&#39;Fixed effects&#39; &lt;- c(&quot;&quot;, &quot;midparent (intrcpt)&quot;, &quot;hybLS&quot;, &quot;spSL&quot;)) %&gt;%
-+       print()
-+       
-+     print(paste(&quot;hybLS is larger than midparent in&quot;,
-+         round(
-+           (exp(midparent.compare$beta[1]+midparent.compare$beta[2]) -
-+              exp(midparent.compare$beta[1])
-+            )*100,
-+           2),
-+         &quot;percent | P =&quot;,
-+         round(midparent.compare$pval[2],4)
-+         ))
-+     print(paste(&quot;hybSL is larger than midparent in&quot;,
-+         round(
-+           (exp(midparent.compare$beta[1]+midparent.compare$beta[3]) -
-+              exp(midparent.compare$beta[1])
-+            )*100,
-+           2),
-+         &quot;percent | P =&quot;,
-+         round(midparent.compare$pval[3],4)
-+         ))
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
-+     
++ 
 +     #############################################
 +     # Meta-analysis for midparent to plot band
 +     #############################################
@@ -1936,7 +1903,6 @@ As the variance of <em>((spL+spS/2)/SS)</em>, we use the variance of <em>(LL/SS)
 +     )
 +     
 +   }
-<<<<<<< HEAD
 + }
 &gt; 
 &gt; bind_rows(
@@ -2074,7 +2040,7 @@ hybLS
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-spSL
+hybSL
 </td>
 <td style="text-align:right;">
 -0.090
@@ -2192,7 +2158,7 @@ hybLS
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-spSL
+hybSL
 </td>
 <td style="text-align:right;">
 -0.073
@@ -2309,7 +2275,7 @@ hybLS
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-spSL
+hybSL
 </td>
 <td style="text-align:right;">
 -0.118
@@ -2427,7 +2393,7 @@ hybLS
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-spSL
+hybSL
 </td>
 <td style="text-align:right;">
 -0.064
@@ -2457,57 +2423,6 @@ spSL
 </table></li>
 </ul></li>
 </ul>
-=======
-+ }</code></pre>
-<pre><code>          Dataset       Fixed effects Estimate LowerCI UpperCI     P
-1 withTS alltaxon                           NA      NA      NA    NA
-2                 midparent (intrcpt)    0.306  -0.544   1.156 0.480
-3                               hybLS   -0.017  -0.095   0.061 0.669
-4                                spSL   -0.090  -0.168  -0.012 0.023
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     0.634        0             0.002         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA            *
-[1] &quot;hybLS is larger than midparent in -2.29 percent | P = 0.6686&quot;
-[1] &quot;hybSL is larger than midparent in -11.69 percent | P = 0.0234&quot;
-        Dataset       Fixed effects Estimate LowerCI UpperCI     P
-1 withTS insect                           NA      NA      NA    NA
-2               midparent (intrcpt)    0.221  -0.503   0.944 0.550
-3                             hybLS   -0.020  -0.100   0.060 0.630
-4                              spSL   -0.118  -0.198  -0.038 0.004
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     0.444        0             0.002         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA            *
-[1] &quot;hybLS is larger than midparent in -2.43 percent | P = 0.6301&quot;
-[1] &quot;hybSL is larger than midparent in -13.88 percent | P = 0.0039&quot;
-             Dataset       Fixed effects Estimate LowerCI UpperCI     P
-1 withoutTS alltaxon                           NA      NA      NA    NA
-2                    midparent (intrcpt)    0.764  -0.546   2.075 0.253
-3                                  hybLS   -0.067  -0.216   0.082 0.375
-4                                   spSL   -0.073  -0.220   0.075 0.335
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     1.421    0.104                 0         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA             
-[1] &quot;hybLS is larger than midparent in -13.98 percent | P = 0.3754&quot;
-[1] &quot;hybSL is larger than midparent in -15.04 percent | P = 0.3355&quot;
-           Dataset       Fixed effects Estimate LowerCI UpperCI     P
-1 withoutTS insect                           NA      NA      NA    NA
-2                  midparent (intrcpt)    0.468  -0.688   1.624 0.427
-3                                hybLS   -0.052  -0.203   0.098 0.496
-4                                 spSL   -0.064  -0.214   0.086 0.400
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     1.102    0.007                 0         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA             
-[1] &quot;hybLS is larger than midparent in -8.16 percent | P = 0.4957&quot;
-[1] &quot;hybSL is larger than midparent in -9.94 percent | P = 0.4003&quot;</code></pre>
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 <pre class="r"><code>&gt; ### Midparent meta-analysis result for plot below ###
 &gt; midparent.ma &lt;- bind_rows(
 +   midparent.ma.withTS.alltaxon, midparent.ma.withoutTS.alltaxon,
@@ -2541,23 +2456,13 @@ Prediction interval : thin line</p>
 +       #   )
 +       # saveRDS(phyl.random,
 +       #   file = paste(&quot;../Analysis/Variation.meta&quot;, j, k, h, &quot;obj&quot;, sep = &quot;.&quot;))
-<<<<<<< HEAD
 + 
 +           
++ 
 +       ### Load model ###
 +       phyl.random &lt;- readRDS(paste(&quot;../Analysis/Variation.meta&quot;, j, k, h, &quot;obj&quot;, sep = &quot;.&quot;))
-+ 
-=======
-+     
-+       ### Load model ###
-+       phyl.random &lt;- readRDS(paste(&quot;../Analysis/Variation.meta&quot;, j, k, h, &quot;obj&quot;, sep = &quot;.&quot;))
-+ 
-+       
-+       
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 +       # Funnel plot
 +       funnel(phyl.random, xlab = paste(j, k, h))
-+  
 +       # creating summary table of results
 +       assign(
 +         paste(&quot;res&quot;, h, sep = &quot;.&quot;), 
@@ -2567,31 +2472,19 @@ Prediction interval : thin line</p>
 +             N = length(dat$ES.ID),
 +             I2 = I2(phyl.random)[&quot;I2_total&quot;] %&gt;% round(3),
 +             cross = h # indicate cross (spL, hybLS, hybSL)
-<<<<<<< HEAD
 +             )
-=======
-+             ) %&gt;%
-+           within(&#39;Dataset&#39; &lt;- paste(j,k))
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 +           )
 +       
 +     }
 +     
-<<<<<<< HEAD
 +     # Bind result of all crosses at each dataset
-=======
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 +     assign(
 +       paste(&quot;res.ma&quot;, j,k, sep = &quot;.&quot;),
 +       res.ma &lt;- bind_rows(
 +         res.spL, res.hybLS, res.hybSL
 +         ) %&gt;%
-<<<<<<< HEAD
 +         as.data.frame() %&gt;%
 +         within(&#39;Dataset&#39; &lt;- c(paste(j,k), &quot;&quot;, &quot;&quot;)) # Show dataset name in first row
-=======
-+       as.data.frame()
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 +     )
 +     
 +     ### Midparent estimate &amp; CI ###
@@ -2756,10 +2649,6 @@ spL
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withTS alltaxon
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybLS
@@ -2791,10 +2680,6 @@ hybLS
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withTS alltaxon
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybSL
@@ -2858,10 +2743,6 @@ spL
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withoutTS alltaxon
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybLS
@@ -2893,10 +2774,6 @@ hybLS
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withoutTS alltaxon
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybSL
@@ -2960,10 +2837,6 @@ spL
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withTS insect
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybLS
@@ -2995,10 +2868,6 @@ hybLS
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withTS insect
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybSL
@@ -3062,10 +2931,6 @@ spL
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withoutTS insect
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybLS
@@ -3097,10 +2962,6 @@ hybLS
 </tr>
 <tr>
 <td style="text-align:left;">
-<<<<<<< HEAD
-=======
-withoutTS insect
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </td>
 <td style="text-align:left;">
 hybSL
@@ -3180,7 +3041,6 @@ hybSL
 +   # phyl.random.spL &lt;- readRDS(paste(&quot;../Analysis/Variation.compare.from.spL&quot;, j, k, &quot;obj&quot;, sep = &quot;.&quot;))
 +   phyl.random.hybLS &lt;- readRDS(paste(&quot;../Analysis/Variation.compare.from.hybLS&quot;, j, k, &quot;obj&quot;, sep = &quot;.&quot;))
 +   
-<<<<<<< HEAD
 +   assign(
 +     paste(&quot;Reciprocal&quot;, j,k, sep = &quot;.&quot;),
 +     get_reg(phyl.random.hybLS) %&gt;%
@@ -3726,72 +3586,6 @@ spLL
 </ul></li>
 </ul></li>
 </ul>
-=======
-+   
-+   get_reg(phyl.random.hybLS) %&gt;%
-+     mutate_if(is.numeric, round, 3) %&gt;%
-+     # Show dataset name
-+     within(Dataset &lt;- c(paste(j,k), rep(&quot;&quot;, length(.$Estimate)-1))) %&gt;%
-+     # Rename fixed effects
-+     within(&#39;Fixed effects&#39; &lt;- c(&quot;&quot;, &quot;hybLS (intrcpt)&quot;, &quot;hybSL&quot;, &quot;spLL&quot;)) %&gt;%
-+     print()
-+ 
-+   print(paste(&quot;hybSL is larger than hybLS in&quot;,
-+   round(
-+     (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
-+        exp(phyl.random.hybLS$beta[1])
-+      )*100,
-+     2),
-+   &quot;percent&quot;))
-+   # print(summary(phyl.random.spL))
-+   
-+   }
-+ }</code></pre>
-<pre><code>          Dataset   Fixed effects Estimate LowerCI UpperCI     P
-1 withTS alltaxon                       NA      NA      NA    NA
-2                 hybLS (intrcpt)    0.297  -0.574   1.169 0.504
-3                           hybSL   -0.075  -0.156   0.005 0.066
-4                            spLL    0.187   0.109   0.264 0.000
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     0.666        0             0.005         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA            *
-[1] &quot;hybSL is larger than hybLS in -9.75 percent&quot;
-        Dataset   Fixed effects Estimate LowerCI UpperCI     P
-1 withTS insect                       NA      NA      NA    NA
-2               hybLS (intrcpt)    0.203  -0.549   0.955 0.596
-3                         hybSL   -0.100  -0.183  -0.017 0.018
-4                          spLL    0.183   0.103   0.263 0.000
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     0.478        0             0.005         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA            *
-4                        NA       NA                NA            *
-[1] &quot;hybSL is larger than hybLS in -11.69 percent&quot;
-             Dataset   Fixed effects Estimate LowerCI UpperCI     P
-1 withoutTS alltaxon                       NA      NA      NA    NA
-2                    hybLS (intrcpt)    0.711  -0.855   2.277 0.374
-3                              hybSL   -0.002  -0.154   0.151 0.983
-4                               spLL    0.343   0.194   0.491 0.000
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                     2.049    0.105             0.005         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA            *
-[1] &quot;hybSL is larger than hybLS in -0.34 percent&quot;
-           Dataset   Fixed effects Estimate LowerCI UpperCI     P
-1 withoutTS insect                       NA      NA      NA    NA
-2                  hybLS (intrcpt)    0.415  -1.059   1.888 0.581
-3                            hybSL   -0.007  -0.163   0.150 0.933
-4                             spLL    0.321   0.170   0.472 0.000
-  V[species with phylogeny] V[study] V[crossed strain] significance
-1                       1.8        0             0.004         &lt;NA&gt;
-2                        NA       NA                NA             
-3                        NA       NA                NA             
-4                        NA       NA                NA            *
-[1] &quot;hybSL is larger than hybLS in -1.01 percent&quot;</code></pre>
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
 </div>
 <div id="meta-regression-for-lncvr-in-hybrids-crosses" class="section level1">
 <h1>Meta-regression for lnCVR in hybrids crosses</h1>
