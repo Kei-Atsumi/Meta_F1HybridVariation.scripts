@@ -284,7 +284,6 @@ for (j in c("withTS", "withoutTS")) {
     ### Load model ###
     midparent.compare <- readRDS(paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = "."))
     
-<<<<<<< HEAD
     assign(
       paste("Dominance", j,k, sep = "."),
       get_reg(midparent.compare) %>%
@@ -309,35 +308,7 @@ for (j in c("withTS", "withoutTS")) {
             )
           ))
       )
-=======
-    get_reg(midparent.compare) %>%
-      mutate_if(is.numeric, round, 3) %>%
-      # Show dataset name
-      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
-      # Rename fixed effects
-      within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "spSL")) %>%
-      print()
-      
-    print(paste("hybLS is larger than midparent in",
-        round(
-          (exp(midparent.compare$beta[1]+midparent.compare$beta[2]) -
-             exp(midparent.compare$beta[1])
-           )*100,
-          2),
-        "percent | P =",
-        round(midparent.compare$pval[2],4)
-        ))
-    print(paste("hybSL is larger than midparent in",
-        round(
-          (exp(midparent.compare$beta[1]+midparent.compare$beta[3]) -
-             exp(midparent.compare$beta[1])
-           )*100,
-          2),
-        "percent | P =",
-        round(midparent.compare$pval[3],4)
-        ))
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
-    
+
     #############################################
     # Meta-analysis for midparent to plot band
     #############################################
@@ -421,23 +392,13 @@ for (j in c("withTS", "withoutTS")) {
       #   )
       # saveRDS(phyl.random,
       #   file = paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
-<<<<<<< HEAD
 
           
+
       ### Load model ###
       phyl.random <- readRDS(paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
-
-=======
-    
-      ### Load model ###
-      phyl.random <- readRDS(paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
-
-      
-      
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
       # Funnel plot
       funnel(phyl.random, xlab = paste(j, k, h))
- 
       # creating summary table of results
       assign(
         paste("res", h, sep = "."), 
@@ -447,12 +408,7 @@ for (j in c("withTS", "withoutTS")) {
             N = length(dat$ES.ID),
             I2 = I2(phyl.random)["I2_total"] %>% round(3),
             cross = h # indicate cross (spL, hybLS, hybSL)
-<<<<<<< HEAD
             )
-=======
-            ) %>%
-          within('Dataset' <- paste(j,k))
->>>>>>> 4377035ea98ab60f3a0430faf91c11b9057a9704
           )
       
     }
