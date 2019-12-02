@@ -664,15 +664,6 @@ for (j in c("withTS", "withoutTS")) {
       within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
       print()
 
-    
-    # if(j == "withTS") {
-    #   ggsave(
-    #     plot = plot, 
-    #     file = "../Analysis/variation.general.result.svg", 
-    #     height = 4.5, width = 4
-    #     )  
-    # }
-  
   }
 }
 

@@ -21,7 +21,9 @@ options(scipen=100)  # do not show numbers using exponential
 
 # load packages
 pacman::p_load(
-  tidyverse,  
+  tidyverse,
+  kableExtra,
+  pander,     # nice tables
   metafor,    # Meta-analysis
   knitr,      # rmarkdown
   magrittr,   # Extend pipe
@@ -31,8 +33,9 @@ pacman::p_load(
   ggbeeswarm, # bee-swarm plots
   plotly      # interactive plots using ggplot2
 )
-  
+
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
+options(knitr.kable.NA = '') # Hide NAs in kable table
 
 ```
 
@@ -103,12 +106,68 @@ get_pred <- function(model, mod = " ") {
     } else {
         pred <- predict.rma(model)
     }
-    lowerPR <- pred$cr.lb
-    upperPR <- pred$cr.ub
-    
-    table <- tibble(name = name, lowerPR = lowerPR, upperPR = upperPR)
+
+    table <- tibble(
+      'Dataset' = "",
+      'Fixed effects' = name, 
+      'Estimate' = model$beta, # regression: estimate
+      'LowerCI' = model$ci.lb, # regression: 95ci, 
+      'UpperCI'  = model$ci.ub, # regression: 95ci
+      'lowerPR' = pred$cr.lb,  # lower prediction range
+      'upperPR' = pred$cr.ub, # lower prediction range
+      'P'        = model$pval,
+      'V[species with phylogeny]' =
+        c(model$sigma2[1], rep("", length(model$beta)-1)),
+      'V[study]' =
+        c(model$sigma2[2], rep("", length(model$beta)-1)),
+      'V[crossed strain]' =
+        c(model$sigma2[3], rep("", length(model$beta)-1))
+      )  %>%
+    mutate(significance = ifelse(P < 0.05, "*", ""))
 }
 
+#' Title: the function to get summary stats from rma objects (metafor)
+#'
+#' @param model: rma.mv object 
+#' @param mod: the name of a moderator 
+get_stats <- function(model, mod = " ") {
+
+    table <- tibble(
+      'Fixed_effects' = row.names(model$beta),
+      'Estimate' = model$beta, # regression: estimate
+      'LowerCI' = model$ci.lb, # regression: 95ci, 
+      'UpperCI'  = model$ci.ub, # regression: 95ci
+      'P'        = model$pval
+      )  %>%
+      as.data.frame() %>%
+      mutate(significance = ifelse(P < 0.05, "*", ""))
+}
+
+
+#' Title: the function to get summary stats from rma objects (metafor)
+#'
+#' @param model: rma.mv object 
+#' @param mod: the name of a moderator 
+get_reg <- function(model, mod = " ") {
+  
+  table <- tibble(
+    'Dataset' = "",
+    'Fixed effects' = c("", row.names(model$beta)),
+    'Estimate' = c("", model$beta), # regression: estimate
+    'LowerCI' = c("", model$ci.lb), # regression: 95ci, 
+    'UpperCI'  = c("", model$ci.ub), # regression: 95ci
+    'P'        = c("", model$pval),
+    'V[species with phylogeny]' =
+      c(model$sigma2[1], rep("", length(model$beta))),
+    'V[study]' =
+      c(model$sigma2[2], rep("", length(model$beta))),
+    'V[crossed strain]' =
+      c(model$sigma2[3], rep("", length(model$beta)))
+    )  %>%
+    as.data.frame() %>%
+    mutate_at(vars('Estimate':'V[crossed strain]'), as.numeric) %>%
+    mutate(significance = ifelse(P < 0.05, "*", ""))
+}
 
 ```
 
@@ -138,7 +197,11 @@ noTS <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
 with.without.TS <- bind_rows(mean.dif, noTS) %>%
   mutate(metaunit =  str_c(data.type, cross, sep = "_"))%>%
   # Use observations with both reciprocal crosses
-  drop_na(contains("Mn"), contains("SD"))
+  drop_na(contains("Mn"), contains("SD")) %>%
+  # Insect or no
+  mutate(
+    insect = ifelse(taxa %in% c("Teleost", "Amphibian", "Bird", "Mammal"), "no", "insect"),
+  )
 
 
 ### Phylogeny ###
@@ -146,9 +209,6 @@ with.without.TS <- bind_rows(mean.dif, noTS) %>%
 # compute branch lengths of tree
 phylo_branch <- read.tree(file = "../data/phylo.mean.general.tre") %>%
   compute.brlen(bin.tree, method = "Grafen", power = 1)
-
-# check tree is ultrametric
-is.ultrametric(phylo_branch) # TRUE
 
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
@@ -185,78 +245,109 @@ midparent <- with.without.TS %>%
 
 
 for (j in c("withTS", "withoutTS")) {
+  for (k in c("alltaxon", "insect")) {
+    
+    if (k == "alltaxon") {
+      dat <- midparent %>% 
+        filter(data.type == j)
+    } else {
+      dat <- midparent %>% 
+        filter(data.type == j, insect == k)
+    }
   
-  ################################################
-  # phylogenetic random regresson
-  ################################################
-  # Regress by lnRR of phenotypic difference between parentals 
-  midparent.random <- rma.mv(
-    yi = lnRR.midparent.es, 
-    V = lnRR.sv, 
-    data = midparent %>% 
-      filter(data.type == j), 
-    method = "REML",
-    random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-    R = list(spL.name = phylo_cor),
-    mods = ~ relevel(cross, ref = "midparent")
-    )
-  
-  print(j)  
-  print(summary(midparent.random))
+    ################################################
+    # phylogenetic random regresson
+    ################################################
+    # # Regress by lnRR of phenotypic difference between parentals 
+    # midparent.compare <- rma.mv(
+    #   yi = lnRR.midparent.es, 
+    #   V = lnRR.sv, 
+    #   data = dat, 
+    #   method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   R = list(spL.name = phylo_cor),
+    #   mods = ~ relevel(cross, ref = "midparent")
+    #   )
+    # ### Save model ###
+    # saveRDS(
+    #   midparent.compare,
+    #   file = paste("../Analysis/Mean.midparent.compare", j, k, "obj", sep = ".")
+    #   )
 
-  print(paste("hybLS is larger than midparent in",
-      round(
-        (exp(midparent.random$beta[1]+midparent.random$beta[2]) -
-           exp(midparent.random$beta[1])
-         )*100,
-        2),
-      "percent"))
-  print(paste("hybSL is larger than midparent in",
-      round(
-        (exp(midparent.random$beta[1]+midparent.random$beta[3]) -
-           exp(midparent.random$beta[1])
-         )*100,
-        2),
-      "percent"))
+    ### Load model ###
+    midparent.compare <- readRDS(paste("../Analysis/Mean.midparent.compare", j, k, "obj", sep = "."))
   
-  #############################################
-  # Meta-analysis for midparent to plot band
-  #############################################
-  
-  # Phylogenetic random meta-analysis
-  midparent.random <- rma.mv(
-    yi = lnRR.midparent.es, 
-    V = lnRR.sv, 
-    data = midparent %>%
-      filter(cross == "midparent" | data.type == j), 
-    method = "REML",
-    random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-    R = list(spL.name = phylo_cor)
-    )
-  
-  # creating summary table of results
-  pred_ma <- get_pred(midparent.random)
-  assign(
-    paste("midparent.ma", j, sep = "."), 
-    cbind(
-      midparent.random$beta,   # regression: estimate
-      midparent.random$ci.lb,  # regression: 95ci 
-      midparent.random$ci.ub,  # regression: 95ci
-      pred_ma$lowerPR,    # lower prediction range
-      pred_ma$upperPR    # lower prediction range
-      ) %>%
-      as.data.frame() %>%
-      rename(
-        estimate = V1, lowerCI = V2, upperCI = V3, lowerPR = V4, upperPR = V5
-        ) %>%
-      mutate(data.type = j)
-  )
+    assign(
+      paste("Dominance", j,k, sep = "."),
+      get_reg(midparent.compare) %>%
+        # Show dataset name
+        within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+        # Rename fixed effects
+        within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "hybSL")) %>%
+        # Difference with midparent in %
+        mutate('Comparison with midparent' = c(
+          rep("", 2),
+          paste(
+            round(
+            100*(exp(midparent.compare$beta[1]+midparent.compare$beta[2])            -exp(midparent.compare$beta[1])), # hybrid LS
+            2),
+            "% larger"
+            ),
+          paste(
+            round(
+            100*(exp(midparent.compare$beta[1]+midparent.compare$beta[3])-exp(midparent.compare$beta[1])), # hybrid SL
+            2),
+            "% larger"
+            )
+          ))
+      )
+    
+    #############################################
+    # Meta-analysis for midparent to plot band
+    #############################################
+    
+    # # Phylogenetic random meta-analysis
+    # midparent.random <- rma.mv(
+    #   yi = lnRR.midparent.es, 
+    #   V = lnRR.sv, 
+    #   data = dat %>% filter(cross == "midparent"), 
+    #   method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    #   R = list(spL.name = phylo_cor)
+    #   )
+    # ### Save model ###
+    # saveRDS(
+    #   midparent.random,
+    #   file = paste("../Analysis/Mean.midparent", j, k, "obj", sep = ".")
+    #   )
 
+    ### Load model ###
+    midparent.random <- readRDS(paste("../Analysis/Mean.midparent", j, k, "obj", sep = "."))
+    # creating summary table of results
+    assign(
+      paste("midparent.ma", j, k, sep = "."),
+      # Prediction interval of midparent
+      get_pred(midparent.random) %>%
+        as.data.frame() %>%
+        mutate(
+          data.type = j,
+          taxon = k
+          )
+    )
+    
+  }
 }
+
+bind_rows(
+  Dominance.withTS.alltaxon, Dominance.withoutTS.alltaxon,
+  Dominance.withTS.insect, Dominance.withoutTS.insect
+  ) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 ### Midparent meta-analysis result for plot below ###
 midparent.ma <- bind_rows(
-  midparent.ma.withTS, midparent.ma.withoutTS
+  midparent.ma.withTS.alltaxon, midparent.ma.withoutTS.alltaxon,
+  midparent.ma.withTS.insect, midparent.ma.withoutTS.insect
 )
 
 
@@ -267,157 +358,149 @@ midparent.ma <- bind_rows(
 
 ```{r meta-analysis for each}
 
-for (i in c("lnRR")) {
-  for (j in c("withTS", "withoutTS")) {
+for (j in c("withTS", "withoutTS")) {
+  for (k in c("alltaxon", "insect")) {
     for (h in c("spL", "hybLS", "hybSL")) {
+
+      if (k == "alltaxon") {
+        dat <- with.without.TS %>% 
+          filter(cross == h, data.type == j)
+      } else {
+        dat <- with.without.TS %>% 
+          filter(cross == h, data.type == j, insect == k)
+      }
       
-      # Make data for each cross
-      split.data <- with.without.TS %>%
-        # use observations which both crosses are availabe to compare the heterogeneity of both crosses
-        filter(
-          cross == h,
-          data.type == j
-          )
+      # # Phylogenetic random meta-analysis
+      # phyl.random <- rma.mv(
+      #   yi = lnRR.es, V = lnRR.sv, 
+      #   data = dat, method = "REML",
+      #   random = list(
+      #     ~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID
+      #     ),
+      #   R = list(spL.name = phylo_cor)
+      #   )
+      # saveRDS(phyl.random,
+      #   file = paste("../Analysis/Mean.meta", j, k, h, "obj", sep = "."))
+
       
-      print(paste(j, i, "in", h))
-      
-      # Phylogenetic random meta-analysis
-      phyl.random <- rma.mv(
-        yi = split.data[, paste(i, "es", sep = ".")], 
-        V = split.data[, paste(i, "sv", sep = ".")], 
-        data = split.data, method = "REML",
-        random = list(
-          ~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID
-          ),
-        R = list(spL.name = phylo_cor)
-        )
-      
-      funnel(phyl.random)
-      
+      ### Load model ###
+      phyl.random <- readRDS(paste("../Analysis/Mean.meta", j, k, h, "obj", sep = "."))
+      # Funnel plot
+      funnel(phyl.random, xlab = paste(j, k, h))
       # creating summary table of results
-      pred_ma <- get_pred(phyl.random)
       assign(
         paste("res", h, sep = "."), 
-        cbind(
-          phyl.random$beta,   # regression: estimate
-          phyl.random$ci.lb,  # regression: 95ci 
-          phyl.random$ci.ub,  # regression: 95ci
-          phyl.random$pval,   # P
-          length(split.data$ES.ID), # N
-          pred_ma$lowerPR,    # lower prediction range
-          pred_ma$upperPR    # lower prediction range
-          ) %>%
+        get_pred(phyl.random) %>%
           as.data.frame() %>%
-          rename(
-            estimate = V1, lowerCI = V2, upperCI = V3, P = V4, 
-            N = V5, lowerPR = V6, upperPR = V7) %>%
           mutate(
-            # indicate cross name (spL, hybLS, hybSL)
-            cross = h,
-            # indicate dataset without TS
-            data.type = j
-            ) %>%
-          mutate(metaunit =  str_c(data.type, cross, sep = "_"))
+            N = length(dat$ES.ID),
+            I2 = I2(phyl.random)["I2_total"] %>% round(3),
+            cross = h # indicate cross (spL, hybLS, hybSL)
+            )
           )
-      
-      ### I^2 ###
-      print(paste(
-        "I^2 =", 
-        I2(phyl.random)["I2_total"] %>%
-          round(3)
-          ))
       
     }
     
+    # Bind result of all crosses at each dataset
     assign(
-      paste("res.ma", j, sep = "."),
+      paste("res.ma", j,k, sep = "."),
       res.ma <- bind_rows(
         res.spL, res.hybLS, res.hybSL
         ) %>%
-      as.data.frame()
+        as.data.frame() %>%
+        within('Dataset' <- c(paste(j,k), "", "")) # Show dataset name in first row
     )
     
     ### Midparent estimate & CI ###
     midparent.ma.2 <- midparent.ma %>%
-      filter(data.type == j)
+      filter(data.type == j, taxon == k)
 
-  # creating a forest plot
-  plot.metamean <- ggplot(
-    data = res.ma, 
-    aes(x = tanh(estimate), y = cross)
-    ) +
-    scale_x_continuous(
-      limits = c(-1, 1), 
-      breaks = seq(-1, 1, by = 0.25)
-      ) + 
-    ### Midparent CI ###
-    geom_rect(
-      aes(
-        xmin = midparent.ma.2$lowerCI,
-        xmax = midparent.ma.2$upperCI,
-        ymin = -Inf, ymax = Inf
-        ),
-      fill="Grey 95", inherit.aes = FALSE
+    # creating a forest plot
+    plot.metamean <- ggplot(
+      data = res.ma, 
+      aes(x = tanh(Estimate), y = cross)
       ) +
-    ### Midparent estimate ###
-    geom_vline(
-      xintercept = midparent.ma.2$estimate, colour = "grey20", 
-      alpha = 0.3, size = 1
-      ) +
-    ### Orchard plot ###
-    geom_quasirandom(
-      data = with.without.TS, 
-      aes(x = tanh(lnRR.es), y = cross, size = 1/lnRR.sv, color = cross), 
-      alpha = 0.2, groupOnX = FALSE
+      scale_x_continuous(
+        limits = c(-1, 1), 
+        breaks = seq(-1, 1, by = 0.25)
+        ) + 
+      ### Midparent CI ###
+      geom_rect(
+        aes(
+          xmin = midparent.ma.2$LowerCI,
+          xmax = midparent.ma.2$UpperCI,
+          ymin = -Inf, ymax = Inf
+          ),
+        fill="Grey 95", inherit.aes = FALSE
+        ) +
+      ### Midparent estimate ###
+      geom_vline(
+        xintercept = midparent.ma.2$estimate, colour = "grey20", 
+        alpha = 0.3, size = 1
+        ) +
+      ### Orchard plot ###
+      geom_quasirandom(
+        data = with.without.TS, 
+        aes(x = tanh(lnRR.es), y = cross, size = 1/lnRR.sv, color = cross), 
+        alpha = 0.2, groupOnX = FALSE
+        ) + 
+      scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+      # Delete legend for colors
+      guides(fill = "none", colour = "none") +
+      # Confidential interval : thicker line
+      geom_errorbarh(
+        aes(xmin = tanh(LowerCI), xmax = tanh(UpperCI)), 
+        height = 0, size = 1.2, alpha = 0.6
+        ) + 
+      # Prediction interval : thinner line
+      geom_errorbarh(
+        aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
+        height = 0, size = 0.5, alpha = 0.6
+        ) +
+      geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) +
+      ### Estimate ###
+      geom_point(size = 3, shape = 21, fill = "black") + 
+      ### N ###
+      annotate(
+        "text", x = -0.93, y = c(1.15, 2.15, 3.15),
+        label = paste("italic(N)==", res.ma$N), 
+        parse = TRUE, hjust = "left", size = 3.5
       ) + 
-    scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
-    # Delete legend for colors
-    guides(fill = "none", colour = "none") +
-    # Confidential interval : thicker line
-    geom_errorbarh(
-      aes(xmin = tanh(lowerCI), xmax = tanh(upperCI)), 
-      height = 0, size = 1.2, alpha = 0.6
-      ) + 
-    # Prediction interval : thinner line
-    geom_errorbarh(
-      aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
-      height = 0, size = 0.5, alpha = 0.6
-      ) +
-    geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) +
-    ### Estimate ###
-    geom_point(size = 3, shape = 21, fill = "black") + 
-    ### N ###
-    annotate(
-      "text", x = -0.93, y = c(1.15, 2.15, 3.15),
-      label = paste("italic(N)==", res.ma$N), 
-      parse = TRUE, hjust = "left", size = 3.5
-    ) + 
-    ylab("") +
-    xlab(expression(
-      paste("hyperbolic tangent of lnRR from ", italic("spSS")), 
-      parse = TRUE
-      )) +
-    theme_bw() +
-    theme(
-      axis.text.y = element_text(size = 13, color = "black", face = "italic"),
-      axis.text.x = element_text(size = 11, color = "grey20"),
-      axis.title = element_text(size = 13, color = "black"),
-      legend.position = c(0, 1),
-      legend.justification = c(0, 1),
-      legend.direction = "horizontal",
-      legend.background = element_blank()
+      ylab("") +
+      xlab(expression(
+        paste("hyperbolic tangent of lnRR from ", italic("spSS")), 
+        parse = TRUE
+        )) +
+      theme_bw() +
+      theme(
+        axis.text.y = element_text(size = 13, color = "black", face = "italic"),
+        axis.text.x = element_text(size = 11, color = "grey20"),
+        axis.title = element_text(size = 13, color = "black"),
+        legend.position = c(0, 1),
+        legend.justification = c(0, 1),
+        legend.direction = "horizontal",
+        legend.background = element_blank()
+        )
+  
+    print(plot.metamean)
+        
+  
+    ggsave(
+      plot = plot.metamean,
+      file = paste("../Analysis/mean.general.metamean", j,k, "svg", sep = "."),
+      height = 5, width = 6
       )
-
-  print(plot.metamean)
-      
-
-  ggsave(
-    plot = plot.metamean,
-    file = paste("../Analysis/mean.general.metamean", j, "svg", sep = "."),
-    height = 5, width = 6
-    )
   }
 }
+
+bind_rows(
+  res.ma.withTS.alltaxon, res.ma.withoutTS.alltaxon,
+  res.ma.withTS.insect, res.ma.withoutTS.insect
+  ) %>%
+  as.data.frame() %>%
+  mutate_at(vars('Estimate':'V[crossed strain]'), as.numeric) %>%
+  select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("V")) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 ```
 
@@ -428,48 +511,78 @@ Comparing the differences between parentals and hybrids
 ```{r comparing mean across all crosses}
 
 for (j in c("withTS", "withoutTS")) {
-  for (i in c("lnRR")) {
+  for (k in c("alltaxon", "insect")) {
     
-    mean.dif <- with.without.TS %>% 
-      filter(data.type == j)
+    if (k == "alltaxon") {
+      dat <- with.without.TS %>% 
+        filter(data.type == j)
+    } else {
+      dat <- with.without.TS %>% 
+        filter(data.type == j, insect == k)
+    }
   
-  ################################################
-  # phylogenetic random regresson (ANOVA)
-  ################################################
-    # Regress by lnRR of phenotypic difference between parentals 
-    phyl.random.spL <- rma.mv(
-      yi = mean.dif[, paste(i, "es", sep = ".")], 
-      V = mean.dif[, paste(i, "sv", sep = ".")], 
-      data = mean.dif, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-      R = list(spL.name = phylo_cor),
-      mods = ~ relevel(cross, ref = "spL")
-      )
-    
-    phyl.random.hybLS <- rma.mv(
-      yi = mean.dif[, paste(i, "es", sep = ".")], 
-      V = mean.dif[, paste(i, "sv", sep = ".")], 
-      data = mean.dif, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-      R = list(spL.name = phylo_cor),
-      mods = ~ cross
-      )
-    
-    print(j)
-    print(summary(phyl.random.hybLS))
-    print(paste("hybSL is larger than hybLS in",
-    round(
-      (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
-         exp(phyl.random.hybLS$beta[1])
-       )*100,
-      2),
-    "percent"))
-    print(summary(phyl.random.spL))
-    
+    ################################################
+    # phylogenetic random regresson (ANOVA)
+    ################################################
+    # # Regress by lnRR of phenotypic difference between parentals 
+    # phyl.random.spL <- rma.mv(
+    #   yi = lnRR.es, V = lnRR.sv, 
+    #   data = dat, method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   R = list(spL.name = phylo_cor),
+    #   mods = ~ relevel(cross, ref = "spL")
+    #   )
+    # phyl.random.hybLS <- rma.mv(
+    #   yi = lnRR.es, V = lnRR.sv, 
+    #   data = dat, method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   R = list(spL.name = phylo_cor),
+    #   mods = ~ cross
+    #   )
+    # # Save model ###
+    # saveRDS(
+    #   phyl.random.spL,
+    #   file = paste("../Analysis/Mean.compare.from.spL", j, k, "obj", sep = ".")
+    #   )
+    # saveRDS(
+    #   phyl.random.hybLS,
+    #   file = paste("../Analysis/Mean.compare.from.hybLS", j, k, "obj", sep = ".")
+    #   )
 
+    ### Load model ###
+    # phyl.random.spL <- readRDS(paste("../Analysis/Mean.compare.from.spL", j, k, "obj", sep = "."))
+    phyl.random.hybLS <- readRDS(paste("../Analysis/Mean.compare.from.hybLS", j, k, "obj", sep = "."))
+
+  assign(
+    paste("Reciprocal", j,k, sep = "."),
+    get_reg(phyl.random.hybLS) %>%
+      # Show dataset name
+      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+      # Rename fixed effects
+      within('Fixed effects' <- c("", "hybLS (intrcpt)", "hybSL", "spLL")) %>%
+      # Difference with midparent in %
+      mutate('Comparison with hybridLS' = c(
+        rep("", 2),
+        paste(
+          round(
+            (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
+               exp(phyl.random.hybLS$beta[1])
+             )*100,
+            2),
+          "% larger"
+          ), 
+        ""
+        )
+      )
+    )
   }
 }
-  
+
+bind_rows(
+  Reciprocal.withTS.alltaxon, Reciprocal.withoutTS.alltaxon,
+  Reciprocal.withTS.insect, Reciprocal.withoutTS.insect
+  ) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 ```
 
@@ -480,76 +593,55 @@ Indicates that maternal inheritance become stronger in male-heterogametic specie
 
 ```{r maternal vs paternal}
 
-mean(hybrids$pheno.div.ratio)
-
-# Select ESs that can compare maternal and paternal inheritance
-
 for (j in c("withTS", "withoutTS")) {
-  for (i in c("lnRR")) {
-
-    hybrids <- with.without.TS %>%
-      filter(
-        cross != "spL",
-        data.type == j
-        )
+  for (k in c("alltaxon", "insect")) {
     
-    print("metadata for species pair")
-    print(
-      hybrids %>%
-        distinct(species.pair, .keep_all = TRUE) %>%
-        select(hetero.sex) %>%
-        drop_na() %>%
-        count(hetero.sex)
-    )
-
+    if (k == "alltaxon") {
+      dat <- with.without.TS %>% 
+        filter(data.type == j, cross != "spL")
+    } else {
+      dat <- with.without.TS %>% 
+        filter(data.type == j, insect == k, cross != "spL")
+    }
+    
     ################################################
     # phylogenetic random regresson (ANOVA)
     ################################################
     
-    # Regress by lnRR of phenotypic difference between parentals 
-    phyl.random <- rma.mv(
-      yi = hybrids[, paste(i, "es", sep = ".")], 
-      V = hybrids[, paste(i, "sv", sep = ".")], 
-      data = hybrids, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-      R = list(spL.name = phylo_cor),
-      mods = ~ pheno.div.ratio + cross*hetero.sex
-        # + cross*divergence.COI + cross*pheno.div.ratio
-      )
-
-    ################################################
-    # Output result
-    ################################################
+    # # Regress by lnRR of phenotypic difference between parentals 
+    # phyl.random <- rma.mv(
+    #   yi = lnRR.es, V = lnRR.sv,
+    #   data = dat, method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   R = list(spL.name = phylo_cor),
+    #   mods = ~ pheno.div.ratio + cross*hetero.sex
+    #     # + cross*divergence.COI + cross*pheno.div.ratio
+    #   )
+    # saveRDS(
+    #   phyl.random,
+    #   file = paste("../Analysis/Mean.metareg", j, k, "obj", sep = ".")
+    #   )
     
-    reg <- cbind(
-      phyl.random$beta,   # regression: estimate
-      phyl.random$ci.lb,  # regression: 95ci 
-      phyl.random$ci.ub,  # regression: 95ci
-      phyl.random$pval   # P
-      ) %>%
-      cbind(
-        ., row.names(.)
-      ) %>%
-      as.data.frame() %>%
-      rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
-      mutate_all(as.character) %>%
-      mutate_at(vars(estimate:P), as.numeric) %>%
-      mutate_at(vars(factors), as.factor) %>%
-      mutate(significance = ifelse(P < 0.05, "*", ""))
-  
-    plot <- ggplot(reg, aes(y = estimate, x = factors)) +
+    ### Load model ###
+    phyl.random <- readRDS(paste("../Analysis/Mean.metareg", j, k, "obj", sep = "."))
+
+
+    ### Output result ###
+    reg <- get_stats(phyl.random) %>%
+      mutate_at("Fixed_effects", as.factor)
+    plot <- ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
       geom_errorbar(
-        aes(ymin = ci.lb, ymax = ci.ub, colour=significance), 
+        aes(ymin = LowerCI, ymax = UpperCI, colour=significance), 
         width=.0001
         ) +
-      scale_colour_manual(values = c("black", "#D41159"), aesthetics = "colour") +
-      geom_point(aes(colour=significance))+
-      scale_fill_manual(values = c("black", "#D41159"), aesthetics = "colour") +
-      scale_x_discrete(limits = rev(reg$factors))+ # reverse x-axis
+      # Color of plots and errorbars
+      scale_colour_manual(values = c("grey60", "black")) +
+      geom_point(size = 1.5, aes(colour = significance)) +
+      scale_fill_manual(values = c("grey60", "black")) +
+      scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
       geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
       coord_flip() +
-      ylab(i) + xlab(j) +
-        # Themes
+      ylab("lnRR") + xlab(paste(k, j)) +
       theme_bw() +
       theme(
         panel.grid = element_blank(),
@@ -559,15 +651,13 @@ for (j in c("withTS", "withoutTS")) {
         axis.text.y = element_text(size = 12),
         axis.line=element_line(colour = "grey70")
         )
-
     print(plot)
-    
-    print(
-      reg %>%
-        as.data.frame() %>%
-        mutate_if(is.numeric, round, 3) %>%
-        column_to_rownames("factors")
-      )
+        
+    get_reg(phyl.random) %>%
+      mutate_if(is.numeric, round, 3) %>%
+      # Show dataset name
+      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+      print()
 
   }
 }
@@ -583,62 +673,52 @@ Comparing the differences between parentals and hybrids
 # Select ESs that can compare maternal and paternal inheritance
 
 for (j in c("withTS", "withoutTS")) {
-  for (i in c("lnRR")) {
-
-    hybrids <- with.without.TS %>%
-      filter(
-        cross != "spL",
-        data.type == j
-        ) %>%
-      mutate(cross.sex = str_c(hetero.sex, cross, sep = "_"))
+  for (k in c("alltaxon", "insect")) {
     
+    if (k == "alltaxon") {
+      dat <- with.without.TS %>% 
+        filter(data.type == j, cross != "spL") %>%
+        mutate(cross.sex = str_c(hetero.sex, cross, sep = "_"))
+    } else {
+      dat <- with.without.TS %>% 
+        filter(data.type == j, insect == k, cross != "spL") %>%
+        mutate(cross.sex = str_c(hetero.sex, cross, sep = "_"))
+    }
+    
+    if (k == "insect" && j == "withoutTS") {
+      
+    } else {
+
     ################################################
     # phylogenetic random regresson (ANOVA)
     ################################################
     phyl.random <- rma.mv(
-      yi = hybrids[, paste(i, "es", sep = ".")], 
-      V = hybrids[, paste(i, "sv", sep = ".")], 
-      data = hybrids, method = "REML",
+      yi = lnRR.es, V = lnRR.sv, 
+      data = dat, method = "REML",
       random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
       R = list(spL.name = phylo_cor),
       mods = ~ pheno.div.ratio + cross.sex -1
-        # + cross*divergence.COI + cross*pheno.div.ratio
       )
     
-    print(summary (phyl.random))
 
     ################################################
     # Output result
     ################################################
 
-    reg <- cbind(
-      phyl.random$beta,   # regression: estimate
-      phyl.random$ci.lb,  # regression: 95ci
-      phyl.random$ci.ub,  # regression: 95ci
-      phyl.random$pval   # P
-      ) %>%
-      cbind(
-        ., row.names(.)
-      ) %>%
-      as.data.frame() %>%
-      rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
-      mutate_all(as.character) %>%
-      mutate_at(vars(estimate:P), as.numeric) %>%
-      mutate_at(vars(factors), as.factor) %>%
-      mutate(significance = ifelse(P < 0.05, "*", ""))
+    reg <- get_stats(phyl.random)
 
-    plot <- ggplot(reg, aes(y = estimate, x = factors)) +
+    plot <- ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
       geom_errorbar(
-        aes(ymin = ci.lb, ymax = ci.ub, colour=significance),
+        aes(ymin = LowerCI, ymax = UpperCI, colour=significance),
         width=.0001
         ) +
       scale_colour_manual(values = c("black", "#D41159"), aesthetics = "colour") +
       geom_point(aes(colour=significance))+
       scale_fill_manual(values = c("black", "#D41159"), aesthetics = "colour") +
-      scale_x_discrete(limits = rev(reg$factors))+ # reverse x-axis
+      scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
       geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
       coord_flip() +
-      ylab(i) + xlab(j) +
+      ylab("lnRR") + xlab(paste(j,k)) +
         # Themes
       theme_bw() +
       theme(
@@ -652,12 +732,13 @@ for (j in c("withTS", "withoutTS")) {
 
     print(plot)
 
-    print(
-      reg %>%
-        as.data.frame() %>%
-        mutate_if(is.numeric, round, 3) %>%
-        column_to_rownames("factors")
-      )
+    get_reg(phyl.random) %>%
+      mutate_if(is.numeric, round, 3) %>%
+      # Show dataset name
+      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+      print()
+    
+    }
 
   }
 }
