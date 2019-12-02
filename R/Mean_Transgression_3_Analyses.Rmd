@@ -20,6 +20,8 @@ options(scipen=100)  # do not show numbers using exponential
 pacman::p_load(
   openxlsx,   # open excel
   tidyverse,  
+  kableExtra,
+  pander,     # nice tables
   MCMCglmm,   # glmm
   knitr,      # rmarkdown
   magrittr,   # Extend pipe
@@ -29,6 +31,7 @@ pacman::p_load(
   ggiraphExtra # Geom predict
 )
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
+options(knitr.kable.NA = '') # Hide NAs in kable table
 
 ### Correcting estimate of binomial regression###
 c2 <- (16 * sqrt(3)/(15 * pi))^2
@@ -39,7 +42,7 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 ```{r TS}
 
-TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
+dat.full <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
   # Assign overdoinance to 1, no TS to 0 for each effect size
   mutate(TS = ifelse(SMD.es < 0, 1, 0)) %>%
   ### Join with metadata ###
@@ -67,7 +70,11 @@ TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
         )
       )
     ) %>%
-  drop_na(hetero.sex, pheno.div.diff, trait.type, divergence.COI)
+  drop_na(hetero.sex, pheno.div.diff, trait.type, divergence.COI) %>%
+  # Insect or no
+  mutate(
+    insect = ifelse(taxa %in% c("Teleost", "Amphibian", "Bird", "Mammal"), "no", "insect"),
+  )
 
 
 #### Phylogenetic tree for mcmcglmm ####
@@ -100,7 +107,7 @@ How frequent the TS is?
 ### N of TS in each taxa and each direction ###
 summary <- bind_rows(
   # All observations
-  TS %>%
+  dat.full %>%
     group_by(taxa) %>%
     summarise(
       species.pair = length(unique(species.pair)),
@@ -110,7 +117,7 @@ summary <- bind_rows(
     mutate(direction = "All Observations")
   ,
   # TS for any direction
-  TS %>%
+  dat.full %>%
     filter(TS == "1") %>%
     group_by(taxa) %>%
     summarise(
@@ -121,7 +128,7 @@ summary <- bind_rows(
     mutate(direction = "Any directions")
   ,
   # TS for each direction
-  TS %>%
+  dat.full %>%
     filter(TS == "1") %>%
     group_by(taxa, direction) %>%
     summarise(
@@ -187,7 +194,8 @@ summary %>%
     percent.species.pair = species.pair/.[1, "species.pair"]*100,
     percent.observations = observations/.[1, "observations"]*100
   ) %>%
-  mutate_at(vars(contains("percent")), round, 2)
+  mutate_at(vars(contains("percent")), round, 2) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 
 ```
@@ -201,51 +209,60 @@ Does TS biased toward father species? -> <i>patmatmother</i> will negative
 
 ```{r mixed model}
 
-# ### Setting prior to logistic regression ###
-# prior <- list(
-#   B=list(
-#     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-#     V = gelman.prior(~
-#       parental*hetero.sex +
-#       parental*direction +
-#       direction*divergence.COI + direction*pheno.div.ratio +
-#       direction*hetero.sex +
-#       direction*trait.type +
-#       direction*distribution + direction*reciprocal,
-#     data = TS, # formula and data
-#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-#   R=list(V=1,fix=1),
-#   G = list(
-#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-#     )
-#   )
-# ## Phylogenetic binomial regression ###
-# phylmix <-MCMCglmm(
-#   fixed = TS ~
-#     parental*hetero.sex + parental*direction +
-#     direction*divergence.COI + direction*pheno.div.ratio +
-#     direction*hetero.sex + direction*trait.type +
-#     direction*distribution + direction*reciprocal,
-#   # idh(SE):units | weight by SE of effect size
-#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-#   family = "categorical",
-#   verbose = FALSE,
-#   ginverse = list(spL.name = phylo_MCMC),
-#   prior = prior,
-#   data = TS,
-#   nitt = 60000,  # Increase the number of iterations, default is 13000
-#   burnin = 5000  # Increase the number of burnin, default is 3000
-# )
-# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-# ### Save model ###
-# saveRDS(phylmix, file = "../Analysis/Mean.transgression.allfactors.obj")
+for (k in c("alltaxon", "insect")) {
+  
+  if (k == "alltaxon") {
+    dat <- dat.full
+  } else {
+    dat <- dat.full %>% 
+      filter(insect == k)
+  }
+
+  # ### Setting prior to logistic regression ###
+  # prior <- list(
+  #   B=list(
+  #     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+  #     V = gelman.prior(~
+  #       parental*hetero.sex +
+  #       parental*direction +
+  #       direction*divergence.COI + direction*pheno.div.ratio +
+  #       direction*hetero.sex +
+  #       direction*trait.type +
+  #       direction*distribution + direction*reciprocal,
+  #     data = dat, # formula and data
+  #     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  #   R=list(V=1,fix=1),
+  #   G = list(
+  #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+  #     )
+  #   )
+  # ## Phylogenetic binomial regression ###
+  # phylmix <-MCMCglmm(
+  #   fixed = TS ~
+  #     parental*hetero.sex + parental*direction +
+  #     direction*divergence.COI + direction*pheno.div.ratio +
+  #     direction*hetero.sex + direction*trait.type +
+  #     direction*distribution + direction*reciprocal,
+  #   # idh(SE):units | weight by SE of effect size
+  #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+  #   family = "categorical",
+  #   verbose = FALSE,
+  #   ginverse = list(spL.name = phylo_MCMC),
+  #   prior = prior,
+  #   data = dat,
+  #   nitt = 60000,  # Increase the number of iterations, default is 13000
+  #   burnin = 5000  # Increase the number of burnin, default is 3000
+  # )
+  # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+  # ### Save model ###
+  # saveRDS(phylmix, file = paste("../Analysis/Mean.transgression.allfactors", k, "obj", sep = "."))
 
 
 ### Load model ###
-phylmix <- readRDS("../Analysis/Mean.transgression.allfactors.obj")
+phylmix <- readRDS(paste("../Analysis/Mean.transgression.allfactors", k, "obj", sep = "."))
 
 sum <- left_join(
   # corrected estimates & SD
@@ -337,186 +354,198 @@ ggsave(
 
 ### Output result ###
 
-print(
+
   sum %>% 
     select(group, factors, Mean, SD, pMCMC, significance) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
-    mutate_at(c("pMCMC"), round, 3)
-  )
+    mutate_at(c("pMCMC"), round, 3) %>%
+    print()
 
 # transformation for estimate
 # summary(phylmix$Sol/sqrt(1+c2))
 # transformation for varaince
-summary(phylmix$VCV/(1+c2))
+summary(phylmix$VCV/(1+c2)) %>% print
 
-
+}
 ```
 
 
-# Direct test for the significant categorical factors
 
-```{r Direct test for the significant categorical factors}
+```{r Direct test for the significant categorical factors, include=FALSE}
 
-
-#####################################################
-# Direct test for the significant categorical factors
-#####################################################
-
-for (i in c("reciprocal", "parental", "hetero.sex")) {
-
-  # Make new categorical data combining direction of TS and target categorical factor
-  if (i == "hetero.sex") {
-    TS %<>%
-      mutate(interaction = str_c(parental, .[, i], sep = "_"))
-  } else {
-    TS %<>%
-      mutate(interaction = str_c(direction, .[, i], sep = "_"))
-  }  
-      
-  # ### Setting prior to logistic regression ###
-  # prior <- list(
-  #   B=list(
-  #     mu = rep(0, 4), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-  #     V = gelman.prior(~ interaction, # + trait.direction
-  #     data = TS, # formula and data
-  #     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-  #   R=list(V=1,fix=1),
-  #   # Replicating same G for the number of random effects (here, 4)
-  #   G = list(
-  #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-  #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-  #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-  #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-  #     )
-  #   )
-  # 
-  # phylmix <-MCMCglmm(
-  #   fixed = TS ~  interaction -1, # + trait.direction
-  #   family = "categorical",
-  #   # idh(SE):units | weight by SE of effect size
-  #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-  #   verbose = FALSE,
-  #   ginverse = list(spL.name = phylo_MCMC),
-  #   prior = prior,
-  #   data = TS
-  # )
-  # # Correct model result
-  # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-  # ### Save model ###
-  # saveRDS(
-  #   phylmix,
-  #   file =
-  #     paste("../Analysis/Mean.transgression", i, "obj", sep = ".")
-  #     )
-
-  
-  
-  ### Load model ###
-  phylmix <- readRDS(
-    paste("../Analysis/Mean.transgression", i, "obj", sep = ".")
-    )
-
-  sum <- left_join(
-    # corrected estimates & SD
-    summary(phylmix$Sol)$statistics %>%
-      as.data.frame() %>%
-      rownames_to_column(var = "factors"),
-    # P
-    summary(phylmix)$solutions %>%
-    as.data.frame() %>%
-    rownames_to_column(var = "factors"),
-    by = "factors"
-    ) %>%
-    mutate(
-      significance = ifelse(pMCMC < 0.05, "*", ""),
-      direction = 
-        ifelse(str_detect(factors, "\\+"), "Increase trait value", 
-               ifelse(str_detect(factors, "\\-"), "Reduce trait value",
-                      ifelse(str_detect(factors, "Father_"), "Exceed father trait value", "Exceed mother trait value")
-                      )
-               )
-      )
-  
-  ### Plot ###
-  categoricalplot <- ggplot(
-    sum, aes(x = post.mean, y = factors)
-    ) +
-    # Vertical line
-    geom_vline(
-      xintercept = 0, size = 0.3, 
-      colour = "grey30", linetype = "dotted"         
-      ) +
-    # CI
-    geom_errorbarh(
-      aes(
-        xmin = sum[, 'l-95% CI'], 
-        xmax = sum[, 'u-95% CI'],
-        ), 
-      height = .0001
-      ) +
-    geom_point(size = 1.5, shape = 17) +
-    # Title
-    ylab("") + xlab("estimate with CI") +
-    # Combine different plots for main factors and interactions
-    # Themes
-    theme_bw() +
-    # Combine different plots for main factors and interactions
-    facet_grid(
-      direction ~., scales = "free", drop = TRUE,
-      labeller = label_wrap_gen(width = 13)
-      ) +
-    theme(
-      panel.grid = element_blank(),
-      legend.position = "none",
-      panel.border = element_blank(),
-      axis.text.x = element_text(size = 11),
-      axis.text.y = element_text(size = 12),
-      axis.line=element_line(colour = "grey70")
-      )
-  print(categoricalplot)
-  
-  ggsave(
-      plot = categoricalplot, 
-      file = 
-          paste("../Analysis/Mean.TS.categorical", i, "svg", sep = "."), 
-      height = 6, width = 5
-      )
-
-}
+# 
+# #####################################################
+# # Direct test for the significant categorical factors
+# #####################################################
+# 
+# for (i in c("reciprocal", "parental", "hetero.sex")) {
+# 
+#   # Make new categorical data combining direction of TS and target categorical factor
+#   if (i == "hetero.sex") {
+#     TS %<>%
+#       mutate(interaction = str_c(parental, .[, i], sep = "_"))
+#   } else {
+#     TS %<>%
+#       mutate(interaction = str_c(direction, .[, i], sep = "_"))
+#   }  
+#       
+#   # ### Setting prior to logistic regression ###
+#   # prior <- list(
+#   #   B=list(
+#   #     mu = rep(0, 4), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+#   #     V = gelman.prior(~ interaction, # + trait.direction
+#   #     data = TS, # formula and data
+#   #     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+#   #   R=list(V=1,fix=1),
+#   #   # Replicating same G for the number of random effects (here, 4)
+#   #   G = list(
+#   #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#   #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#   #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#   #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#   #     )
+#   #   )
+#   # 
+#   # phylmix <-MCMCglmm(
+#   #   fixed = TS ~  interaction -1, # + trait.direction
+#   #   family = "categorical",
+#   #   # idh(SE):units | weight by SE of effect size
+#   #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+#   #   verbose = FALSE,
+#   #   ginverse = list(spL.name = phylo_MCMC),
+#   #   prior = prior,
+#   #   data = TS
+#   # )
+#   # # Correct model result
+#   # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+#   # ### Save model ###
+#   # saveRDS(
+#   #   phylmix,
+#   #   file =
+#   #     paste("../Analysis/Mean.transgression", i, "obj", sep = ".")
+#   #     )
+# 
+#   
+#   
+#   ### Load model ###
+#   phylmix <- readRDS(
+#     paste("../Analysis/Mean.transgression", i, "obj", sep = ".")
+#     )
+# 
+#   sum <- left_join(
+#     # corrected estimates & SD
+#     summary(phylmix$Sol)$statistics %>%
+#       as.data.frame() %>%
+#       rownames_to_column(var = "factors"),
+#     # P
+#     summary(phylmix)$solutions %>%
+#     as.data.frame() %>%
+#     rownames_to_column(var = "factors"),
+#     by = "factors"
+#     ) %>%
+#     mutate(
+#       significance = ifelse(pMCMC < 0.05, "*", ""),
+#       direction = 
+#         ifelse(str_detect(factors, "\\+"), "Increase trait value", 
+#                ifelse(str_detect(factors, "\\-"), "Reduce trait value",
+#                       ifelse(str_detect(factors, "Father_"), "Exceed father trait value", "Exceed mother trait value")
+#                       )
+#                )
+#       )
+#   
+#   ### Plot ###
+#   categoricalplot <- ggplot(
+#     sum, aes(x = post.mean, y = factors)
+#     ) +
+#     # Vertical line
+#     geom_vline(
+#       xintercept = 0, size = 0.3, 
+#       colour = "grey30", linetype = "dotted"         
+#       ) +
+#     # CI
+#     geom_errorbarh(
+#       aes(
+#         xmin = sum[, 'l-95% CI'], 
+#         xmax = sum[, 'u-95% CI'],
+#         ), 
+#       height = .0001
+#       ) +
+#     geom_point(size = 1.5, shape = 17) +
+#     # Title
+#     ylab("") + xlab("estimate with CI") +
+#     # Combine different plots for main factors and interactions
+#     # Themes
+#     theme_bw() +
+#     # Combine different plots for main factors and interactions
+#     facet_grid(
+#       direction ~., scales = "free", drop = TRUE,
+#       labeller = label_wrap_gen(width = 13)
+#       ) +
+#     theme(
+#       panel.grid = element_blank(),
+#       legend.position = "none",
+#       panel.border = element_blank(),
+#       axis.text.x = element_text(size = 11),
+#       axis.text.y = element_text(size = 12),
+#       axis.line=element_line(colour = "grey70")
+#       )
+#   print(categoricalplot)
+#   
+#   ggsave(
+#       plot = categoricalplot, 
+#       file = 
+#           paste("../Analysis/Mean.TS.categorical", i, "svg", sep = "."), 
+#       height = 6, width = 5
+#       )
+# 
+# }
 
 
 ```
 
 ```{r continuous factors plot}
 
-rawdat <- TS %>%
-  select(-pheno.div.ratio, -divergence.COI) %>%
-  # lnRR between parental species as phenotypic distance
-  mutate(pheno.div.ratio = log(Mn.spL/Mn.spS)) %>%
-  left_join(
-    .,
-    read.xlsx(
-      "../data/original.data.xlsx", sheet = "Metadata"
+for (k in c("alltaxon", "insect")) {
+  
+  if (k == "alltaxon") {
+    dat <- dat.full
+  } else {
+    dat <- dat.full %>% 
+      filter(insect == k)
+  }
+
+  rawdat <- dat %>%
+    select(-pheno.div.ratio, -divergence.COI) %>%
+    # lnRR between parental species as phenotypic distance
+    mutate(pheno.div.ratio = log(Mn.spL/Mn.spS)) %>%
+    left_join(
+      .,
+      read.xlsx(
+        "../data/original.data.xlsx", sheet = "Metadata"
+        ) %>%
+        select(Cross.ID, divergence.COI)
       ) %>%
-      select(Cross.ID, divergence.COI)
-    ) %>%
-  # Natural log of genetic distance
-  mutate_at("divergence.COI", log)
-
-
-fit = glm(
-  TS ~ divergence.COI*direction, 
-  data = rawdat, 
-  family = binomial
-  )
-ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
-
-fit = glm(
-  TS ~ pheno.div.ratio*direction, 
-  data = rawdat %>%
-    mutate_at("divergence.COI", as.vector), 
-  family = binomial
-  )
-ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3)
+    # Natural log of genetic distance
+    mutate_at("divergence.COI", log)
+  
+  
+  fit = glm(
+    TS ~ divergence.COI*direction, 
+    data = rawdat, 
+    family = binomial
+    )
+  ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3) %>%
+    print
+  
+  fit = glm(
+    TS ~ pheno.div.ratio*direction, 
+    data = rawdat %>%
+      mutate_at("divergence.COI", as.vector), 
+    family = binomial
+    )
+  ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3) %>%
+    print
+  
+}
 
 ```

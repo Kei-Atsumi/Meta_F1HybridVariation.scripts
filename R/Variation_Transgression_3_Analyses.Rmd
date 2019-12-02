@@ -19,7 +19,9 @@ options(scipen=100)  # do not show numbers using exponential
 # install & load packages
 pacman::p_load(
   openxlsx,   # open excel
-  tidyverse,  
+  tidyverse, 
+  kableExtra,
+  pander,     # nice tables
   MCMCglmm,   # glmm
   knitr,      # rmarkdown
   magrittr,   # Extend pipe
@@ -30,6 +32,7 @@ pacman::p_load(
 )
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
+options(knitr.kable.NA = '') # Hide NAs in kable table
 
 ### Correcting estimate of binomial regression###
 c2 <- (16 * sqrt(3)/(15 * pi))^2
@@ -41,7 +44,7 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 ```{r transgressive segregation}
 
-dat <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
+dat.full <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
   # Assign transgressive segregation to 1, no TS to 0 for each effect size
   mutate(TS = ifelse(yi < 0, 1, 0)) %>%
   ### Join with metadata ###
@@ -69,7 +72,11 @@ dat <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
         )
       )
     ) %>%
-  mutate_if(is.character, as.factor)
+  mutate_if(is.character, as.factor) %>%
+  # Insect or no
+  mutate(
+    insect = ifelse(taxa %in% c("Teleost", "Amphibian", "Bird", "Mammal"), "no", "insect"),
+  )
 
 #### Phylogenetic tree for mcmcglmm ####
 
@@ -93,13 +100,13 @@ How frequent the TS is?
 ```{r freq of od}
 
 print("overall frequency of TS")
-dat %>%
+dat.full %>%
   group_by(TS) %>%
   summarise(length(unique(ES.ID)))
 
 summary <- bind_rows(
   # All observations
-  dat %>%
+  dat.full %>%
     group_by(taxa) %>%
     summarise(
       species.pair = length(unique(species.pair)),
@@ -109,7 +116,7 @@ summary <- bind_rows(
     mutate(direction = "All Observations")
   ,
   # TS observations
-  dat %>%
+  dat.full %>%
     filter(TS == "1") %>%
     group_by(taxa) %>%
     summarise(
@@ -119,7 +126,7 @@ summary <- bind_rows(
       ) %>%
     mutate(direction = "Any directions")
   ,
-  dat %>%
+  dat.full %>%
     filter(TS == "1") %>%
     group_by(taxa, direction) %>%
     summarise(
@@ -185,7 +192,8 @@ summary %>%
     percent.species.pair = species.pair/.[1, "species.pair"]*100,
     percent.observations = observations/.[1, "observations"]*100
   ) %>%
-  mutate_at(vars(contains("percent")), round, 2)
+  mutate_at(vars(contains("percent")), round, 2) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 
 ```
@@ -195,151 +203,165 @@ summary %>%
 
 ```{r mixed model}
 
-# ### Setting prior to logistic regression ###
-# prior <- list(
-#   B=list(
-#     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-#     V = gelman.prior(~
-#     parental*hetero.sex + parental*direction +
-#     direction*divergence.COI + direction*pheno.div.ratio +
-#     direction*hetero.sex + direction*trait.type +
-#     direction*distribution + direction*reciprocal,
-#     data = dat, # formula and data
-#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-#   R=list(V=1,fix=1),
-#   # Replicating same G for the number of random effects (here, 4)
-#   G = list(
-#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-#     )
-#   )
-# ### Phylogenetic binomial regression ###
-# phylmix <-MCMCglmm(
-#   fixed = TS ~
-#     parental*hetero.sex + parental*direction +
-#     direction*divergence.COI + direction*pheno.div.ratio +
-#     direction*hetero.sex + direction*trait.type +
-#     direction*distribution + direction*reciprocal,
-#   family = "categorical",
-#   # idh(SE):units | weight by SE of effect size
-#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-#   verbose = FALSE,
-#   ginverse = list(spL.name = phylo_MCMC),
-#   prior = prior,
-#   data = dat,
-#   nitt = 60000,  # Increase the number of iterations, default is 13000
-#   burnin = 5000  # Increase the number of burnin, default is 3000
-# )
-# ### Correcting estimate ###
-# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-# ### Save model ###
-# saveRDS(phylmix, file = "../Analysis/Variation.transgression.allfactors.obj")
+for (k in c("alltaxon", "insect")) {
+  
+  if (k == "alltaxon") {
+    dat <- dat.full
+  } else {
+    dat <- dat.full %>% 
+      filter(insect == k)
+  }
+  
+  # ### Setting prior to logistic regression ###
+  # prior <- list(
+  #   B=list(
+  #     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+  #     V = gelman.prior(~
+  #     parental*hetero.sex + parental*direction +
+  #     direction*divergence.COI + direction*pheno.div.ratio +
+  #     direction*hetero.sex + direction*trait.type +
+  #     direction*distribution + direction*reciprocal,
+  #     data = dat, # formula and data
+  #     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  #   R=list(V=1,fix=1),
+  #   # Replicating same G for the number of random effects (here, 4)
+  #   G = list(
+  #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+  #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+  #     )
+  #   )
+  # ### Phylogenetic binomial regression ###
+  # phylmix <-MCMCglmm(
+  #   fixed = TS ~
+  #     parental*hetero.sex + parental*direction +
+  #     direction*divergence.COI + direction*pheno.div.ratio +
+  #     direction*hetero.sex + direction*trait.type +
+  #     direction*distribution + direction*reciprocal,
+  #   family = "categorical",
+  #   # idh(SE):units | weight by SE of effect size
+  #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+  #   verbose = FALSE,
+  #   ginverse = list(spL.name = phylo_MCMC),
+  #   prior = prior,
+  #   data = dat,
+  #   nitt = 60000,  # Increase the number of iterations, default is 13000
+  #   burnin = 5000  # Increase the number of burnin, default is 3000
+  # )
+  # ### Correcting estimate ###
+  # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+  # ### Save model ###
+  # saveRDS(
+  #   phylmix, 
+  #   file = paste("../Analysis/Variation.transgression.allfactors", k, "obj", sep = ".")
+  #   )
 
-
-
-### Load model ###
-phylmix <- readRDS("../Analysis/Variation.transgression.allfactors.obj")
-
-sum <- left_join(
-  # corrected estimates & SD
-  summary(phylmix$Sol)$statistics %>%
+  
+  ### Load model ###
+  phylmix <- readRDS(file = paste("../Analysis/Variation.transgression.allfactors", k, "obj", sep = "."))
+  
+  sum <- left_join(
+    # corrected estimates & SD
+    summary(phylmix$Sol)$statistics %>%
+      as.data.frame() %>%
+      rownames_to_column(var = "factors"),
+    # P
+    summary(phylmix)$solutions %>%
     as.data.frame() %>%
     rownames_to_column(var = "factors"),
-  # P
-  summary(phylmix)$solutions %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "factors"),
-  by = "factors"
-  ) %>%
-  mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
-  ### Grouping factors ###
-  mutate(
-    group = ifelse(str_detect(factors, "direction.:"), 
-                   "increasing trait value",
-                   ifelse(str_detect(factors, "parentalMother:"),
-                          "polar overdominance",
-                          ifelse(factors == "hetero.sexmale:direction+",
-                                 "increasing trait value",
-                                 "transgressive segregation"
-                                 )
-                          )
-                   )
-  ) %>%
-  mutate_at("group", as.factor) %>%
-  within(group <- ordered(group, c("transgressive segregation", "increasing trait value", "polar overdominance"))) %>%
-  ### Change factor names ###
-  within(
-    factors <- str_remove_all(
-      factors, "direction.:"
-      ) %>%
-      str_remove_all(., "parentalMother:") %>%
-      str_remove_all(., ":direction.")
+    by = "factors"
     ) %>%
-  within(
-    factors <- factor(
-      factors, ordered = TRUE, 
-      levels = c("trait.typesound", "hetero.sexMale", "parentalMother", "reciprocalViable", "distributionOverlap", "pheno.div.ratio", "sq.divergence.COI", "divergence.COI",  "direction+", "(Intercept)")
+    mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
+    ### Grouping factors ###
+    mutate(
+      group = ifelse(str_detect(factors, "direction.:"), 
+                     "increasing trait value",
+                     ifelse(str_detect(factors, "parentalMother:"),
+                            "polar overdominance",
+                            ifelse(factors == "hetero.sexMale:direction+",
+                                   "increasing trait value",
+                                   "transgressive segregation"
+                                   )
+                            )
+                     )
+    ) %>%
+    mutate_at("group", as.factor) %>%
+    within(group <- ordered(group, c("transgressive segregation", "increasing trait value", "polar overdominance"))) %>%
+    ### Change factor names ###
+    within(
+      factors <- str_remove_all(
+        factors, "direction.:"
+        ) %>%
+        str_remove_all(., "parentalMother:") %>%
+        str_remove_all(., ":direction.")
+      ) %>%
+    within(
+      factors <- factor(
+        factors, ordered = TRUE, 
+        levels = c("trait.typesound", "hetero.sexMale", "parentalMother", "reciprocalViable", "distributionOverlap", "pheno.div.ratio",  "divergence.COI",  "direction+", "(Intercept)")
+        )
       )
-    )
-
-### Plot ###
-metaplot <- ggplot(sum, aes(
-  x = post.mean, 
-  # Inverse order of factors
-  y = factors
-  )) +
-  # Vertical line
-  geom_vline(
-    xintercept = 0, size = 0.3, 
-    colour = "grey30", linetype = "dotted"         
-    ) +
-  # CI
-  geom_errorbarh(
-    aes(
-      xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI'],
-      colour=significance 
-      ), 
-    height = .0001
-    ) +
-  # Color of plots and errorbars
-  scale_colour_manual(values = c("grey60", "black")) +
-  geom_point(size = 1.5, aes(colour = significance)) +
-  scale_fill_manual(values = c("grey60", "black")) +
-  # Title
-  ylab("") + xlab("estimate with CI") +
-  # Combine different plots for main factors and interactions
-  facet_grid(group~., scales = "free", space = "free") +
-  # Themes
-  theme_bw() +
-  theme(
-    panel.grid = element_blank(),
-    legend.position = "none",
-    panel.border=element_blank(),
-    axis.text.x = element_text(size = 11),
-    axis.text.y = element_text(size = 12),
-    axis.line=element_line(colour = "grey70")
-    )
-print(metaplot)
-
-ggsave(
-    plot = metaplot, 
-    file = "../Analysis/variation.TS.result.svg", 
-    height = 6.75, width = 4.6
-    )
-
-### Output result ###
-
-print(
+  
+  ### Plot ###
+  metaplot <- ggplot(sum, aes(
+    x = post.mean, 
+    # Inverse order of factors
+    y = factors
+    )) +
+    # Vertical line
+    geom_vline(
+      xintercept = 0, size = 0.3, 
+      colour = "grey30", linetype = "dotted"         
+      ) +
+    # CI
+    geom_errorbarh(
+      aes(
+        xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI'],
+        colour=significance 
+        ), 
+      height = .0001
+      ) +
+    # Color of plots and errorbars
+    scale_colour_manual(values = c("grey60", "black")) +
+    geom_point(size = 1.5, aes(colour = significance)) +
+    scale_fill_manual(values = c("grey60", "black")) +
+    # Title
+    ylab("") + xlab("estimate with CI") +
+    # Combine different plots for main factors and interactions
+    facet_grid(group~., scales = "free", space = "free") +
+    # Themes
+    theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      legend.position = "none",
+      panel.border=element_blank(),
+      axis.text.x = element_text(size = 11),
+      axis.text.y = element_text(size = 12),
+      axis.line=element_line(colour = "grey70")
+      )
+  print(metaplot)
+  
+  ggsave(
+      plot = metaplot, 
+      file = paste("../Analysis/variation.TS.result", k, "svg", sep = "."), 
+      height = 6.75, width = 4.6
+      )
+  
+  ### Output result ###
+  
+  
   sum %>% 
     select(group, factors, Mean, SD, pMCMC, significance) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
-    mutate_at(c("pMCMC"), round, 3)
-  )
+    mutate_at(c("pMCMC"), round, 3) %>%
+    print()
+  
+  # transformation for varaince
+  summary(phylmix$VCV/(1+c2)) %>%
+    print()
 
-# transformation for varaince
-summary(phylmix$VCV/(1+c2))
+}
 
 ```
 *direction+* greater variation in hybrids  
@@ -347,7 +369,7 @@ summary(phylmix$VCV/(1+c2))
 
 # Direct test for the significant categorical factors
 
-```{r Direct test for the significant categorical factors}
+```{r Direct test for the significant categorical factors, include=FALSE}
 
 
 #####################################################
