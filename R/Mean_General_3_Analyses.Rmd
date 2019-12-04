@@ -593,75 +593,89 @@ Indicates that maternal inheritance become stronger in male-heterogametic specie
 
 ```{r maternal vs paternal}
 
-for (j in c("withTS", "withoutTS")) {
-  for (k in c("alltaxon", "insect")) {
-    
-    if (k == "alltaxon") {
-      dat <- with.without.TS %>% 
-        filter(data.type == j, cross != "spL")
-    } else {
-      dat <- with.without.TS %>% 
-        filter(data.type == j, insect == k, cross != "spL")
+for (l in c("normal", "sensitivity")) {
+  for (j in c("withTS", "withoutTS")) {
+    for (k in c("alltaxon", "insect")) {
+      
+      if (k == "alltaxon") {
+        dat <- with.without.TS %>% 
+          filter(data.type == j, cross != "spL")
+      } else {
+        dat <- with.without.TS %>% 
+          filter(data.type == j, insect == k, cross != "spL")
+      }
+      
+      # if (l == "normal") {
+      # # Regress by lnRR of phenotypic difference between parentals
+      # phyl.random <- rma.mv(
+      #   yi = lnRR.es, V = lnRR.sv,
+      #   data = dat, method = "REML",
+      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      #   R = list(spL.name = phylo_cor),
+      #   mods = ~ cross*hetero.sex +
+      #     pheno.div.ratio + divergence.COI +
+      #     trait.type + distribution
+      #   )
+      # } else {
+      # # Regress by lnRR of phenotypic difference between parentals
+      # phyl.random <- rma.mv(
+      #   yi = lnRR.es, V = lnRR.sv,
+      #   data = dat, method = "REML",
+      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      #   R = list(spL.name = phylo_cor),
+      #   mods = ~ cross*hetero.sex +
+      #     pheno.div.ratio + divergence.COI +
+      #     trait.type + distribution +
+      #     sqrt(lnRR.sv)                       # add SE
+      #   )
+      # }
+      # 
+      # saveRDS(
+      #   phyl.random,
+      #   file = paste("../Analysis/Mean.metareg", j, k, l, "obj", sep = ".")
+      #   )
+      
+      ### Load model ###
+      phyl.random <- readRDS(paste("../Analysis/Mean.metareg", j, k, l, "obj", sep = "."))
+  
+  
+      ### Output result ###
+      reg <- get_stats(phyl.random) %>%
+        mutate_at("Fixed_effects", as.factor)
+      plot <- ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
+        geom_errorbar(
+          aes(ymin = LowerCI, ymax = UpperCI, colour=significance), 
+          width=.0001
+          ) +
+        # Color of plots and errorbars
+        scale_colour_manual(values = c("grey60", "black")) +
+        geom_point(size = 1.5, aes(colour = significance)) +
+        scale_fill_manual(values = c("grey60", "black")) +
+        scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
+        geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+        coord_flip() +
+        ylab("lnRR") + xlab(paste(l, k, j)) +
+        theme_bw() +
+        theme(
+          panel.grid = element_blank(),
+          legend.position = "none",
+          panel.border=element_blank(),
+          axis.text.x = element_text(size = 11),
+          axis.text.y = element_text(size = 12),
+          axis.line=element_line(colour = "grey70")
+          )
+      print(plot)
+          
+      get_reg(phyl.random) %>%
+        mutate_if(is.numeric, round, 3) %>%
+        # Show dataset name
+        within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+        print()
+      
     }
-    
-    ################################################
-    # phylogenetic random regresson (ANOVA)
-    ################################################
-    
-    # # Regress by lnRR of phenotypic difference between parentals 
-    # phyl.random <- rma.mv(
-    #   yi = lnRR.es, V = lnRR.sv,
-    #   data = dat, method = "REML",
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-    #   R = list(spL.name = phylo_cor),
-    #   mods = ~ pheno.div.ratio + cross*hetero.sex
-    #     # + cross*divergence.COI + cross*pheno.div.ratio
-    #   )
-    # saveRDS(
-    #   phyl.random,
-    #   file = paste("../Analysis/Mean.metareg", j, k, "obj", sep = ".")
-    #   )
-    
-    ### Load model ###
-    phyl.random <- readRDS(paste("../Analysis/Mean.metareg", j, k, "obj", sep = "."))
-
-
-    ### Output result ###
-    reg <- get_stats(phyl.random) %>%
-      mutate_at("Fixed_effects", as.factor)
-    plot <- ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
-      geom_errorbar(
-        aes(ymin = LowerCI, ymax = UpperCI, colour=significance), 
-        width=.0001
-        ) +
-      # Color of plots and errorbars
-      scale_colour_manual(values = c("grey60", "black")) +
-      geom_point(size = 1.5, aes(colour = significance)) +
-      scale_fill_manual(values = c("grey60", "black")) +
-      scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
-      geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
-      coord_flip() +
-      ylab("lnRR") + xlab(paste(k, j)) +
-      theme_bw() +
-      theme(
-        panel.grid = element_blank(),
-        legend.position = "none",
-        panel.border=element_blank(),
-        axis.text.x = element_text(size = 11),
-        axis.text.y = element_text(size = 12),
-        axis.line=element_line(colour = "grey70")
-        )
-    print(plot)
-        
-    get_reg(phyl.random) %>%
-      mutate_if(is.numeric, round, 3) %>%
-      # Show dataset name
-      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
-      print()
-
   }
 }
-
+  
 ```
 
 
