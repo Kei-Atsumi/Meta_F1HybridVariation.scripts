@@ -591,7 +591,7 @@ bind_rows(
 Comparing the differences between parentals and hybrids  
 Indicates that maternal inheritance become stronger in male-heterogametic species, but, dataset is heavily biased toward male-heterogametic species so this effect is still uncertain
 
-```{r maternal vs paternal}
+```{r maternal vs paternal, results='asis'}
 
 for (l in c("normal", "sensitivity")) {
   for (j in c("withTS", "withoutTS")) {
@@ -670,6 +670,8 @@ for (l in c("normal", "sensitivity")) {
         mutate_if(is.numeric, round, 3) %>%
         # Show dataset name
         within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+        kable("html", digits = 3, caption = paste(l,j,k)) %>% 
+        kable_styling("striped", position = "left") %>%
         print()
       
     }
@@ -682,7 +684,7 @@ for (l in c("normal", "sensitivity")) {
 # Assesing maternal inheritance part 2
 Comparing the differences between parentals and hybrids
 
-```{r maternal vs paternal categorical}
+```{r maternal vs paternal categorical, results='asis'}
 
 # Select ESs that can compare maternal and paternal inheritance
 
@@ -732,7 +734,7 @@ for (j in c("withTS", "withoutTS")) {
       scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
       geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
       coord_flip() +
-      ylab("lnRR") + xlab(paste(j,k)) +
+      ylab("lnRR") + xlab(paste(l,j,k)) +
         # Themes
       theme_bw() +
       theme(
@@ -750,6 +752,8 @@ for (j in c("withTS", "withoutTS")) {
       mutate_if(is.numeric, round, 3) %>%
       # Show dataset name
       within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+      kable("html", digits = 3, caption = paste(l,j,k)) %>% 
+      kable_styling("striped", position = "left") %>%
       print()
     
     }

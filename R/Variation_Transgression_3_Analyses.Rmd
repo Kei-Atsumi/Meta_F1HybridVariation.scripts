@@ -97,12 +97,7 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 # Frequency of TS
 How frequent the TS is?  
 
-```{r freq of od}
-
-print("overall frequency of TS")
-dat.full %>%
-  group_by(TS) %>%
-  summarise(length(unique(ES.ID)))
+```{r freq of transgression}
 
 summary <- bind_rows(
   # All observations
@@ -157,7 +152,7 @@ summary <- bind_rows(
     ) %>%
   # Change names of TS category to more intuitive name
   within(
-    levels(direction) <- c("All Observations", "All deviations", "Greater variation", "Smaller variation")
+    levels(direction) <- c("All Observations", "All transgression", "Greater variation", "Smaller variation")
       ) %>%
   filter(metrics != "study")
   
@@ -276,18 +271,18 @@ for (k in c("alltaxon", "insect")) {
     ### Grouping factors ###
     mutate(
       group = ifelse(str_detect(factors, "direction.:"), 
-                     "increasing trait value",
+                     "increasing variation",
                      ifelse(str_detect(factors, "parentalMother:"),
                             "polar overdominance",
                             ifelse(factors == "hetero.sexMale:direction+",
-                                   "increasing trait value",
+                                   "increasing variation",
                                    "transgressive segregation"
                                    )
                             )
                      )
     ) %>%
     mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("transgressive segregation", "increasing trait value", "polar overdominance"))) %>%
+    within(group <- ordered(group, c("transgressive segregation", "increasing variation", "polar overdominance"))) %>%
     ### Change factor names ###
     within(
       factors <- str_remove_all(
@@ -327,6 +322,7 @@ for (k in c("alltaxon", "insect")) {
     geom_point(size = 1.5, aes(colour = significance)) +
     scale_fill_manual(values = c("grey60", "black")) +
     # Title
+    ggtitle(k) +
     ylab("") + xlab("estimate with CI") +
     # Combine different plots for main factors and interactions
     facet_grid(group~., scales = "free", space = "free") +
@@ -367,16 +363,56 @@ for (k in c("alltaxon", "insect")) {
 *direction+* greater variation in hybrids  
 
 
+```{r continuous factors plot}
+
+
+rawdat <- dat.full %>%
+  select(-pheno.div.ratio, -divergence.COI) %>%
+  # lnRR between parental species as phenotypic distance
+  mutate(pheno.div.ratio = abs(log(Mn.spL/Mn.spS))) %>%
+  left_join(
+    .,
+    read.xlsx(
+      "../data/original.data.xlsx", sheet = "Metadata"
+      ) %>%
+      select(Cross.ID, divergence.COI)
+    ) %>%
+  # Natural log of genetic distance
+  mutate_at("divergence.COI", log)
+
+
+fit = glm(
+  TS ~ divergence.COI*direction, 
+  data = rawdat, 
+  family = binomial
+  )
+ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
+
+fit = glm(
+  TS ~ pheno.div.ratio*direction, 
+  data = rawdat %>%
+    mutate_at("divergence.COI", as.vector), 
+  family = binomial
+  )
+
+ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3)  
+
+
+```
+
 # Direct test for the significant categorical factors
 
-```{r Direct test for the significant categorical factors, include=FALSE}
-
-
-#####################################################
-# Direct test for the significant categorical factors
-#####################################################
+```{r Direct test for the significant categorical factors, results='asis'}
 
 for (i in c("reciprocal", "trait.type")) {
+  for (k in c("alltaxon", "insect")) {
+  
+    if (k == "alltaxon") {
+      dat <- dat.full
+    } else {
+      dat <- dat.full %>% 
+        filter(insect == k)
+    }
 
   # Make new categorical data combining direction of TS and target categorical factor
   dat %<>%
@@ -415,14 +451,14 @@ for (i in c("reciprocal", "trait.type")) {
   # saveRDS(
   #   phylmix,
   #   file =
-  #     paste("../Analysis/Variation.transgression", i, "obj", sep = ".")
+  #     paste("../Analysis/Variation.transgression", i,k, "obj", sep = ".")
   #     )
   
   
   
   ### Load model ###
   phylmix <- readRDS(
-    paste("../Analysis/Variation.transgression", i, "obj", sep = ".")
+    paste("../Analysis/Variation.transgression", i,k, "obj", sep = ".")
     )
 
   ##############################
@@ -467,6 +503,7 @@ for (i in c("reciprocal", "trait.type")) {
     geom_point(size = 2.0, shape = 17) +
     # Title
     ylab("") + xlab("estimate with CI") +
+    ggtitle(k) +
     # Combine different plots for main factors and interactions
     # Themes
     theme_bw() +
@@ -488,7 +525,7 @@ for (i in c("reciprocal", "trait.type")) {
   ggsave(
       plot = categoricalplot, 
       file = 
-        paste("../Analysis/variation.TS.categorical", i, "svg", sep = "."),
+        paste("../Analysis/variation.TS.categorical", i,k, "svg", sep = "."),
       height = 4, width = 5
       )
 
@@ -496,7 +533,7 @@ for (i in c("reciprocal", "trait.type")) {
   # Contrast
   #####################################
   
-  a <- bind_rows(
+  bind_rows(
     HPDinterval(phylmix$Sol[,1] - phylmix$Sol[,2]) %>%
       as.data.frame() %>%
       mutate(
@@ -544,48 +581,17 @@ for (i in c("reciprocal", "trait.type")) {
         str_replace_all(., pattern = "interaction", replacement = "direction")
         )
       ) %>%
-    mutate_at(vars("lower", "upper"), round, 3)
-  print(a)
+    select(from, to, upper, lower, sign) %>%
+    kable("html", digits = 3) %>% 
+    kable_styling("striped", position = "left") %>%
+    print()
 
+  }
 }
 
 
 ```
 
-
-```{r continuous factors plot}
-
-rawdat <- dat %>%
-  select(-pheno.div.ratio, -divergence.COI) %>%
-  # lnRR between parental species as phenotypic distance
-  mutate(pheno.div.ratio = abs(log(Mn.spL/Mn.spS))) %>%
-  left_join(
-    .,
-    read.xlsx(
-      "../data/original.data.xlsx", sheet = "Metadata"
-      ) %>%
-      select(Cross.ID, divergence.COI)
-    ) %>%
-  # Natural log of genetic distance
-  mutate_at("divergence.COI", log)
-
-
-fit = glm(
-  TS ~ divergence.COI*direction, 
-  data = rawdat, 
-  family = binomial
-  )
-ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
-
-fit = glm(
-  TS ~ pheno.div.ratio*direction, 
-  data = rawdat %>%
-    mutate_at("divergence.COI", as.vector), 
-  family = binomial
-  )
-ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3)
-
-```
 
 
 ```{r trash, include = FALSE}
@@ -669,5 +675,3 @@ ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3)
 # 
 
 ```
-
-
