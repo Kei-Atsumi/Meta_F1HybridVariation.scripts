@@ -218,16 +218,6 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
-```
-
-# Assessing dominance
-Compare midparent and hybrids by comparing phenotypic difference from spS to midparent (spL+spS/2) and to hybrids.    
-phenotypic difference from spS to midparent: *ln((spL+spS/2)/SS)*   
-phenotypic difference from spS to hybrids: *ln(hyb/SS)*  
-As the variance of *ln((spL+spS/2)/SS)*, we use the variance of *ln(LL/SS)* for simplicity
-
-```{r assessing dominance}
-
 
 # Calculate midparent 
 midparent <- with.without.TS %>%
@@ -242,6 +232,16 @@ midparent <- with.without.TS %>%
     ) %>%
   mutate_at("cross", as.factor) %>%
   within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
+
+```
+
+# Assessing dominance
+Compare midparent and hybrids by comparing phenotypic difference from spS to midparent (spL+spS/2) and to hybrids.    
+phenotypic difference from spS to midparent: *ln((spL+spS/2)/SS)*   
+phenotypic difference from spS to hybrids: *ln(hyb/SS)*  
+As the variance of *ln((spL+spS/2)/SS)*, we use the variance of *ln(LL/SS)* for simplicity
+
+```{r assessing dominance}
 
 
 for (j in c("withTS", "withoutTS")) {
@@ -427,15 +427,15 @@ for (j in c("withTS", "withoutTS")) {
       ### Midparent CI ###
       geom_rect(
         aes(
-          xmin = midparent.ma.2$LowerCI,
-          xmax = midparent.ma.2$UpperCI,
+          xmin = tanh(midparent.ma.2$LowerCI),
+          xmax = tanh(midparent.ma.2$UpperCI),
           ymin = -Inf, ymax = Inf
           ),
         fill="Grey 95", inherit.aes = FALSE
         ) +
       ### Midparent estimate ###
       geom_vline(
-        xintercept = midparent.ma.2$estimate, colour = "grey20", 
+        xintercept = tanh(midparent.ma.2$Estimate), colour = "grey20", 
         alpha = 0.3, size = 1
         ) +
       ### Orchard plot ###
@@ -589,7 +589,8 @@ bind_rows(
 
 # Assesing maternal inheritance
 Comparing the differences between parentals and hybrids  
-Indicates that maternal inheritance become stronger in male-heterogametic species, but, dataset is heavily biased toward male-heterogametic species so this effect is still uncertain
+Indicates that maternal inheritance become stronger in male-heterogametic species, but, dataset is heavily biased toward male-heterogametic species so this effect is still uncertain  
+Included the analysis accomodating potential publication bias by including SE of effect size as a moderator
 
 ```{r maternal vs paternal, results='asis'}
 
@@ -763,6 +764,168 @@ for (j in c("withTS", "withoutTS")) {
 
 ```
 
+# PET-PEESE
+Meta regression for spLL, hybSL, hybLS and midparent only including V (lnRR.sv or lnCVR.sv) as a moderator -> intercept indicates adjusted effect size (no error)
 
+```{r PET-PEESE in mean}
 
+for (j in c("withTS", "withoutTS")) {
+  for (k in c("alltaxon", "insect")) {
+    
+    # if (k == "alltaxon") {
+    #   midparent.dat <- midparent %>% 
+    #     filter(data.type == j)
+    # } else {
+    #   midparent.dat <- midparent %>% 
+    #     filter(data.type == j, insect == k)
+    # }
+    # # Phylogenetic random meta-analysis for midparent
+    # midparent.random <- rma.mv(
+    #   yi = lnRR.midparent.es,
+    #   V = lnRR.sv,
+    #   data = midparent.dat %>% filter(cross == "midparent"),
+    #   method = "REML",
+    #   mods = ~ lnRR.sv,
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    #   R = list(spL.name = phylo_cor)
+    #   )
+    # ### Save model ###
+    # saveRDS(
+    #   midparent.random,
+    #   file = paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = ".")
+    #   )
 
+    ### Load model ###
+    midparent.random <- readRDS(paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = "."))
+    # creating summary table of results
+  
+    midparent.ma <- get_reg(midparent.random) %>%
+      as.data.frame() %>%
+      mutate(
+        N = length(dat$ES.ID),
+        I2 = I2(phyl.random)["I2_total"] %>% round(3),
+        cross = "midparent" # indicate cross (spL, hybLS, hybSL)
+        )
+
+    for (h in c("spL", "hybLS", "hybSL")) {
+
+      # if (k == "alltaxon") {
+      #   dat <- with.without.TS %>% 
+      #     filter(cross == h, data.type == j)
+      # } else {
+      #   dat <- with.without.TS %>% 
+      #     filter(cross == h, data.type == j, insect == k)
+      # }
+      # # Phylogenetic random meta-analysis
+      # phyl.random <- rma.mv(
+      #   yi = lnRR.es, V = lnRR.sv,
+      #   data = dat, method = "REML",
+      #   mods = ~ lnRR.sv,
+      #   random = list(
+      #     ~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID
+      #     ),
+      #   R = list(spL.name = phylo_cor)
+      #   )
+      # saveRDS(phyl.random,
+      #   file = paste("../Analysis/Mean.PET-PEESE", j, k, h, "obj", sep = "."))
+
+      
+      ### Load model ###
+      phyl.random <- readRDS(paste("../Analysis/Mean.PET-PEESE", j, k, h, "obj", sep = "."))
+      
+      assign(
+        paste("res", h, sep = "."), 
+        get_reg(phyl.random) %>%
+          as.data.frame() %>%
+          mutate(
+            N = length(dat$ES.ID),
+            I2 = I2(phyl.random)["I2_total"] %>% round(3),
+            cross = h # indicate cross (spL, hybLS, hybSL)
+            )
+          )
+      
+    }
+    
+    # Bind result of all crosses at each dataset
+    assign(
+      paste("res.ma", j,k, sep = "."),
+      res.ma <- bind_rows(
+        res.spL, res.hybLS, res.hybSL, midparent.ma
+        ) %>%
+        as.data.frame() %>%
+        within('Dataset' <- c(paste(j,k), rep("", length = 11))) # Show dataset name in first row
+    )
+    
+    res.ma.plot <- res.ma %>%
+      filter(`Fixed effects` == "intrcpt") %>%
+      filter(cross != "midparent")
+    
+    # creating a forest plot
+    plot.metamean <- ggplot(
+      data = res.ma.plot,
+      aes(x = Estimate, y = cross)
+      ) +
+      # scale_x_continuous(
+      #   limits = c(-1, 1),
+      #   breaks = seq(-1, 1, by = 0.25)
+      #   ) +
+      # Delete legend for colors
+      guides(fill = "none", colour = "none") +
+      # Confidential interval : thicker line
+      geom_errorbarh(
+        aes(xmin = LowerCI, xmax = UpperCI, color = cross),
+        height = 0, size = 1.2, alpha = 0.6
+        ) +
+      geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) +
+      ### Estimate ###
+      geom_point(size = 3, shape = 21, aes(fill = cross, color = cross)) +
+      scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+      scale_fill_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+      ylab("") +
+      xlab(paste("PET-PEESE dataset", j,k)) +
+      # ### Midparent CI ###
+      # geom_rect(
+      #   aes(
+      #     xmin = res.ma[12, "LowerCI"],
+      #     xmax = res.ma[12, "UpperCI"],
+      #     ymin = -Inf, ymax = Inf
+      #     ),
+      #   fill="Grey 80", inherit.aes = FALSE
+      #   ) +
+      ### Midparent estimate ###
+      geom_vline(
+        xintercept = res.ma[12, "Estimate"], colour = "grey20",
+        alpha = 0.3, size = 1
+        ) +
+      theme_bw() +
+      theme(
+        axis.text.y = element_text(size = 13, color = "black", face = "italic"),
+        axis.text.x = element_text(size = 11, color = "grey20"),
+        axis.title = element_text(size = 13, color = "black"),
+        legend.position = c(0, 1),
+        legend.justification = c(0, 1),
+        legend.direction = "horizontal",
+        legend.background = element_blank()
+        )
+
+    print(plot.metamean)
+    #     
+    # 
+    # ggsave(
+    #   plot = plot.metamean,
+    #   file = paste("../Analysis/mean.general.metamean", j,k, "svg", sep = "."),
+    #   height = 5, width = 6
+    #   )
+  }
+}
+
+bind_rows(
+  res.ma.withTS.alltaxon, res.ma.withoutTS.alltaxon,
+  res.ma.withTS.insect, res.ma.withoutTS.insect
+  ) %>%
+  as.data.frame() %>%
+  mutate_at(vars('Estimate':'V[crossed strain]'), as.numeric) %>%
+  select(Dataset, cross, 'Fixed effects', Estimate, UpperCI, LowerCI, contains("PR"), contains("V")) %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+
+```
