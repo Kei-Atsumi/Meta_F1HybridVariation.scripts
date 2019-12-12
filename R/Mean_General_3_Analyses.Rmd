@@ -772,13 +772,13 @@ Meta regression for spLL, hybSL, hybLS and midparent only including V (lnRR.sv o
 for (j in c("withTS", "withoutTS")) {
   for (k in c("alltaxon", "insect")) {
     
-    # if (k == "alltaxon") {
-    #   midparent.dat <- midparent %>% 
-    #     filter(data.type == j)
-    # } else {
-    #   midparent.dat <- midparent %>% 
-    #     filter(data.type == j, insect == k)
-    # }
+    if (k == "alltaxon") {
+      midparent.dat <- midparent %>%
+        filter(data.type == j)
+    } else {
+      midparent.dat <- midparent %>%
+        filter(data.type == j, insect == k)
+    }
     # # Phylogenetic random meta-analysis for midparent
     # midparent.random <- rma.mv(
     #   yi = lnRR.midparent.es,
@@ -802,8 +802,8 @@ for (j in c("withTS", "withoutTS")) {
     midparent.ma <- get_reg(midparent.random) %>%
       as.data.frame() %>%
       mutate(
-        N = length(dat$ES.ID),
-        I2 = I2(phyl.random)["I2_total"] %>% round(3),
+        N = length(midparent.dat$ES.ID),
+        I2 = I2(midparent.random)["I2_total"] %>% round(3),
         cross = "midparent" # indicate cross (spL, hybLS, hybSL)
         )
 

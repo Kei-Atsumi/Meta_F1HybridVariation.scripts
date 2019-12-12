@@ -1597,7 +1597,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">General pattern of phenotypic mean</h1>
 <h4 class="author">Keisuke Atsumi</h4>
-<h4 class="date">19/12/12 20:01</h4>
+<h4 class="date">19/12/12 20:22</h4>
 
 </div>
 
@@ -6683,13 +6683,13 @@ cross.sexMale_hybSL
 <pre class="r"><code>&gt; for (j in c(&quot;withTS&quot;, &quot;withoutTS&quot;)) {
 +   for (k in c(&quot;alltaxon&quot;, &quot;insect&quot;)) {
 +     
-+     # if (k == &quot;alltaxon&quot;) {
-+     #   midparent.dat &lt;- midparent %&gt;% 
-+     #     filter(data.type == j)
-+     # } else {
-+     #   midparent.dat &lt;- midparent %&gt;% 
-+     #     filter(data.type == j, insect == k)
-+     # }
++     if (k == &quot;alltaxon&quot;) {
++       midparent.dat &lt;- midparent %&gt;%
++         filter(data.type == j)
++     } else {
++       midparent.dat &lt;- midparent %&gt;%
++         filter(data.type == j, insect == k)
++     }
 +     # # Phylogenetic random meta-analysis for midparent
 +     # midparent.random &lt;- rma.mv(
 +     #   yi = lnRR.midparent.es,
@@ -6713,8 +6713,8 @@ cross.sexMale_hybSL
 +     midparent.ma &lt;- get_reg(midparent.random) %&gt;%
 +       as.data.frame() %&gt;%
 +       mutate(
-+         N = length(dat$ES.ID),
-+         I2 = I2(phyl.random)[&quot;I2_total&quot;] %&gt;% round(3),
++         N = length(midparent.dat$ES.ID),
++         I2 = I2(midparent.random)[&quot;I2_total&quot;] %&gt;% round(3),
 +         cross = &quot;midparent&quot; # indicate cross (spL, hybLS, hybSL)
 +         )
 + 
