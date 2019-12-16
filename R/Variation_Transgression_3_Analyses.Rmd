@@ -99,39 +99,41 @@ How frequent the TS is?
 
 ```{r freq of transgression}
 
+### N of TS in each taxa and each direction ###
 summary <- bind_rows(
   # All observations
   dat.full %>%
     group_by(taxa) %>%
     summarise(
-      species.pair = length(unique(species.pair)),
-      observations = length(unique(ES.ID)),
-      study = length(unique(Study.ID))
+      'Species pair' = length(unique(species.pair)),
+      Observations = length(unique(ES.ID)),
+      Study = length(unique(Study.ID))
       ) %>%
     mutate(direction = "All Observations")
   ,
-  # TS observations
+  # TS for any direction
   dat.full %>%
     filter(TS == "1") %>%
     group_by(taxa) %>%
     summarise(
-      species.pair = length(unique(species.pair)),
-      observations = length(unique(ES.ID)),
-      study = length(unique(Study.ID))
+      'Species pair' = length(unique(species.pair)),
+      Observations = length(unique(ES.ID)),
+      Study = length(unique(Study.ID))
       ) %>%
     mutate(direction = "Any directions")
   ,
+  # TS for each direction
   dat.full %>%
     filter(TS == "1") %>%
     group_by(taxa, direction) %>%
     summarise(
-      species.pair = length(unique(species.pair)),
-      observations = length(unique(ES.ID)),
-      study = length(unique(Study.ID))
+      'Species pair' = length(unique(species.pair)),
+      Observations = length(unique(ES.ID)),
+      Study = length(unique(Study.ID))
       )
   ) %>%
   # Assign 0 for no observation of TS
-  replace(., is.na(.), "0") %>%
+  replace(., is.na(.), "0") %>% 
   # Make tidy data
   gather(key = metrics, value = N, -c(taxa, direction)) %>%
   # Order factors
@@ -140,7 +142,7 @@ summary <- bind_rows(
   within(
     metrics <- ordered(
       metrics,
-      levels = c("study", "species.pair", "observations")
+      levels = c("Study", "Species pair", "Observations")
       )
   ) %>%
   # Order TS category
@@ -152,9 +154,9 @@ summary <- bind_rows(
     ) %>%
   # Change names of TS category to more intuitive name
   within(
-    levels(direction) <- c("All Observations", "All transgression", "Greater variation", "Smaller variation")
+    levels(direction) <- c("All Obser- vations", "All trans- gression", "Larger variation", "Smaller variation")
       ) %>%
-  filter(metrics != "study")
+  filter(metrics != "Study")
   
 ### Plot ###
 plot <- ggplot(summary, aes(x = "", y = N, fill = taxa)) +
@@ -168,12 +170,18 @@ plot <- ggplot(summary, aes(x = "", y = N, fill = taxa)) +
   xlab("") +
   theme_bw() +
   theme(
+    strip.text = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank()
   )
 plot
 
-ggsave(plot = plot, file = "../Analysis/Variation.TS.frequency.svg", height = 4, width = 6)
+ggsave(
+  plot = plot +
+    theme(legend.position = "none"), 
+  file = "../Analysis/Variation.TS.frequency.svg", height = 3.6, width = 5.1
+  )
 
 ### Total number of observations and percentage ###
 summary %>%
@@ -184,8 +192,8 @@ summary %>%
   as.data.frame() %>%
   # Calculate percentage
   mutate(
-    percent.species.pair = species.pair/.[1, "species.pair"]*100,
-    percent.observations = observations/.[1, "observations"]*100
+    percent.species.pair = .[, "Species pair"]/.[1, "Species pair"]*100,
+    percent.observations = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
   kable("html", digits = 3) %>% kable_styling("striped", position = "left")
@@ -270,16 +278,17 @@ for (k in c("alltaxon", "insect")) {
     mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
     ### Grouping factors ###
     mutate(
-      group = ifelse(str_detect(factors, "direction.:"), 
-                     "increasing variation",
-                     ifelse(str_detect(factors, "parentalMother:"),
-                            "polar overdominance",
-                            ifelse(factors == "hetero.sexMale:direction+",
-                                   "increasing variation",
-                                   "transgressive segregation"
-                                   )
-                            )
-                     )
+      group = 
+        ifelse(str_detect(factors, "direction.:"), 
+               "increasing variation",
+               ifelse(str_detect(factors, "parentalMother:"),
+                      "polar overdominance",
+                      ifelse(factors == "hetero.sexMale:direction+",
+                             "increasing variation",
+                             "transgressive segregation"
+                             )
+                      )
+               )
     ) %>%
     mutate_at("group", as.factor) %>%
     within(group <- ordered(group, c("transgressive segregation", "increasing variation", "polar overdominance"))) %>%
