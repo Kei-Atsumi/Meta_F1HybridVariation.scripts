@@ -42,8 +42,8 @@ mytheme <-
 
 ```
 
-# Investigation (preliminary): dominance? paternal inheritance?  
-To investigate how dominance and paternal inheritance shape male sexual trait in F1 hybrids, here we calculate SMD between pure species and hybrids. lnRR won't work well here: when hybrids are on midparent (i.e. solely additive), the difference between either pure and hybrids will be same in SMD but different in lnRR.
+# Calculating effect sizes for meta-analysis
+Phenotypic difference from spSS to the other crosses
 
 ```{r lnRR & SMD between hybrids and parental species}
 
@@ -247,9 +247,6 @@ bin.tree <- multi2di(tree, random = T)
 print("Randomly solved phylogeny")
 plot(bin.tree)
 
-# check tree is binary
-is.binary(bin.tree) # TRUE
-
 # correlation matrix to fit to the model
 bin.tree$tip.label <- bin.tree$tip.label %>%
   as.factor() 
@@ -258,10 +255,7 @@ levels(bin.tree$tip.label) <- levels(mean.dif$spL.name) # making sure names matc
 
 bin.tree$tip.label <- as.character(bin.tree$tip.label) # converting names back to character
 
-write.tree(
-  bin.tree, 
-  file= "../data/phylo.mean.general.tre"
-  )
+write.tree(bin.tree, file= "../data/phylo.mean.general.tre")
 
 ```
   

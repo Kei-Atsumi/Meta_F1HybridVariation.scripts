@@ -68,8 +68,6 @@ for (i in c("spL")) { # identify type of hybrids
   for (h in c("hybLS", "hybSL")) { # identify type of parentals
     assign(
       paste(h, i, sep = "_"),
-      
-      left_join(
         ### lnRR ###
         escalc(
           measure = "ROM",
@@ -87,27 +85,8 @@ for (i in c("spL")) { # identify type of hybrids
           sd2i = dat[, paste("SD", h, sep = ".")],
           data = dat
           ) %>%
-          rename(lnRR.es = yi, lnRR.sv = vi),
-        ### SMD ###
-        escalc(
-          measure = "SMD",
-          # N of hybrids
-          n1i = dat[, paste("N", i, sep = ".")],
-          # N of parentals
-          n2i = dat[, paste("N", h, sep = ".")],
-          # Mean of hybrids
-          m1i = dat[, paste("Mn", i, sep = ".")],
-          # Mean of parentals
-          m2i = dat[, paste("Mn", h, sep = ".")],
-          # SD of hybrids
-          sd1i = dat[, paste("SD", i, sep = ".")],
-          # SD of parentals
-          sd2i = dat[, paste("SD", h, sep = ".")],
-          data = dat
-          ) %>%
-          rename(SMD.es = yi, SMD.sv = vi)
-        ) %>%
-        select(ES.ID, contains("lnRR"), contains("SMD")) %>%
+        rename(lnRR.es = yi, lnRR.sv = vi) %>%
+        select(ES.ID, contains("lnRR")) %>%
         mutate(
           # direction of transgressve segregation - greater than parent
           direction = "+",
@@ -129,8 +108,6 @@ for (i in c("hybLS", "hybSL")) { # identify type of hybrids
   for (h in c("spS")) { # identify type of parentals
     assign(
       paste(i, h, sep = "_"),
-      
-      left_join(
         ### lnRR ###
         escalc(
           measure = "ROM",
@@ -148,27 +125,8 @@ for (i in c("hybLS", "hybSL")) { # identify type of hybrids
           sd2i = dat[, paste("SD", h, sep = ".")],
           data = dat
           ) %>%
-          rename(lnRR.es = yi, lnRR.sv = vi),
-        ### SMD ###
-        escalc(
-          measure = "SMD",
-          # N of hybrids
-          n1i = dat[, paste("N", i, sep = ".")],
-          # N of parentals
-          n2i = dat[, paste("N", h, sep = ".")],
-          # Mean of hybrids
-          m1i = dat[, paste("Mn", i, sep = ".")],
-          # Mean of parentals
-          m2i = dat[, paste("Mn", h, sep = ".")],
-          # SD of hybrids]
-          sd1i = dat[, paste("SD", i, sep = ".")],
-          # SD of parentals
-          sd2i = dat[, paste("SD", h, sep = ".")],
-          data = dat
-          ) %>%
-          rename(SMD.es = yi, SMD.sv = vi)
-        ) %>%
-        select(ES.ID, contains("lnRR"), contains("SMD")) %>%
+          rename(lnRR.es = yi, lnRR.sv = vi) %>%
+        select(ES.ID, contains("lnRR")) %>%
         mutate(
           # direction of transgressve segregation - smaller than parent
           direction = "-",
@@ -190,12 +148,10 @@ mean.dif.all <- bind_rows(
   bind_rows(hybLS_spS, hybSL_spL) %>%
     mutate(parental = "Father")
   ) %>%
-  drop_na(SMD.sv) %>%
+  drop_na(lnRR.sv) %>%
   left_join(., dat)
 
-write.csv(mean.dif.all, "../data/mean.ES.TS.csv", 
-            row.names = F)
-
+write.csv(mean.dif.all, "../data/mean.ES.TS.csv", row.names = F)
 
 ```
 

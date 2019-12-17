@@ -189,7 +189,7 @@ TS <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
   distinct(ES.ID)
 # Effect sizes without observations with TS
 noTS <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
-  filter(!ES.ID %in% unique(TS$ES.ID)) %>%
+  filter(!(ES.ID %in% TS$ES.ID)) %>%
   # indicate dataset without TS
   mutate(data.type = "withoutTS")
 
@@ -255,14 +255,11 @@ for (j in c("withTS", "withoutTS")) {
         filter(data.type == j, insect == k)
     }
   
-    ################################################
-    # phylogenetic random regresson
-    ################################################
-    # # Regress by lnRR of phenotypic difference between parentals 
+    # ### phylogenetic random regresson comparing with midparent ### 
     # midparent.compare <- rma.mv(
-    #   yi = lnRR.midparent.es, 
-    #   V = lnRR.sv, 
-    #   data = dat, 
+    #   yi = lnRR.midparent.es,
+    #   V = lnRR.sv,
+    #   data = dat,
     #   method = "REML",
     #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
     #   R = list(spL.name = phylo_cor),
@@ -302,15 +299,11 @@ for (j in c("withTS", "withoutTS")) {
           ))
       )
     
-    #############################################
-    # Meta-analysis for midparent to plot band
-    #############################################
-    
-    # # Phylogenetic random meta-analysis
+    # ### Meta-analysis for midparent to plot band ###
     # midparent.random <- rma.mv(
-    #   yi = lnRR.midparent.es, 
-    #   V = lnRR.sv, 
-    #   data = dat %>% filter(cross == "midparent"), 
+    #   yi = lnRR.midparent.es,
+    #   V = lnRR.sv,
+    #   data = dat %>% filter(cross == "midparent"),
     #   method = "REML",
     #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
     #   R = list(spL.name = phylo_cor)
@@ -362,17 +355,17 @@ for (j in c("withTS", "withoutTS")) {
   for (k in c("alltaxon", "insect")) {
     for (h in c("spL", "hybLS", "hybSL")) {
 
-      if (k == "alltaxon") {
-        dat <- with.without.TS %>% 
-          filter(cross == h, data.type == j)
-      } else {
-        dat <- with.without.TS %>% 
-          filter(cross == h, data.type == j, insect == k)
-      }
-      
+      # if (k == "alltaxon") {
+      #   dat <- with.without.TS %>%
+      #     filter(cross == h, data.type == j)
+      # } else {
+      #   dat <- with.without.TS %>%
+      #     filter(cross == h, data.type == j, insect == k)
+      # }
+      # 
       # # Phylogenetic random meta-analysis
       # phyl.random <- rma.mv(
-      #   yi = lnRR.es, V = lnRR.sv, 
+      #   yi = lnRR.es, V = lnRR.sv,
       #   data = dat, method = "REML",
       #   random = list(
       #     ~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID
@@ -386,7 +379,7 @@ for (j in c("withTS", "withoutTS")) {
       ### Load model ###
       phyl.random <- readRDS(paste("../Analysis/Mean.meta", j, k, h, "obj", sep = "."))
       # Funnel plot
-      funnel(phyl.random, xlab = paste(j, k, h))
+      # funnel(phyl.random, xlab = paste(j, k, h))
       # creating summary table of results
       assign(
         paste("res", h, sep = "."), 
@@ -401,6 +394,14 @@ for (j in c("withTS", "withoutTS")) {
       
     }
     
+    if (k == "alltaxon") {
+      dat.plot <- with.without.TS %>% 
+        filter(data.type == j)
+    } else {
+      dat.plot <- with.without.TS %>% 
+        filter(data.type == j, insect == k)
+    }
+
     # Bind result of all crosses at each dataset
     assign(
       paste("res.ma", j,k, sep = "."),
@@ -420,9 +421,10 @@ for (j in c("withTS", "withoutTS")) {
       data = res.ma, 
       aes(x = tanh(Estimate), y = cross)
       ) +
+      scale_y_discrete(expand = c(0, 1)) +
       scale_x_continuous(
         limits = c(-1, 1), 
-        breaks = seq(-1, 1, by = 0.25)
+        breaks = seq(-1, 1, by = 0.5)
         ) + 
       ### Midparent CI ###
       geom_rect(
@@ -431,7 +433,7 @@ for (j in c("withTS", "withoutTS")) {
           xmax = tanh(midparent.ma.2$UpperCI),
           ymin = -Inf, ymax = Inf
           ),
-        fill="Grey 95", inherit.aes = FALSE
+        fill="Grey 90"
         ) +
       ### Midparent estimate ###
       geom_vline(
@@ -440,7 +442,7 @@ for (j in c("withTS", "withoutTS")) {
         ) +
       ### Orchard plot ###
       geom_quasirandom(
-        data = with.without.TS, 
+        data = dat.plot, 
         aes(x = tanh(lnRR.es), y = cross, size = 1/lnRR.sv, color = cross), 
         alpha = 0.2, groupOnX = FALSE
         ) + 
@@ -455,16 +457,26 @@ for (j in c("withTS", "withoutTS")) {
       # Prediction interval : thinner line
       geom_errorbarh(
         aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)), 
-        height = 0, size = 0.5, alpha = 0.6
+        height = 0.1, size = 0.5, alpha = 0.6
         ) +
       geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) +
       ### Estimate ###
       geom_point(size = 3, shape = 21, fill = "black") + 
+      ### I^2 ###
+      annotate(
+        "text", x = -0.93, y = c(1.35, 2.35, 3.35),
+        label = paste("italic(I^2)==", res.ma$I2), 
+        parse = TRUE, hjust = "left", size = 5
+      ) + 
       ### N ###
       annotate(
-        "text", x = -0.93, y = c(1.15, 2.15, 3.15),
-        label = paste("italic(N)==", res.ma$N), 
-        parse = TRUE, hjust = "left", size = 3.5
+        "text", x = -0.93, y = 3.85,
+        label = paste("italic(N)==", length(dat.plot$ES.ID)/3), 
+        parse = TRUE, hjust = "left", size = 5
+      ) + 
+      annotate(
+        "text", x = -0.68, y = 3.85,
+        label = "each", hjust = "left", size = 5
       ) + 
       ylab("") +
       xlab(expression(
@@ -473,13 +485,15 @@ for (j in c("withTS", "withoutTS")) {
         )) +
       theme_bw() +
       theme(
-        axis.text.y = element_text(size = 13, color = "black", face = "italic"),
-        axis.text.x = element_text(size = 11, color = "grey20"),
-        axis.title = element_text(size = 13, color = "black"),
-        legend.position = c(0, 1),
-        legend.justification = c(0, 1),
-        legend.direction = "horizontal",
-        legend.background = element_blank()
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(size = 14, color = "black", face = "italic"),
+        axis.text.x = element_text(size = 14, color = "grey20"),
+        axis.title = element_text(size = 14, color = "black"),
+        legend.position = c(0.15, 0.002),
+        legend.justification = c(0.15, 0.002),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14),
+        legend.direction = "horizontal"
         )
   
     print(plot.metamean)
@@ -488,7 +502,7 @@ for (j in c("withTS", "withoutTS")) {
     ggsave(
       plot = plot.metamean,
       file = paste("../Analysis/mean.general.metamean", j,k, "svg", sep = "."),
-      height = 5, width = 6
+      height = 4, width = 5
       )
   }
 }
