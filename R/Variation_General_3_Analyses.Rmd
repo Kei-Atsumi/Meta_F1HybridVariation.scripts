@@ -374,14 +374,13 @@ for (j in c("withTS", "withoutTS")) {
   for (k in c("alltaxon", "insect")) {
     for (h in c("spL", "hybLS", "hybSL")) {
 
-      if (k == "alltaxon") {
-        dat <- with.without.TS %>% 
-          filter(cross == h, data.type == j)
-      } else {
-        dat <- with.without.TS %>% 
-          filter(cross == h, data.type == j, insect == k)
-      }
-      
+      # if (k == "alltaxon") {
+      #   dat <- with.without.TS %>% 
+      #     filter(cross == h, data.type == j)
+      # } else {
+      #   dat <- with.without.TS %>% 
+      #     filter(cross == h, data.type == j, insect == k)
+      # }
       # # Phylogenetic random meta-analysis
       # phyl.random <- rma.mv(
       #   yi = yi, V = vi, 
@@ -397,7 +396,7 @@ for (j in c("withTS", "withoutTS")) {
       ### Load model ###
       phyl.random <- readRDS(paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
       # Funnel plot
-      funnel(phyl.random, xlab = paste(j, k, h))
+      # funnel(phyl.random, xlab = paste(j, k, h))
       # creating summary table of results
       assign(
         paste("res", h, sep = "."), 
@@ -411,6 +410,15 @@ for (j in c("withTS", "withoutTS")) {
           )
       
     }
+    
+    if (k == "alltaxon") {
+      dat.plot <- with.without.TS %>% 
+        filter(data.type == j)
+    } else {
+      dat.plot <- with.without.TS %>% 
+        filter(data.type == j, insect == k)
+    }
+    
     
     # Bind result of all crosses at each dataset
     assign(
@@ -452,7 +460,7 @@ for (j in c("withTS", "withoutTS")) {
         ) +
       ### Orchard plot ###
       geom_quasirandom(
-        data = with.without.TS %>%
+        data = dat.plot %>%
           filter(data.type == j), 
         aes(x = tanh(yi), y = cross, size = 1/vi, color = cross),
         alpha = 0.2, groupOnX = FALSE
@@ -481,26 +489,30 @@ for (j in c("withTS", "withoutTS")) {
       ) + 
       ### N ###
       annotate(
-        "text", x = -0.93, y = 4.35,
-        label = paste("italic(N)==", res.ma$N), 
+        "text", x = -0.93, y = 3.85,
+        label = paste("italic(N)==", length(dat.plot$ES.ID)/3), 
         parse = TRUE, hjust = "left", size = 5
+      ) + 
+      annotate(
+        "text", x = -0.68, y = 3.85,
+        label = "each", hjust = "left", size = 5
       ) + 
       ylab("") +
       xlab(expression(
         paste("hyperbolic tangent of lnCVR from ", italic("spSS")), 
         parse = TRUE
         )) +
-      ggtitle(paste("Dataset", j, k, "N =", res.ma$N, "each")) +
       theme_bw() +
       theme(
         panel.grid.major.y = element_blank(),
         axis.text.y = element_text(size = 14, color = "black", face = "italic"),
         axis.text.x = element_text(size = 14, color = "grey20"),
         axis.title = element_text(size = 14, color = "black"),
-        legend.position = c(0, 0),
-        legend.justification = c(0, 0),
-        legend.direction = "horizontal",
-        legend.background = element_blank()
+        legend.position = c(0.15, 0.002),
+        legend.justification = c(0.15, 0.002),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14),
+        legend.direction = "horizontal"
         )
   
     print(plot.metamean)
@@ -508,7 +520,7 @@ for (j in c("withTS", "withoutTS")) {
     ggsave(
       plot = plot.metamean,
       file = paste("../Analysis/variation.general.metamean", j, k, "svg", sep = "."), 
-    height = 5, width = 5.5
+      height = 4, width = 5
     )
 
   }
@@ -715,20 +727,20 @@ for (j in c("withTS", "withoutTS")) {
       midparent.dat <- midparent %>%
         filter(data.type == j, insect == k)
     }
-    # Phylogenetic random meta-analysis for midparent
-    midparent.random <- rma.mv(
-      yi = yi, V = vi,
-      data = midparent.dat %>% filter(cross == "midparent"),
-      method = "REML",
-      mods = ~ vi,
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      R = list(spL.name = phylo_cor)
-      )
-    ### Save model ###
-    saveRDS(
-      midparent.random,
-      file = paste("../Analysis/variation.PET-PEESE.midparent", j, k, "obj", sep = ".")
-      )
+    # # Phylogenetic random meta-analysis for midparent
+    # midparent.random <- rma.mv(
+    #   yi = yi, V = vi,
+    #   data = midparent.dat %>% filter(cross == "midparent"),
+    #   method = "REML",
+    #   mods = ~ vi,
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    #   R = list(spL.name = phylo_cor)
+    #   )
+    # ### Save model ###
+    # saveRDS(
+    #   midparent.random,
+    #   file = paste("../Analysis/variation.PET-PEESE.midparent", j, k, "obj", sep = ".")
+    #   )
 
     ### Load model ###
     midparent.random <- readRDS(paste("../Analysis/variation.PET-PEESE.midparent", j, k, "obj", sep = "."))
@@ -744,25 +756,25 @@ for (j in c("withTS", "withoutTS")) {
 
     for (h in c("spL", "hybLS", "hybSL")) {
 
-      if (k == "alltaxon") {
-        dat <- with.without.TS %>%
-          filter(cross == h, data.type == j)
-      } else {
-        dat <- with.without.TS %>%
-          filter(cross == h, data.type == j, insect == k)
-      }
-      # Phylogenetic random meta-analysis
-      phyl.random <- rma.mv(
-        yi = yi, V = vi,
-        data = dat, method = "REML",
-        mods = ~ vi,
-        random = list(
-          ~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID
-          ),
-        R = list(spL.name = phylo_cor)
-        )
-      saveRDS(phyl.random,
-        file = paste("../Analysis/variation.PET-PEESE", j, k, h, "obj", sep = "."))
+      # if (k == "alltaxon") {
+      #   dat <- with.without.TS %>%
+      #     filter(cross == h, data.type == j)
+      # } else {
+      #   dat <- with.without.TS %>%
+      #     filter(cross == h, data.type == j, insect == k)
+      # }
+      # # Phylogenetic random meta-analysis
+      # phyl.random <- rma.mv(
+      #   yi = yi, V = vi,
+      #   data = dat, method = "REML",
+      #   mods = ~ vi,
+      #   random = list(
+      #     ~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID
+      #     ),
+      #   R = list(spL.name = phylo_cor)
+      #   )
+      # saveRDS(phyl.random,
+      #   file = paste("../Analysis/variation.PET-PEESE", j, k, h, "obj", sep = "."))
 
       
       ### Load model ###

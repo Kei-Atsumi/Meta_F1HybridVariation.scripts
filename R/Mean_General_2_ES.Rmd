@@ -212,7 +212,7 @@ print(outliers)
 
 
 write.csv(
-  mean.dif, "../data/variation.ES.general.csv", row.names = F
+  mean.dif, "../data/mean.ES.general.csv", row.names = F
   )
 
 

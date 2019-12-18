@@ -409,7 +409,7 @@ for (j in c("withTS", "withoutTS")) {
         res.spL, res.hybLS, res.hybSL
         ) %>%
         as.data.frame() %>%
-        within('Dataset' <- c(paste(j,k), "", "")) # Show dataset name in first row
+        within('Dataset' <- c(paste(j,k), "", "")) # dataset name in first row
     )
     
     ### Midparent estimate & CI ###
