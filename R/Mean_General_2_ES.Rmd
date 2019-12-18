@@ -55,17 +55,13 @@ dat <- read.csv("../data/dat.mean.csv", head = TRUE) %>%
 dat$taxa <- ordered(
   dat$taxa,
   levels = c(
-    "Teleost", "Amphibian", "Bird", 
+    "Cichliformes", "Anura", "Aves", "Rodentia",
     "Diptera", "Lepidoptera", "Neuroptera", 
     "Orthoptera", "Coleoptera" 
     )
   )
 
-levels(dat$taxa)
-
-##############################################################
-# Difference between hybrids and smaller species (spS)
-##############################################################
+### Difference between hybrids and smaller species (spS) ###
 
 for (i in c("hybLS", "hybSL", "spL")) { # identify type of hybrids
   for (h in c("spS")) { # identify type of parentals
@@ -128,7 +124,6 @@ mean.dif <- bind_rows(
 write.csv(
   mean.dif, "../data/mean.ES.general.csv", row.names = F
   )
-
 
 ```
 

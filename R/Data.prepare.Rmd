@@ -1,0 +1,177 @@
+---
+title: "Mean Step1. Data Preparation"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+---
+
+# Preparing environment
+
+```{r setup}
+
+rm(list=ls())  # reset workspace
+sessionInfo()  # show R version etc
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+pacman::p_load(
+  tidyverse,
+  openxlsx,    # read Excel file
+  knitr       # rmarkdown
+)
+opts_chunk$set(prompt=TRUE, message=FALSE, comment="", echo = FALSE, warning = FALSE) 
+
+```
+
+# Load data and pre-processing and visual data checks
+
+```{r load unprocessed dat}
+
+## Phenotype data ##
+pheno <- read.xlsx(
+    "../data/original.data.xlsx", sheet = "Phenotype"
+    ) %>%
+  # to numeric
+  mutate_at(vars(Mn.sp1:Bottleneck.sp2M), as.numeric) %>%
+  # delete observation with negative mean trait value
+  filter(Mn.sp1 > 0 & Mn.sp2 > 0 & homologous == "Yes") %>%   
+  # calculate phenotypic difference between parental species
+  mutate(
+    pheno.div.diff = abs(Mn.sp1 - Mn.sp2),
+    pheno.div.ratio = abs(log(Mn.sp1/Mn.sp2))
+    ) %>%
+  mutate_at(vars(contains("pheno.div")), scale) %>%
+  # describe whether full cross or not
+  mutate(
+    reciprocal = ifelse(
+      is.na(Mn.hyb12 & Mn.hyb21), 
+      "Inviable", "Viable"
+      )
+    )
+
+## Metadata ##
+meta <- read.xlsx(
+    "../data/original.data.xlsx", sheet = "Metadata"
+    ) %>%
+  mutate_at(vars(divergence.cytb:surv.relat.hyb21), as.numeric) %>%
+  # Logalize genetic divergence
+  mutate_at(vars(contains("divergence")), log10) %>%
+  mutate(sq.divergence.COI = (scale(divergence.COI))^2)
+
+print("metadata summary")
+meta.sum <-  left_join(
+    meta %>% group_by(taxa) %>%
+      summarise(species = length(species.pair)),
+    meta %>% group_by(taxa) %>%
+      summarise_at(
+        vars(hetero.sex:divergence.COI, contains("surv.relat")),
+        funs(sum(!is.na(.)))
+        ),
+    by = "taxa"
+  ) %>%
+  as.data.frame()
+
+total <- meta.sum %>% ungroup %>%
+  summarise_at(vars(-taxa), funs(sum)) %>% 
+  as.data.frame() %>%
+  mutate(taxa = "total")
+
+print(bind_rows(meta.sum, total))  
+
+# Load data
+dat <- left_join(pheno, meta)
+
+# add unique ID for each effect size (row)
+dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(dat)[1])), sep="")
+
+
+
+```
+
+
+# Allign parental species according to trait values
+Currently, dataset is composed of   
+species 1, species 2, hybrid12 (sp1 mother & sp2 father), hybrid 21 (sp2 mother & sp1 father)  
+
+To investigate paternal effect in hybrids using difference in mean trait value between reciprocal cross, it's better to allign species with larger trait value (spL) and smaller value (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  
+If   
+ln(hybridLS/hybridSL) or (hybridLS - hybridSL) >0, that means hybridLS > hybrid SL ...maternal effect  
+ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid SL ...paternal effect
+
+```{r dat preprocessing for mean}
+
+### modify sp1 & sp2 -> spL & spS ###
+
+############ in the case where sp1 >= sp2 ############
+#### extract
+sp1sp2.mean <- dat %>%
+  filter(Mn.sp1 >= Mn.sp2) # filtering according to mean trait value of parentals
+#### change column name from sp1 or sp2 -> spL or spS
+names(sp1sp2.mean) <- gsub("1", "L", names(sp1sp2.mean))
+names(sp1sp2.mean) <- gsub("2", "S", names(sp1sp2.mean))
+
+############ in the case where sp1 < sp2 ############
+#### extract
+sp2sp1.mean <- dat %>%
+  filter(Mn.sp1 < Mn.sp2)
+#### change column name from sp1 or sp2 -> spS or spL
+names(sp2sp1.mean) <- gsub("1", "S", names(sp2sp1.mean))
+names(sp2sp1.mean) <- gsub("2", "L", names(sp2sp1.mean))
+
+############ combine dataset & sort by ES.ID ############
+LS.mean <- bind_rows(sp1sp2.mean, sp2sp1.mean) %>%
+  arrange(ES.ID)
+
+
+############ export ############
+write.csv(
+  LS.mean,"../data/dat.mean.csv", quote=F,row.names = F
+  )
+
+```
+
+# Allign parental species according to phenotypic variation (CV)
+Currently, dataset is composed of   
+species 1, species 2, hybrid12 (sp1 mother & sp2 father), hybrid 21 (sp2 mother & sp1 father)  
+
+To investigate paternal effect in hybrids using difference in mean trait value between reciprocal cross, it's better to allign species with larger trait value (spL) and smaller value (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  
+If   
+ln(hybridLS/hybridSL) or (hybridLS - hybridSL) >0, that means hybridLS > hybrid SL ...maternal effect  
+ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid SL ...paternal effect
+
+```{r dat preprocessing for variation}
+
+### modify sp1 & sp2 -> spL & spS according to the CV ###
+
+############ in the case where sp1 >= sp2 ############
+#### extract
+sp1sp2.var <- dat %>%
+  filter(SD.sp1/Mn.sp1 >= SD.sp2/Mn.sp2) # filtering according to CV of parentals
+#### change column name from sp1 or sp2 -> spL or spS
+names(sp1sp2.var) <- gsub("1", "L", names(sp1sp2.var))
+names(sp1sp2.var) <- gsub("2", "S", names(sp1sp2.var))
+
+############ in the case where sp1 < sp2 ############
+#### extract
+sp2sp1.var <- dat %>%
+  filter(SD.sp1/Mn.sp1 < SD.sp2/Mn.sp2)
+#### change column name from sp1 or sp2 -> spS or spL
+names(sp2sp1.var) <- gsub("1", "S", names(sp2sp1.var))
+names(sp2sp1.var) <- gsub("2", "L", names(sp2sp1.var))
+
+############ combine dataset & sort by ES.ID ############
+LS.var <- bind_rows(sp1sp2.var, sp2sp1.var) %>%
+  arrange(ES.ID)
+
+############ export ############
+write.csv(LS.var,"../data/dat.CV.csv", quote=F,row.names = F)
+
+```
+
+
+
