@@ -729,7 +729,7 @@ for (j in c("withTS", "withoutTS")) {
     }
     # # Phylogenetic random meta-analysis for midparent
     # midparent.random <- rma.mv(
-    #   yi = yi, V = vi,
+    #   yi = lnCVR.midparent.es, V = vi,
     #   data = midparent.dat %>% filter(cross == "midparent"),
     #   method = "REML",
     #   mods = ~ vi,
@@ -756,13 +756,13 @@ for (j in c("withTS", "withoutTS")) {
 
     for (h in c("spL", "hybLS", "hybSL")) {
 
-      # if (k == "alltaxon") {
-      #   dat <- with.without.TS %>%
-      #     filter(cross == h, data.type == j)
-      # } else {
-      #   dat <- with.without.TS %>%
-      #     filter(cross == h, data.type == j, insect == k)
-      # }
+      if (k == "alltaxon") {
+        dat <- with.without.TS %>%
+          filter(cross == h, data.type == j)
+      } else {
+        dat <- with.without.TS %>%
+          filter(cross == h, data.type == j, insect == k)
+      }
       # # Phylogenetic random meta-analysis
       # phyl.random <- rma.mv(
       #   yi = yi, V = vi,
@@ -812,10 +812,6 @@ for (j in c("withTS", "withoutTS")) {
       data = res.ma.plot,
       aes(x = Estimate, y = cross)
       ) +
-      # scale_x_continuous(
-      #   limits = c(-1, 1),
-      #   breaks = seq(-1, 1, by = 0.25)
-      #   ) +
       # Delete legend for colors
       guides(fill = "none", colour = "none") +
       # Confidential interval : thicker line
@@ -830,18 +826,9 @@ for (j in c("withTS", "withoutTS")) {
       scale_fill_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
       ylab("") +
       xlab(paste("PET-PEESE dataset", j,k)) +
-      # ### Midparent CI ###
-      # geom_rect(
-      #   aes(
-      #     xmin = res.ma[12, "LowerCI"],
-      #     xmax = res.ma[12, "UpperCI"],
-      #     ymin = -Inf, ymax = Inf
-      #     ),
-      #   fill="Grey 80", inherit.aes = FALSE
-      #   ) +
       ### Midparent estimate ###
       geom_vline(
-        xintercept = res.ma[12, "Estimate"], colour = "grey20",
+        xintercept = res.ma[11, "Estimate"], colour = "grey20",
         alpha = 0.3, size = 1
         ) +
       theme_bw() +
@@ -856,13 +843,6 @@ for (j in c("withTS", "withoutTS")) {
         )
 
     print(plot.metavariation)
-    #     
-    # 
-    # ggsave(
-    #   plot = plot.metavariation,
-    #   file = paste("../Analysis/variation.general.metavariation", j,k, "svg", sep = "."),
-    #   height = 5, width = 6
-    #   )
   }
 }
 
