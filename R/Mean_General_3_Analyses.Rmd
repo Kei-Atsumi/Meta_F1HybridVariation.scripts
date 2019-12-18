@@ -823,13 +823,13 @@ for (j in c("withTS", "withoutTS")) {
 
     for (h in c("spL", "hybLS", "hybSL")) {
 
-      # if (k == "alltaxon") {
-      #   dat <- with.without.TS %>% 
-      #     filter(cross == h, data.type == j)
-      # } else {
-      #   dat <- with.without.TS %>% 
-      #     filter(cross == h, data.type == j, insect == k)
-      # }
+      if (k == "alltaxon") {
+        dat <- with.without.TS %>%
+          filter(cross == h, data.type == j)
+      } else {
+        dat <- with.without.TS %>%
+          filter(cross == h, data.type == j, insect == k)
+      }
       # # Phylogenetic random meta-analysis
       # phyl.random <- rma.mv(
       #   yi = lnRR.es, V = lnRR.sv,
