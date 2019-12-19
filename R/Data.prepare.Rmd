@@ -1,5 +1,5 @@
 ---
-title: "Mean Step1. Data Preparation"
+title: "Data Preparation"
 author: "Keisuke Atsumi"
 date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
 output:
@@ -21,10 +21,20 @@ options(scipen=100)  # do not show numbers using exponential
 # install & load packages
 pacman::p_load(
   tidyverse,
-  openxlsx,    # read Excel file
-  knitr       # rmarkdown
+  openxlsx,   # read Excel file
+  knitr,      # rmarkdown
+  rotl,       # Open Tree of Life
+  phytools,   # Phylogeny
+  svglite,    # Output SVG
+  devtools,   # github install
+  magrittr,   # extend pipe
+  ggimage,    # use pictures on ggtree
+  patchwork   # combine multiple figure
 )
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", echo = FALSE, warning = FALSE) 
+
+# githubinstall::githubinstall("ggtree")
+library(ggtree)
 
 ```
 
@@ -89,9 +99,127 @@ dat <- left_join(pheno, meta)
 # add unique ID for each effect size (row)
 dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(dat)[1])), sep="")
 
+```
 
+# summary figure
+```{r summary figure}
+
+#+++++++++++++++++++++#
+# Phylogeny
+#+++++++++++++++++++++#
+
+# species pairs data 
+taxa <- meta %>%
+  select(-Cross.ID) %>%
+  distinct_all(.keep_all = TRUE) %>%
+  mutate_at("taxa", as.factor)
+
+# matching names from open tree taxonomy
+order <- tnrs_match_names(
+  names = levels(taxa$taxa) %>%
+    str_replace_all("_", " "), 
+  context_name = "Animals"
+  )
+
+# which names return more than 1 match?
+multimatch <- order$ott_id[order$number_matches != 1]
+inspect(order, ott_id = multimatch[1]) # Anura, confirmed adopted ott_id is correct
+inspect(order, ott_id = multimatch[2]) # Neuroptera, confirmed adopted ott_id is correct
+
+# Create taxonomic tree
+tree <- tol_induced_subtree(ott_ids = order$ott_id)
+# Remove ott ids from tip label
+tree$tip.label %<>%
+  strip_ott_ids(remove_underscores=TRUE)
+tree$tip.label[8] <- "Anura"
+
+# # N of species pairs at each order
+# factor(meta.sum$taxa, levels = as.vector(tree$tip.label))
+
+plot.phylo <- ggtree(tree) + 
+  geom_tiplab(
+    geom = "image",
+    image = paste("../data/pic", tree$tip.label, "png", sep = "."), 
+    size = 0.1, offset = 3, hjust = 1
+    ) +
+  geom_tiplab(
+    geom = "text",  
+    label = tree$tip.label, 
+    align = 1, size = 5
+    ) +
+  xlim(NA, 7)
+
+# images from phylopic #    
+# Lepidoptera (genus Catocala) "c224abfd-ee39-4923-98e5-c2606dcc56cb", 
+# Diptera (Drosophila) "0cd6cc9f-683c-470e-a4a6-3b68beb826fa"
+# Orthoptera (cricket) "b80d830b-155a-4ca5-9119-9a9fde019cc6"
+# Rodentia (mouse), drawn by David Liao "0f6af3d8-49d2-4d75-8edf-08598387afde"
+# Aves (Quail) "42f85a2b-7517-439a-8dc3-b745a35c035d"
+# Anura (genus Hyla) "A22D353D-B045-4044-9432-8F340B9A3104", 
+# Cichliformes (Nile tilapia), drawn by Milton Tan "84c7e672-2593-44a6-a807-cffbd3156cc5" 
+
+
+#+++++++++++++++++++++#
+# Summary 
+#+++++++++++++++++++++#
+
+summary <- dat %>%
+    drop_na(contains("SD.sp")) %>%
+    group_by(taxa) %>%
+    summarise(
+      'Species pair' = length(unique(species.pair)),
+      'Obser- vation' = length(unique(ES.ID)),
+      Study = length(unique(Study.ID))
+      ) %>%
+    # Make tidy data
+  gather(key = metrics, value = N, -c(taxa)) %>%
+  # Order factors
+  mutate_at(vars("metrics", "taxa"), as.factor) %>%
+  # Order metrics
+  within(
+    metrics <- ordered(
+      metrics,
+      levels = c("Study", "Species pair", "Obser- vation")
+      )
+    ) %>%
+  # Order taxon so that match with phylogenetic tree topology
+  within(taxa <- ordered(taxa, levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")))
+  
+
+### Plot ###
+plot.sum <- ggplot(summary, aes(x = "", y = N, fill = taxa)) +
+  geom_bar(width = 1, stat = "identity") +
+  scale_fill_brewer(palette = "YlGn") +
+  facet_wrap(
+    scale = "free", "metrics",
+    # strip text into two lines
+    labeller = label_wrap_gen(width = 8)
+    ) +
+  xlab("") +
+  theme(
+    strip.text = element_text(size = 15),
+    axis.text.y = element_text(size = 14),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(), 
+    axis.ticks.x = element_blank(),
+    legend.text = element_blank(),
+    legend.title = element_blank()
+    )
+
+
+#+++++++++++++++++#
+# Combine figures
+#+++++++++++++++++#
+
+plot.all <- plot.phylo + plot.sum
+plot.all
+ggsave(
+  plot = plot.all, 
+  file = "../Analysis/data.svg", height = 5, width = 8.5
+  )
 
 ```
+
 
 
 # Allign parental species according to trait values
@@ -105,7 +233,7 @@ ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid 
 
 ```{r dat preprocessing for mean}
 
-### modify sp1 & sp2 -> spL & spS ###
+### define parental species by phenotypic mean : sp1 & sp2 -> spL & spS ###
 
 ############ in the case where sp1 >= sp2 ############
 #### extract
@@ -124,14 +252,9 @@ names(sp2sp1.mean) <- gsub("1", "S", names(sp2sp1.mean))
 names(sp2sp1.mean) <- gsub("2", "L", names(sp2sp1.mean))
 
 ############ combine dataset & sort by ES.ID ############
-LS.mean <- bind_rows(sp1sp2.mean, sp2sp1.mean) %>%
-  arrange(ES.ID)
-
-
-############ export ############
-write.csv(
-  LS.mean,"../data/dat.mean.csv", quote=F,row.names = F
-  )
+bind_rows(sp1sp2.mean, sp2sp1.mean) %>%
+  arrange(ES.ID) %>%
+  write.csv("../data/dat.mean.csv", quote=F,row.names = F)
 
 ```
 
@@ -139,14 +262,14 @@ write.csv(
 Currently, dataset is composed of   
 species 1, species 2, hybrid12 (sp1 mother & sp2 father), hybrid 21 (sp2 mother & sp1 father)  
 
-To investigate paternal effect in hybrids using difference in mean trait value between reciprocal cross, it's better to allign species with larger trait value (spL) and smaller value (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  
+To investigate paternal effect in hybrids using difference in coefficient of variation (CV) between reciprocal cross, it's better to allign species with larger CV (spL) and smaller CV (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  
 If   
 ln(hybridLS/hybridSL) or (hybridLS - hybridSL) >0, that means hybridLS > hybrid SL ...maternal effect  
 ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid SL ...paternal effect
 
 ```{r dat preprocessing for variation}
 
-### modify sp1 & sp2 -> spL & spS according to the CV ###
+### define parental species by CV : sp1 & sp2 -> spL & spS ###
 
 ############ in the case where sp1 >= sp2 ############
 #### extract
@@ -165,11 +288,9 @@ names(sp2sp1.var) <- gsub("1", "S", names(sp2sp1.var))
 names(sp2sp1.var) <- gsub("2", "L", names(sp2sp1.var))
 
 ############ combine dataset & sort by ES.ID ############
-LS.var <- bind_rows(sp1sp2.var, sp2sp1.var) %>%
-  arrange(ES.ID)
-
-############ export ############
-write.csv(LS.var,"../data/dat.CV.csv", quote=F,row.names = F)
+bind_rows(sp1sp2.var, sp2sp1.var) %>%
+  arrange(ES.ID) %>%
+  write.csv("../data/dat.CV.csv", quote=F,row.names = F)
 
 ```
 
