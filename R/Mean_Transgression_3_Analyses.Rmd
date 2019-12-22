@@ -405,6 +405,7 @@ dat.TS.smaller <- filter(rawdat, direction == "-")
 # Genetic distance
 # +++++++++++++++++++++++++++++++++++++++++++#
 
+
 for (i in c("divergence.COI", "pheno.div.ratio")) {
   
   # Transgression for larger mean
@@ -424,13 +425,13 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
       geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3) +
       # Transgression for larger mean
       stat_function(
-        aes(color = "+"),
+        aes(color = "+"), size = 1,
         fun = function(x) 
           1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
         ) +
       # Transgression for smaller mean
       stat_function(
-        aes(color = "-"),
+        aes(color = "-"), size = 1,
         fun = function(x) 
           1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
         ) +
@@ -443,21 +444,17 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
         panel.grid.major.y = element_blank(),
         panel.grid.minor = element_blank(),
         axis.text = element_text(size = 13),
-        axis.title  = element_text(size = 15)
+        axis.title  = element_text(size = 15),
+        panel.border = element_rect(colour = "grey70", size = 1)
         )
-  assign(paste("plot", i, sep = "."), plot)
+  print(plot)
+  ggsave(
+    plot = plot, 
+    file = paste("../Analysis/mean.TS.continuous", i, "svg", sep = "."), 
+    height = 2.5, width = 3.15
+    )
 
 }
-
-plot.divergence.COI
-plot.pheno.div.ratio
-
-
-plot.divergence.COI + plot.pheno.div.ratio +
-  plot_layout(ncol = 1)
-
-
-
 
 # fit = glm(
 #   TS ~ divergence.COI*direction,
@@ -570,8 +567,7 @@ for (i in c("reciprocal", "trait.type")) {
         ) +
       geom_point(size = 1.5, shape = 17) +
       # Title
-      ylab("") + xlab("estimate with CI") +
-      ggtitle(k) +
+      ylab("") + xlab("") +
       # Combine different plots for main factors and interactions
       # Themes
       theme_bw() +
@@ -584,8 +580,7 @@ for (i in c("reciprocal", "trait.type")) {
         panel.grid = element_blank(),
         legend.position = "none",
         panel.border = element_blank(),
-        axis.text.x = element_text(size = 11),
-        axis.text.y = element_text(size = 12),
+        axis.text = element_text(size = 13),
         axis.line=element_line(colour = "grey70")
         )
     print(categoricalplot)
@@ -594,7 +589,7 @@ for (i in c("reciprocal", "trait.type")) {
         plot = categoricalplot,
         file =
             paste("../Analysis/Mean.TS.categorical", i,k, "svg", sep = "."),
-        height = 6, width = 5
+        height = 2.4, width = 4.8
         )
     
   #####################################
