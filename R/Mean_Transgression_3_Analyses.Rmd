@@ -28,7 +28,8 @@ pacman::p_load(
   ape,        # Phylogeny
   phytools,   # Phylogeny
   svglite,    # Export SVG plots
-  ggiraphExtra # Geom predict
+  ggiraphExtra, # Geom predict
+  patchwork   # combine multiple plots
 )
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 options(knitr.kable.NA = '') # Hide NAs in kable table
@@ -44,7 +45,7 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 dat.full <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
   # Assign overdoinance to 1, no TS to 0 for each effect size
-  mutate(TS = ifelse(SMD.es < 0, 1, 0)) %>%
+  mutate(TS = ifelse(lnRR.es < 0, 1, 0)) %>%
   ### Join with metadata ###
   left_join(
     .,
@@ -63,17 +64,13 @@ dat.full <- read.csv("../data/mean.ES.TS.csv", head = TRUE) %>%
   within(
     taxa <- ordered(
       taxa,
-      levels = c(
-        "Teleost", "Amphibian", "Bird", "Mammal",
-        "Diptera", "Lepidoptera", "Neuroptera", 
-        "Orthoptera","Coleoptera" 
-        )
+      levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
       )
     ) %>%
   drop_na(hetero.sex, pheno.div.diff, trait.type, divergence.COI) %>%
   # Insect or no
   mutate(
-    insect = ifelse(taxa %in% c("Teleost", "Amphibian", "Bird", "Mammal"), "no", "insect"),
+    insect = ifelse(taxa %in% c("Aves", "Rodentia", "Anura", "Cichliformes"), "no", "insect"),
   )
 
 
@@ -313,7 +310,6 @@ sum <- left_join(
         )
       )
 
-
 ### Plot ###
 metaplot <- ggplot(sum, aes(
   x = post.mean, 
@@ -382,36 +378,93 @@ print(metaplot)
 
 ```{r continuous factors plot}
 
-
+# +++++++++++++++++++++++++++++++++++++++++++#
+# To set raw metadata in X axis, reload raw metadata and combine to transgression dataset
+# +++++++++++++++++++++++++++++++++++++++++++#
 rawdat <- dat.full %>%
   select(-pheno.div.ratio, -divergence.COI) %>%
   # lnRR between parental species as phenotypic distance
   mutate(pheno.div.ratio = log(Mn.spL/Mn.spS)) %>%
   left_join(
     .,
-    read.xlsx(
-      "../data/original.data.xlsx", sheet = "Metadata"
-      ) %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Metadata") %>%
       select(Cross.ID, divergence.COI)
     ) %>%
   # Natural log of genetic distance
   mutate_at("divergence.COI", log)
 
+# +++++++++++++++++++++++++++++++++++++++++++#
+# To draw regression line separatory in transgression for larger mean and smaller mean, create two dataset
+# +++++++++++++++++++++++++++++++++++++++++++#
+# Dataset including non TS & TS for larger mean
+dat.TS.larger <- filter(rawdat, direction == "+")
+# Dataset including non TS & TS for smaller mean
+dat.TS.smaller <- filter(rawdat, direction == "-")
 
-fit = glm(
-  TS ~ divergence.COI*direction, 
-  data = rawdat, 
-  family = binomial
-  )
-ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
+# +++++++++++++++++++++++++++++++++++++++++++#
+# Genetic distance
+# +++++++++++++++++++++++++++++++++++++++++++#
 
-fit = glm(
-  TS ~ pheno.div.ratio*direction, 
-  data = rawdat %>%
-    mutate_at("divergence.COI", as.vector), 
-  family = binomial
-  )
-ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3)
+for (i in c("divergence.COI", "pheno.div.ratio")) {
+  
+  # Transgression for larger mean
+  reg.larger <- glm(
+    TS ~ dat.TS.larger[, i], 
+    data = dat.TS.larger, family = binomial
+    )$coefficients %>%
+    as.vector
+  # Transgression for smaller mean
+  reg.smaller <- glm(
+    TS ~ dat.TS.smaller[, i], 
+    data = dat.TS.smaller, family = binomial
+    )$coefficients %>%
+    as.vector
+
+  plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
+      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3) +
+      # Transgression for larger mean
+      stat_function(
+        aes(color = "+"),
+        fun = function(x) 
+          1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
+        ) +
+      # Transgression for smaller mean
+      stat_function(
+        aes(color = "-"),
+        fun = function(x) 
+          1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
+        ) +
+      ylab("") + xlab("") +
+      scale_color_manual(values = c("#FE6100", "#648FFF")) + 
+      scale_y_continuous(breaks=seq(0,1)) +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(size = 13),
+        axis.title  = element_text(size = 15)
+        )
+  assign(paste("plot", i, sep = "."), plot)
+
+}
+
+plot.divergence.COI
+plot.pheno.div.ratio
+
+
+plot.divergence.COI + plot.pheno.div.ratio +
+  plot_layout(ncol = 1)
+
+
+
+
+# fit = glm(
+#   TS ~ divergence.COI*direction,
+#   data = rawdat,
+#   family = binomial
+#   )
+# ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
 
 ```
 

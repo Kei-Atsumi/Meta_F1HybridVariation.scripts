@@ -18,6 +18,7 @@ options(scipen=100)  # do not show numbers using exponential
 # install & load packages
 pacman::p_load(
   tidyverse,
+  magrittr,
   metafor,
   knitr,
   phytools,
@@ -48,17 +49,6 @@ To investigate how dominance and paternal inheritance shape male sexual trait in
 
 # load spLS files
 dat <- read.csv("../data/dat.mean.csv", head = TRUE)
-
-# Order by taxon
-dat$taxa <- ordered(
-  dat$taxa,
-  levels = c(
-    "Teleost", "Amphibian", "Bird", "Mammal",
-    "Diptera", "Lepidoptera", "Neuroptera", 
-    "Orthoptera", "Coleoptera" 
-    )
-)
-
 
 ##############################################################
 # Difference between larger species (spL) and hybrids 
@@ -154,50 +144,6 @@ mean.dif.all <- bind_rows(
 write.csv(mean.dif.all, "../data/mean.ES.TS.csv", row.names = F)
 
 ```
-
-# Phenotypic data sumamry
-
-```{r dataset summary}
-
-summary <- mean.dif.all %>%
-  group_by(taxa) %>%
-  summarise(
-    species.pair = length(unique(species.pair)),
-    observations = length(unique(ES.ID)),
-    study = length(unique(Study.ID))
-    )
-
-bind_rows(
-  summary,
-  summary %>%
-    summarise_if(is.numeric, sum) %>%
-    mutate(taxa = "total")
-  ) %>%
-  column_to_rownames(var = "taxa")
-
-# Order by taxon
-
-sum.forplot <- summary %>% 
-  gather(key = metrics, value = N, -taxa)
-sum.forplot$metrics <- ordered(
-  sum.forplot$metrics,
-  levels = c(
-    "study", "species.pair", "observations"
-    )
-  )
-
-plot <- ggplot(sum.forplot, aes(x = "", y = N, fill = taxa)) +
-  geom_bar(width = 1, stat = "identity") +
-  scale_fill_brewer() +
-  facet_grid(scale = "free", rows = "metrics") +
-  xlab("") +
-  mytheme
-plot
-
-ggsave(plot = plot, file = "../Analysis/dat.mean.TS.svg", height = 5, width = 3.5)
-
-```
-
 # Phylogeny
 
 ```{r phylogeny}
@@ -217,8 +163,8 @@ taxa[taxa$number_matches != 1, ] <-
   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1])[1, ]
 
 tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-print("Original tree from OTL")
-plot(tree, no.margin=TRUE)
+tree$tip.label %<>%
+  strip_ott_ids(remove_underscores=TRUE)
 
 # randomly solve non-binary phylogeny
 set.seed(6)
@@ -226,21 +172,13 @@ bin.tree <- multi2di(tree, random = T)
 print("Randomly solved phylogeny")
 plot(bin.tree)
 
-# check tree is binary
-is.binary(bin.tree) # TRUE
-
 # correlation matrix to fit to the model
 bin.tree$tip.label <- bin.tree$tip.label %>%
   as.factor() 
-
 levels(bin.tree$tip.label) <- levels(mean.dif.all$spL.name) # making sure names match
-
 bin.tree$tip.label <- as.character(bin.tree$tip.label) # converting names back to character
 
-write.tree(
-  bin.tree, 
-  file= "../data/phylo.mean.TS.tre"
-  )
+write.tree(bin.tree, file= "../data/phylo.mean.TS.tre")
 
 ```
 

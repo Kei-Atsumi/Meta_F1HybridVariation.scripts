@@ -17,13 +17,20 @@ options(scipen=100)  # do not show numbers using exponential
 
 # install & load packages
 # install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
-library(tidyverse)  # dataset modification
-library(metafor)    # meta-analysis!
-library(knitr)
-library(phytools)
-library(rotl)
-library(MCMCglmm)
-library(svglite)
+pacman::p_load(
+  tidyverse,
+  magrittr,
+  metafor,
+  knitr,
+  rotl,
+  kableExtra,
+  pander,     # nice tables
+  ape,        # Phylogeny
+  phytools,   # Phylogeny
+  svglite,    # Export SVG plots
+  ggiraphExtra # Geom predict
+
+)
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
 # check multicolinearity (calculate VIF)
@@ -54,11 +61,7 @@ dat <- read.csv("../data/dat.mean.csv", head = TRUE) %>%
 # Order by taxon
 dat$taxa <- ordered(
   dat$taxa,
-  levels = c(
-    "Cichliformes", "Anura", "Aves", "Rodentia",
-    "Diptera", "Lepidoptera", "Neuroptera", 
-    "Orthoptera", "Coleoptera" 
-    )
+  levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
   )
 
 ### Difference between hybrids and smaller species (spS) ###
@@ -129,7 +132,7 @@ write.csv(
 
 # Phenotypic data sumamry
 
-```{r dataset summary}
+```{r dataset summary, results='asis'}
 
 summary <- mean.dif %>%
   group_by(taxa) %>%
@@ -145,7 +148,8 @@ bind_rows(
     summarise_if(is.numeric, sum) %>%
     mutate(taxa = "total")
   ) %>%
-  column_to_rownames(var = "taxa")
+  column_to_rownames(var = "taxa") %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 # Order by taxon
 
@@ -193,7 +197,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-2, 4))
 # Check data
 Checked data of extremely high/low standard error and confirmed that those data were correctly imported. 
 
-```{r check}
+```{r check, results='asis'}
 
 outliers <- mean.dif %>%
   # vi (sampling variance) 
@@ -203,13 +207,12 @@ outliers <- mean.dif %>%
   select(ES.ID, File, SE, cross, reciprocal, trait, Cross.ID) %>%
   mutate_if(is.numeric, round, 3)
 
-print(outliers)
-
+outliers %>%
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
 write.csv(
   mean.dif, "../data/mean.ES.general.csv", row.names = F
   )
-
 
 ```
 
@@ -233,6 +236,9 @@ taxa[taxa$number_matches != 1, ] <-
   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1])[1, ]
 
 tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
+tree$tip.label %<>%
+  strip_ott_ids(remove_underscores=TRUE)
+
 print("Original tree from OTL")
 plot(tree, no.margin=TRUE)
 
@@ -247,7 +253,6 @@ bin.tree$tip.label <- bin.tree$tip.label %>%
   as.factor() 
 
 levels(bin.tree$tip.label) <- levels(mean.dif$spL.name) # making sure names match
-
 bin.tree$tip.label <- as.character(bin.tree$tip.label) # converting names back to character
 
 write.tree(bin.tree, file= "../data/phylo.mean.general.tre")
