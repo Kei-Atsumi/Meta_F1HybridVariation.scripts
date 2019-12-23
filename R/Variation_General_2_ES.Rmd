@@ -49,12 +49,8 @@ dat <- read.csv("../data/dat.CV.csv", head = TRUE)
 # Order by taxon
 dat$taxa <- ordered(
   dat$taxa,
-  levels = c(
-    "Teleost", "Amphibian", "Bird", "Mammal",
-    "Diptera", "Lepidoptera", "Neuroptera", 
-    "Orthoptera", "Coleoptera" 
-    )
-)
+  levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
+  )
 
 
 ##############################################################
