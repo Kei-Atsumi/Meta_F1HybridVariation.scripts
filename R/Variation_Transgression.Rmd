@@ -23,8 +23,10 @@ pacman::p_load(
   kableExtra,
   pander,     # nice tables
   MCMCglmm,   # glmm
+  metafor,    # meta analysis
   knitr,      # rmarkdown
   magrittr,   # Extend pipe
+  rotl,       # Create phylogeny from Open Tree of Life
   ape,        # Phylogeny
   phytools,   # Phylogeny
   svglite,    # Export SVG plots
@@ -44,9 +46,9 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 # load spLS files
 dat <- read.csv("../data/dat.CV.csv", head = TRUE)
 
-##############################################################
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Difference between larger species (spL) and hybrids 
-##############################################################
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 
 for (i in c("spL")) { # identify type of hybrids
   for (h in c("hybLS", "hybSL")) { # identify type of parentals
@@ -82,9 +84,9 @@ for (i in c("spL")) { # identify type of hybrids
   }
 }
 
-##############################################################
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Difference between hybrids and smaller species (spS)
-##############################################################
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 
 for (i in c("hybLS", "hybSL")) { # identify type of hybrids
   for (h in c("spS")) { # identify type of parentals
@@ -138,47 +140,6 @@ write.csv(
 ```
 
 
-# Phylogeny
-
-```{r phylogeny}
-
-# matching names from open tree taxonomy
-taxa <- tnrs_match_names(
-  names = levels(mean.dif.all$spL.name) %>%
-    str_replace_all("_", " "), 
-  context_name = "Animals"
-  )
-
-# which names return more than 1 match?
-inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1])
-
-# fixing names with more than 1 match
-taxa[taxa$number_matches != 1, ] <- 
-  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1])[1, ]
-
-tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-print("Original tree from OTL")
-plot(tree, no.margin=TRUE)
-
-# randomly solve non-binary phylogeny
-set.seed(6)
-bin.tree <- multi2di(tree, random = T) 
-print("Randomly solved phylogeny")
-plot(bin.tree)
-
-# correlation matrix to fit to the model
-bin.tree$tip.label <- bin.tree$tip.label %>%
-  as.factor() 
-
-levels(bin.tree$tip.label) <- levels(mean.dif.all$spL.name) # making sure names match
-
-bin.tree$tip.label <- as.character(bin.tree$tip.label) # converting names back to character
-
-write.tree(bin.tree, file= "../data/phylo.variation.TS.tre")
-
-```
-
-
 ```{r transgressive segregation}
 
 dat.full <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
@@ -214,7 +175,7 @@ dat.full <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
 #### Phylogenetic tree for mcmcglmm ####
 
 # compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.variation.TS.tre") %>%
+phylo_branch <- read.tree(file = "../data/phylo.mean.TS.tre") %>%
   compute.brlen(bin.tree, method = "Grafen", power = 1)
 
 # saving phylogeneic matrix
@@ -278,12 +239,14 @@ summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", 
 # Order TS category
 summary$direction <- ordered(summary$direction, levels = c("All Observations", "All transgression", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "All transgression", "Larger mean", "Smaller mean")
+levels(summary$direction) <- c("All Observations", "All transgression", "Larger variation", "Smaller variation")
 
 ### Plot ###
 plot <- ggplot(
+  # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "All trans- gression", "Larger mean", "Smaller mean")), 
+    within(levels(direction) <- c("All Obser- vations", "All trans- gression", "Larger variation", "Smaller variation")) %>%
+    within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
   scale_fill_brewer(palette = "YlGn") +
@@ -307,7 +270,7 @@ plot
 ggsave(
   plot = plot +
     theme(legend.position = "none"), 
-  file = "../Analysis/Variation.TS.frequency.svg", height = 3.6, width = 5.1
+  file = "../Analysis/Variation.TS.frequency.svg", height = 3.4, width = 5.1
   )
 
 ### Total number of observations and percentage ###
@@ -501,38 +464,84 @@ for (k in c("alltaxon", "insect")) {
 
 ```{r continuous factors plot}
 
-
+# +++++++++++++++++++++++++++++++++++++++++++#
+# To set raw metadata in X axis, reload raw metadata and combine to transgression dataset
+# +++++++++++++++++++++++++++++++++++++++++++#
 rawdat <- dat.full %>%
   select(-pheno.div.ratio, -divergence.COI) %>%
   # lnRR between parental species as phenotypic distance
   mutate(pheno.div.ratio = abs(log(Mn.spL/Mn.spS))) %>%
   left_join(
     .,
-    read.xlsx(
-      "../data/original.data.xlsx", sheet = "Metadata"
-      ) %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Metadata") %>%
       select(Cross.ID, divergence.COI)
     ) %>%
   # Natural log of genetic distance
   mutate_at("divergence.COI", log)
 
+# +++++++++++++++++++++++++++++++++++++++++++#
+# To draw regression line separatory in transgression for larger mean and smaller mean, create two dataset
+# +++++++++++++++++++++++++++++++++++++++++++#
+# Dataset including non TS & TS for larger mean
+dat.TS.larger <- filter(rawdat, direction == "+")
+# Dataset including non TS & TS for smaller mean
+dat.TS.smaller <- filter(rawdat, direction == "-")
 
-fit = glm(
-  TS ~ divergence.COI*direction, 
-  data = rawdat, 
-  family = binomial
-  )
-ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
+# +++++++++++++++++++++++++++++++++++++++++++#
+# Genetic distance
+# +++++++++++++++++++++++++++++++++++++++++++#
 
-fit = glm(
-  TS ~ pheno.div.ratio*direction, 
-  data = rawdat %>%
-    mutate_at("divergence.COI", as.vector), 
-  family = binomial
-  )
 
-ggPredict(fit, se=TRUE, interactive = TRUE, digits = 3)  
+for (i in c("divergence.COI", "pheno.div.ratio")) {
+  
+  # Transgression for larger mean
+  reg.larger <- glm(
+    TS ~ dat.TS.larger[, i], 
+    data = dat.TS.larger, family = binomial
+    )$coefficients %>%
+    as.vector
+  # Transgression for smaller mean
+  reg.smaller <- glm(
+    TS ~ dat.TS.smaller[, i], 
+    data = dat.TS.smaller, family = binomial
+    )$coefficients %>%
+    as.vector
 
+  plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
+      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
+      # Transgression for larger mean
+      stat_function(
+        aes(color = "+"), size = 1,
+        fun = function(x) 
+          1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
+        ) +
+      # Transgression for smaller mean
+      stat_function(
+        aes(color = "-"), size = 1,
+        fun = function(x) 
+          1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
+        ) +
+      ylab("") + xlab("") +
+      scale_color_manual(values = c("#FE6100", "#648FFF")) + 
+      scale_y_continuous(breaks=seq(0,1)) +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_blank(),
+        axis.title  = element_text(size = 15),
+        panel.border = element_rect(colour = "grey70", size = 1)
+        )
+  print(plot)
+  ggsave(
+    plot = plot, 
+    file = paste("../Analysis/Variation.TS.continuous", i, "svg", sep = "."), 
+    height = 2.5, width = 2.7
+    )
+
+}
 
 ```
 
@@ -597,10 +606,7 @@ for (i in c("reciprocal", "trait.type")) {
     paste("../Analysis/Variation.transgression", i,k, "obj", sep = ".")
     )
 
-  ##############################
-  # Contrast for summary
-  ##############################
-  sum <- left_join(
+    sum <- left_join(
       # corrected estimates & SD
       summary(phylmix$Sol)$statistics %>%
         as.data.frame() %>%
@@ -611,63 +617,61 @@ for (i in c("reciprocal", "trait.type")) {
       rownames_to_column(var = "factors"),
       by = "factors"
       ) %>%
-      within(factors <- str_remove_all(factors, "interaction")) %>%
       mutate(
         significance = ifelse(pMCMC < 0.05, "*", ""),
-        direction = 
-          ifelse(str_detect(factors, "\\+"), 
-                 "increase variation", "decrease variation")
-        ) 
+        direction =
+          ifelse(str_detect(factors, "\\+"), "Toward larger variation",
+                 ifelse(str_detect(factors, "\\-"), "Toward smaller variation",
+                        ifelse(str_detect(factors, "Father_"), "Exceed father trait variation", "Exceed mother trait variation")
+                        )
+                 )
+        )
   
-  ### Plot ###
-  categoricalplot <- ggplot(
-    sum, aes(x = post.mean, y = factors)
-    ) +
-    # Vertical line
-    geom_vline(
-      xintercept = 0, size = 0.3, 
-      colour = "grey30", linetype = "dotted"         
+    ### Plot ###
+    categoricalplot <- ggplot(
+      sum, aes(x = post.mean, y = factors)
       ) +
-    # CI
-    geom_errorbarh(
-      aes(
-        xmin = sum[, 'l-95% CI'], 
-        xmax = sum[, 'u-95% CI'],
-        ), 
-      height = .0001
-      ) +
-    geom_point(size = 2.0, shape = 17) +
-    # Title
-    ylab("") + xlab("estimate with CI") +
-    ggtitle(k) +
-    # Combine different plots for main factors and interactions
-    # Themes
-    theme_bw() +
-    # Combine different plots for main factors and interactions
-    facet_grid(
-      direction ~., scales = "free", drop = TRUE,
-      labeller = label_wrap_gen(width = 13)
-      ) +
-    theme(
-      panel.grid = element_blank(),
-      legend.position = "none",
-      panel.border = element_blank(),
-      axis.text.x = element_text(size = 11),
-      axis.text.y = element_text(size = 12),
-      axis.line=element_line(colour = "grey70")
-      )
-  print(categoricalplot)
+      # Vertical line
+      geom_vline(
+        xintercept = 0, size = 0.3,
+        colour = "grey30", linetype = "dotted"
+        ) +
+      # CI
+      geom_errorbarh(
+        aes(xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI']),
+        height = .0001
+        ) +
+      geom_point(size = 2, shape = 17) +
+      # Title
+      ylab("") + xlab("") +
+      # Combine different plots for main factors and interactions
+      # Themes
+      theme_bw() +
+      # Combine different plots for main factors and interactions
+      facet_grid(
+        direction ~., scales = "free", drop = TRUE,
+        labeller = label_wrap_gen(width = 11)
+        ) +
+      theme(
+        panel.grid = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank(),
+        axis.text = element_text(size = 13),
+        axis.line=element_line(colour = "grey70"),
+        strip.text = element_text(size = 15)
+        )
+    print(categoricalplot)
   
   ggsave(
-      plot = categoricalplot, 
+      plot = categoricalplot + theme(axis.text.y = element_blank()),
       file = 
-        paste("../Analysis/variation.TS.categorical", i,k, "svg", sep = "."),
-      height = 4, width = 5
+        paste("../Analysis/Variation.TS.categorical", i,k, "svg", sep = "."),
+      height = 2.4, width = 3.8
       )
 
-  #####################################
+  #+++++++++++++++++++++++++++++++++++#
   # Contrast
-  #####################################
+  #+++++++++++++++++++++++++++++++++++#
   
   bind_rows(
     HPDinterval(phylmix$Sol[,1] - phylmix$Sol[,2]) %>%
