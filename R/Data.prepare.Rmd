@@ -21,6 +21,8 @@ options(scipen=100)  # do not show numbers using exponential
 # install & load packages
 pacman::p_load(
   tidyverse,
+  kableExtra,
+  pander,     # nice tables
   openxlsx,   # read Excel file
   knitr,      # rmarkdown
   rotl,       # Open Tree of Life
@@ -40,7 +42,7 @@ library(ggtree)
 
 # Load data and pre-processing and visual data checks
 
-```{r load unprocessed dat}
+```{r load unprocessed dat, results = 'asis'}
 
 ## Phenotype data ##
 pheno <- read.xlsx(
@@ -63,8 +65,9 @@ pheno <- read.xlsx(
       "Inviable", "Viable"
       )
     )
-
-## Metadata ##
+#+++++++++++++++++++++++++#
+# Metadata
+#+++++++++++++++++++++++++#
 meta <- read.xlsx(
     "../data/original.data.xlsx", sheet = "Metadata"
     ) %>%
@@ -73,8 +76,9 @@ meta <- read.xlsx(
   mutate_at(vars(contains("divergence")), log10) %>%
   mutate(sq.divergence.COI = (scale(divergence.COI))^2)
 
-print("metadata summary")
-meta.sum <-  left_join(
+#+++++++++++++++++++++++++
+print("Metadata summary")
+meta.sum <- left_join(
     meta %>% group_by(taxa) %>%
       summarise(species = length(species.pair)),
     meta %>% group_by(taxa) %>%
@@ -83,26 +87,28 @@ meta.sum <-  left_join(
         funs(sum(!is.na(.)))
         ),
     by = "taxa"
-  ) %>%
-  as.data.frame()
-
-total <- meta.sum %>% ungroup %>%
+  ) 
+meta.sum %>%
+  ungroup %>%
   summarise_at(vars(-taxa), funs(sum)) %>% 
   as.data.frame() %>%
-  mutate(taxa = "total")
+  mutate(taxa = "Total") %>%
+  bind_rows(meta.sum, .) %>%
+  kable("html", digits = 3) %>% 
+  kable_styling("striped", position = "left")
 
-print(bind_rows(meta.sum, total))  
 
-# Load data
+#+++++++++++++++++++++++++++++++++
+# Combine phenotypic and metadata
+#+++++++++++++++++++++++++++++++++
 dat <- left_join(pheno, meta)
-
 # add unique ID for each effect size (row)
 dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(dat)[1])), sep="")
 
 ```
 
 # summary figure
-```{r summary figure}
+```{r summary figure, results = 'asis'}
 
 #+++++++++++++++++++++#
 # Phylogeny
@@ -164,30 +170,38 @@ plot.phylo <- ggtree(tree) +
 #+++++++++++++++++++++#
 
 summary <- dat %>%
-    drop_na(contains("SD.sp")) %>%
-    group_by(taxa) %>%
-    summarise(
-      'Species pair' = length(unique(species.pair)),
-      'Obser- vation' = length(unique(ES.ID)),
-      Study = length(unique(Study.ID))
-      ) %>%
-    # Make tidy data
+  drop_na(contains("SD.sp")) %>%
+  group_by(taxa) %>%
+  summarise(
+    'Species pair' = length(unique(species.pair)),
+    'Obser- vation' = length(unique(ES.ID)),
+    Study = length(unique(Study.ID))
+    ) %>%
+  # Order taxon so that match with phylogenetic tree topology
+  within(taxa <- ordered(taxa, levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")))
+
+summary %>%
+  summarise_if(is.numeric, sum) %>%
+    mutate(taxa = "Total") %>%
+  bind_rows(summary, .) %>%
+  kable("html", digits = 3) %>% 
+  kable_styling("striped", position = "left")
+
+  
+
+### Plot ###
+plot.sum <- ggplot(
+  # Make tidy summary data
+  summary %>%
   gather(key = metrics, value = N, -c(taxa)) %>%
-  # Order factors
-  mutate_at(vars("metrics", "taxa"), as.factor) %>%
   # Order metrics
   within(
     metrics <- ordered(
       metrics,
       levels = c("Study", "Species pair", "Obser- vation")
       )
-    ) %>%
-  # Order taxon so that match with phylogenetic tree topology
-  within(taxa <- ordered(taxa, levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")))
-  
-
-### Plot ###
-plot.sum <- ggplot(summary, aes(x = "", y = N, fill = taxa)) +
+    ), 
+  aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
   scale_fill_brewer(palette = "YlGn") +
   facet_wrap(
@@ -206,7 +220,6 @@ plot.sum <- ggplot(summary, aes(x = "", y = N, fill = taxa)) +
     legend.title = element_blank()
     )
 
-
 #+++++++++++++++++#
 # Combine figures
 #+++++++++++++++++#
@@ -217,6 +230,34 @@ ggsave(
   plot = plot.all, 
   file = "../Analysis/data.svg", height = 5, width = 8.5
   )
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+print("Data removed in meta-analysis due to inviable reciprocal cross")
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+rem.ma <- dat %>%
+  filter(reciprocal == "Viable") %>%
+  select(c("taxa", "species.pair")) %>%
+  distinct_all()
+rem.ma %>%
+  kable("html", 
+        caption = paste(length(rem.ma$species.pair), "species pairs")
+        ) %>% 
+  kable_styling("striped", position = "left")
+  
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+print("Data removed in regression analyses due to lack of metadata")
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+rem.reg <- dat %>%
+  filter(is.na(sex.determination) | is.na(divergence.COI)) %>%
+  select(c("taxa", "species.pair")) %>%
+  distinct_all()
+rem.reg %>%
+  kable("html", 
+        caption = paste(length(rem.reg$species.pair), "species pairs")
+        ) %>% 
+  kable_styling("striped", position = "left")
+
 
 ```
 
