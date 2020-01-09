@@ -177,42 +177,42 @@ dat.full <- mean.dif.all %>%
 # Read create tree based on Open Tree of Life taxonomy
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 
-# matching names from open tree taxonomy
-taxa <- tnrs_match_names(
-  names = levels(dat.full$spL.name) %>%
-    str_replace_all("_", " "),
-  context_name = "Animals"
-  )
-
-# fixing names with more than 1 match after checking duplicated matches
-inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
-taxa[taxa$number_matches != 1, ][1,] <-
-  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
-inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
-taxa[taxa$number_matches != 1, ][2,] <-
-  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
-inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
-taxa[taxa$number_matches != 1, ][3,] <-
-  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
-inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
-taxa[taxa$number_matches != 1, ][4,] <-
-  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
-
-# Create tree
-tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-tree$tip.label %<>%
-  strip_ott_ids # remove OTT IDs from tip labels
-# randomly solve non-binary phylogeny
-set.seed(6)
-bin.tree <- multi2di(tree, random = T)
-
-# Indicate mismatch between tip labels & dataset species names
-setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
-setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
-# Fix names of tip labels
-bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
-
-write.tree(bin.tree, file= "../data/phylo.variation.TS.tre")
+# # matching names from open tree taxonomy
+# taxa <- tnrs_match_names(
+#   names = levels(dat.full$spL.name) %>%
+#     str_replace_all("_", " "),
+#   context_name = "Animals"
+#   )
+# 
+# # fixing names with more than 1 match after checking duplicated matches
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
+# taxa[taxa$number_matches != 1, ][1,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
+# taxa[taxa$number_matches != 1, ][2,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
+# taxa[taxa$number_matches != 1, ][3,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
+# taxa[taxa$number_matches != 1, ][4,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
+# 
+# # Create tree
+# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
+# tree$tip.label %<>%
+#   strip_ott_ids # remove OTT IDs from tip labels
+# # randomly solve non-binary phylogeny
+# set.seed(6)
+# bin.tree <- multi2di(tree, random = T)
+# 
+# # Indicate mismatch between tip labels & dataset species names
+# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
+# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
+# # Fix names of tip labels
+# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
+# 
+# write.tree(bin.tree, file= "../data/phylo.variation.TS.tre")
 
 #++++++++++++++++++++++++++++++++++#
 # Phylogenetic tree for mcmcglmm 
@@ -533,10 +533,6 @@ dat.TS.larger <- filter(rawdat, direction == "+")
 # Dataset including non TS & TS for smaller mean
 dat.TS.smaller <- filter(rawdat, direction == "-")
 
-# +++++++++++++++++++++++++++++++++++++++++++#
-# Genetic distance
-# +++++++++++++++++++++++++++++++++++++++++++#
-
 
 for (i in c("divergence.COI", "pheno.div.ratio")) {
   
@@ -568,7 +564,7 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
           1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
         ) +
       ylab("") + xlab("") +
-      scale_color_manual(values = c("#FE6100", "#648FFF")) + 
+      scale_color_manual(values = c("#648FFF", "#FE6100")) + 
       scale_y_continuous(breaks=seq(0,1)) +
       theme_bw() +
       theme(
@@ -588,6 +584,7 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
     )
 
 }
+
 
 ```
 

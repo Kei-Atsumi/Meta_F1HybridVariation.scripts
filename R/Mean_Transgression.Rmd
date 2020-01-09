@@ -524,7 +524,8 @@ rawdat <- dat.full %>%
       select(Cross.ID, divergence.COI)
     ) %>%
   # Natural log of genetic distance
-  mutate_at("divergence.COI", log)
+  mutate_at("divergence.COI", log) %>%
+  mutate_at("direction", as.factor)
 
 # +++++++++++++++++++++++++++++++++++++++++++#
 # To draw regression line separatory in transgression for larger mean and smaller mean, create two dataset
@@ -569,7 +570,7 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
           1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
         ) +
       ylab("") + xlab("") +
-      scale_color_manual(values = c("#FE6100", "#648FFF")) + 
+      scale_color_manual(values = c("#648FFF", "#FE6100")) + 
       scale_y_continuous(breaks=seq(0,1)) +
       theme_bw() +
       theme(
