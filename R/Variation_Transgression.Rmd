@@ -137,12 +137,7 @@ write.csv(
   mean.dif.all, "../data/variation.ES.TS.csv", row.names = F
   )
 
-```
-
-
-```{r transgressive segregation}
-
-dat.full <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
+dat.full <- mean.dif.all %>%
   # Assign transgressive segregation to 1, no TS to 0 for each effect size
   mutate(TS = ifelse(yi < 0, 1, 0)) %>%
   ### Join with metadata ###
@@ -172,21 +167,72 @@ dat.full <- read.csv("../data/variation.ES.TS.csv", head = TRUE) %>%
     insect = ifelse(taxa %in% c("Aves", "Rodentia", "Anura", "Cichliformes"), "no", "insect"),
   )
 
-#### Phylogenetic tree for mcmcglmm ####
+```
+
+# Phylogeny
+
+```{r phylogeny}
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Read create tree based on Open Tree of Life taxonomy
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+# matching names from open tree taxonomy
+taxa <- tnrs_match_names(
+  names = levels(dat.full$spL.name) %>%
+    str_replace_all("_", " "),
+  context_name = "Animals"
+  )
+
+# fixing names with more than 1 match after checking duplicated matches
+inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
+taxa[taxa$number_matches != 1, ][1,] <-
+  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
+inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
+taxa[taxa$number_matches != 1, ][2,] <-
+  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
+inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
+taxa[taxa$number_matches != 1, ][3,] <-
+  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
+inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
+taxa[taxa$number_matches != 1, ][4,] <-
+  inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
+
+# Create tree
+tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
+tree$tip.label %<>%
+  strip_ott_ids # remove OTT IDs from tip labels
+# randomly solve non-binary phylogeny
+set.seed(6)
+bin.tree <- multi2di(tree, random = T)
+
+# Indicate mismatch between tip labels & dataset species names
+setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
+setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
+# Fix names of tip labels
+bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
+
+write.tree(bin.tree, file= "../data/phylo.variation.TS.tre")
+
+#++++++++++++++++++++++++++++++++++#
+# Phylogenetic tree for mcmcglmm 
+#++++++++++++++++++++++++++++++++++#
 
 # compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.mean.TS.tre") %>%
-  compute.brlen(bin.tree, method = "Grafen", power = 1)
+phylo_branch <- read.tree(file = "../data/phylo.variation.TS.tre") %>%
+  compute.brlen(method = "Grafen", power = 1)
+print("Randomly solved phylogeny")
+plot(phylo_branch)
 
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
 
 # generating inverse phylogenetic matrix for MCMCglmm
-# Note one of the tips is called "Lates calcarifer (estimated)"
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 ```
+
 
 # Frequency of TS
 How frequent the TS is?  
@@ -346,7 +392,7 @@ for (k in c("alltaxon", "insect")) {
   # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
   # ### Save model ###
   # saveRDS(
-  #   phylmix, 
+  #   phylmix,
   #   file = paste("../Analysis/Variation.transgression.allfactors", k, "obj", sep = ".")
   #   )
 
