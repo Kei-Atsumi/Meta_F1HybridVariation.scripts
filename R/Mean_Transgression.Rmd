@@ -285,13 +285,13 @@ summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", 
 # Order TS category
 summary$direction <- ordered(summary$direction, levels = c("All Observations", "All transgression", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "All transgression", "Larger mean", "Smaller mean")
+levels(summary$direction) <- c("All Observations", "All transgression", "Exceed upper range", "Exceed lower range")
 
 ### Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "All trans- gression", "Larger variation", "Smaller variation")) %>%
+    within(levels(direction) <- c("All Obser- vations", "All trans- gression", "Exceed upper range", "Exceed lower range")) %>%
     within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
@@ -299,23 +299,23 @@ plot <- ggplot(
   facet_grid(
     scale = "free", metrics ~ direction,
     # strip text into two lines
-    labeller = label_wrap_gen(width = 11)
+    labeller = label_wrap_gen(width = 10)
     ) +
   xlab("") + ylab("") +
   theme(
-    strip.text = element_text(size = 14),
-    axis.text.y = element_text(size = 14),
+    strip.text = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     axis.ticks.x = element_blank(),
-    legend.text = element_text(size = 14),
+    legend.text = element_text(size = 11),
     legend.background = element_rect("grey95")
   )
 plot
 
 ggsave(
   plot = plot, 
-  file = "../Analysis/mean.TS.frequency.svg", height = 3.4, width = 5.1
+  file = "../Analysis/mean.TS.frequency.svg", height = 3.7, width = 5.0
   )
 
 ### Total number of observations and percentage ###
@@ -535,39 +535,103 @@ dat.TS.larger <- filter(rawdat, direction == "+")
 # Dataset including non TS & TS for smaller mean
 dat.TS.smaller <- filter(rawdat, direction == "-")
 
-# +++++++++++++++++++++++++++++++++++++++++++#
-# Genetic distance
-# +++++++++++++++++++++++++++++++++++++++++++#
+# # +++++++++++++++++++++++++++++++++++++++++++#
+# # Regression: Genetic distance
+# # +++++++++++++++++++++++++++++++++++++++++++#
+# 
+# ### Setting prior to logistic regression ###
+# prior <- list(
+#   B=list(
+#     mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+#     V = gelman.prior(~ direction:divergence.COI + divergence.COI,
+#     data = rawdat, # formula and data
+#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+#   R=list(V=1,fix=1),
+#   G = list(
+#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#     )
+#   )
+# ## Phylogenetic binomial regression ###
+# phylmix <-MCMCglmm(
+#   fixed = TS ~ direction:divergence.COI + divergence.COI,
+#   # idh(SE):units | weight by SE of effect size
+#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+#   family = "categorical",
+#   verbose = FALSE,
+#   ginverse = list(spL.name = phylo_MCMC),
+#   prior = prior,
+#   data = rawdat,
+#   nitt = 60000,  # Increase the number of iterations, default is 13000
+#   burnin = 5000  # Increase the number of burnin, default is 3000
+# )
+# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+# ### Save model ###
+# saveRDS(phylmix, file ="../Analysis/Mean.transgression.divergence.COI.obj")
+# 
+# # +++++++++++++++++++++++++++++++++++++++++++#
+# # Regression: Phenotypic divergence
+# # +++++++++++++++++++++++++++++++++++++++++++#
+# ### Setting prior to logistic regression ###
+# prior <- list(
+#   B=list(
+#     mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+#     V = gelman.prior(~ direction:pheno.div.ratio + pheno.div.ratio,
+#     data = rawdat, # formula and data
+#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+#   R=list(V=1,fix=1),
+#   G = list(
+#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#     )
+#   )
+# ## Phylogenetic binomial regression ###
+# phylmix <-MCMCglmm(
+#   fixed = TS ~ direction:pheno.div.ratio + pheno.div.ratio,
+#   # idh(SE):units | weight by SE of effect size
+#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+#   family = "categorical",
+#   verbose = FALSE,
+#   ginverse = list(spL.name = phylo_MCMC),
+#   prior = prior,
+#   data = rawdat,
+#   nitt = 60000,  # Increase the number of iterations, default is 13000
+#   burnin = 5000  # Increase the number of burnin, default is 3000
+# )
+# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+# ### Save model ###
+# saveRDS(phylmix, file ="../Analysis/Mean.transgression.pheno.div.ratio.obj")
 
-
+#++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Plot
+#++++++++++++++++++++++++++++++++++++++++++++++++++#
 for (i in c("divergence.COI", "pheno.div.ratio")) {
   
-  # Transgression for larger mean
-  reg.larger <- glm(
-    TS ~ dat.TS.larger[, i], 
-    data = dat.TS.larger, family = binomial
-    )$coefficients %>%
-    as.vector
-  # Transgression for smaller mean
-  reg.smaller <- glm(
-    TS ~ dat.TS.smaller[, i], 
-    data = dat.TS.smaller, family = binomial
-    )$coefficients %>%
-    as.vector
-
+  ### Load model ###
+  phylmix <- readRDS(
+    paste("../Analysis/Mean.transgression",i, "obj", sep = ".")
+    )
+  reg <- summary(phylmix$Sol)$statistics %>%
+      as.data.frame()
+  
+  ### Plot ###
   plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
-      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
+      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.2) +
       # Transgression for larger mean
       stat_function(
-        aes(color = "+"), size = 1,
+        aes(color = "+"), size = 0.8,
         fun = function(x) 
-          1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
+          1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
         ) +
       # Transgression for smaller mean
       stat_function(
-        aes(color = "-"), size = 1,
+        aes(color = "-"), size = 0.8,
         fun = function(x) 
-          1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
+          1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
         ) +
       ylab("") + xlab("") +
       scale_color_manual(values = c("#648FFF", "#FE6100")) + 
@@ -577,26 +641,18 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
         legend.position = "none",
         panel.grid.major.y = element_blank(),
         panel.grid.minor = element_blank(),
-        axis.text.x = element_text(size = 13),
+        axis.text.x = element_text(size = 9),
         axis.text.y = element_blank(),
-        axis.title  = element_text(size = 15),
-        panel.border = element_rect(colour = "grey70", size = 1)
+        panel.border = element_rect(colour = "grey70", size = 0.6)
         )
   print(plot)
   ggsave(
-    plot = plot, 
+    plot = plot + theme(axis.title  = element_blank()), 
     file = paste("../Analysis/mean.TS.continuous", i, "svg", sep = "."), 
-    height = 2.5, width = 2.7
+    height = 1.6, width = 1.7
     )
 
 }
-
-# fit = glm(
-#   TS ~ divergence.COI*direction,
-#   data = rawdat,
-#   family = binomial
-#   )
-# ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
 
 ```
 
@@ -654,9 +710,7 @@ for (i in c("reciprocal", "trait.type")) {
     #   file =
     #     paste("../Analysis/Mean.transgression", i,k, "obj", sep = ".")
     #     )
-  
-  
-  
+
     ### Load model ###
     phylmix <- readRDS(
       paste("../Analysis/Mean.transgression", i,k, "obj", sep = ".")
@@ -784,5 +838,66 @@ for (i in c("reciprocal", "trait.type")) {
   }
 }
 
+
+```
+```{r include = FALSE}
+
+for (i in c("divergence.COI", "pheno.div.ratio")) {
+  
+  # Transgression for larger mean
+  reg.larger <- glm(
+    TS ~ dat.TS.larger[, i], 
+    data = dat.TS.larger, family = binomial
+    )$coefficients %>%
+    as.vector
+  # Transgression for smaller mean
+  reg.smaller <- glm(
+    TS ~ dat.TS.smaller[, i], 
+    data = dat.TS.smaller, family = binomial
+    )$coefficients %>%
+    as.vector
+
+  plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
+      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
+      # Transgression for larger mean
+      stat_function(
+        aes(color = "+"), size = 1,
+        fun = function(x) 
+          1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
+        ) +
+      # Transgression for smaller mean
+      stat_function(
+        aes(color = "-"), size = 1,
+        fun = function(x) 
+          1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
+        ) +
+      ylab("") + xlab("") +
+      scale_color_manual(values = c("#648FFF", "#FE6100")) + 
+      scale_y_continuous(breaks=seq(0,1)) +
+      theme_bw() +
+      theme(
+        legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text.x = element_text(size = 13),
+        axis.text.y = element_blank(),
+        axis.title  = element_text(size = 15),
+        panel.border = element_rect(colour = "grey70", size = 1)
+        )
+  print(plot)
+  ggsave(
+    plot = plot, 
+    file = paste("../Analysis/mean.TS.continuous", i, "svg", sep = "."), 
+    height = 2.5, width = 2.7
+    )
+
+}
+
+# fit = glm(
+#   TS ~ divergence.COI*direction,
+#   data = rawdat,
+#   family = binomial
+#   )
+# ggPredict(fit, se = TRUE, interactive = TRUE, digits = 3)
 
 ```

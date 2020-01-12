@@ -395,7 +395,6 @@ for (k in c("alltaxon", "insect")) {
   #   phylmix,
   #   file = paste("../Analysis/Variation.transgression.allfactors", k, "obj", sep = ".")
   #   )
-
   
   ### Load model ###
   phylmix <- readRDS(file = paste("../Analysis/Variation.transgression.allfactors", k, "obj", sep = "."))
@@ -533,35 +532,104 @@ dat.TS.larger <- filter(rawdat, direction == "+")
 # Dataset including non TS & TS for smaller mean
 dat.TS.smaller <- filter(rawdat, direction == "-")
 
+# +++++++++++++++++++++++++++++++++++++++++++#
+# Regression: Genetic distance
+# +++++++++++++++++++++++++++++++++++++++++++#
+
+### Setting prior to logistic regression ###
+prior <- list(
+  B=list(
+    mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+    V = gelman.prior(~ direction:divergence.COI + divergence.COI,
+    data = rawdat, # formula and data
+    scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  R=list(V=1,fix=1),
+  G = list(
+    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+    )
+  )
+## Phylogenetic binomial regression ###
+phylmix <-MCMCglmm(
+  fixed = TS ~ direction:divergence.COI + divergence.COI,
+  # idh(SE):units | weight by SE of effect size
+  random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+  family = "categorical",
+  verbose = FALSE,
+  ginverse = list(spL.name = phylo_MCMC),
+  prior = prior,
+  data = rawdat,
+  nitt = 60000,  # Increase the number of iterations, default is 13000
+  burnin = 5000  # Increase the number of burnin, default is 3000
+)
+phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+### Save model ###
+saveRDS(phylmix, file ="../Analysis/Mean.transgression.divergence.COI.obj")
+
+# +++++++++++++++++++++++++++++++++++++++++++#
+# Regression: Phenotypic divergence
+# +++++++++++++++++++++++++++++++++++++++++++#
+### Setting prior to logistic regression ###
+prior <- list(
+  B=list(
+    mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+    V = gelman.prior(~ direction:pheno.div.ratio + pheno.div.ratio,
+    data = rawdat, # formula and data
+    scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+  R=list(V=1,fix=1),
+  G = list(
+    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+    )
+  )
+## Phylogenetic binomial regression ###
+phylmix <-MCMCglmm(
+  fixed = TS ~ direction:divergence.COI + divergence.COI,
+  # idh(SE):units | weight by SE of effect size
+  random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+  family = "categorical",
+  verbose = FALSE,
+  ginverse = list(spL.name = phylo_MCMC),
+  prior = prior,
+  data = rawdat,
+  nitt = 60000,  # Increase the number of iterations, default is 13000
+  burnin = 5000  # Increase the number of burnin, default is 3000
+)
+phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+### Save model ###
+saveRDS(phylmix, file ="../Analysis/Mean.transgression.pheno.div.ratio.obj")
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Plot
+#++++++++++++++++++++++++++++++++++++++++++++++++++#
 
 for (i in c("divergence.COI", "pheno.div.ratio")) {
   
-  # Transgression for larger mean
-  reg.larger <- glm(
-    TS ~ dat.TS.larger[, i], 
-    data = dat.TS.larger, family = binomial
-    )$coefficients %>%
-    as.vector
-  # Transgression for smaller mean
-  reg.smaller <- glm(
-    TS ~ dat.TS.smaller[, i], 
-    data = dat.TS.smaller, family = binomial
-    )$coefficients %>%
-    as.vector
-
+  ### Load model ###
+  phylmix <- readRDS(
+    paste("../Analysis/Mean.transgression",i, "obj", sep = ".")
+    )
+  reg <- summary(phylmix$Sol)$statistics %>%
+      as.data.frame()
+  
+  ### Plot ###
   plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
       geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
       # Transgression for larger mean
       stat_function(
         aes(color = "+"), size = 1,
         fun = function(x) 
-          1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
+          1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
         ) +
       # Transgression for smaller mean
       stat_function(
         aes(color = "-"), size = 1,
         fun = function(x) 
-          1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
+          1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
         ) +
       ylab("") + xlab("") +
       scale_color_manual(values = c("#648FFF", "#FE6100")) + 
