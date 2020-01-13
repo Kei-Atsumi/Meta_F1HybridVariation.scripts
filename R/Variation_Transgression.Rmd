@@ -39,6 +39,19 @@ options(knitr.kable.NA = '') # Hide NAs in kable table
 ### Correcting estimate of binomial regression###
 c2 <- (16 * sqrt(3)/(15 * pi))^2
 
+### Setting plot theme ###
+foresttheme <- theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.line = element_line(size = 0.4, color = "grey50"),
+    axis.ticks = element_line(size = 0.3, color = "grey50"),
+    axis.text = element_text(size = 9.5, color = "black"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    strip.text = element_text(size = 9.5, color = "black")
+    )
+
 ```
 
 ```{r lnCVR between hybrids and parental species}
@@ -285,13 +298,13 @@ summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", 
 # Order TS category
 summary$direction <- ordered(summary$direction, levels = c("All Observations", "All transgression", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "All transgression", "Larger variation", "Smaller variation")
+levels(summary$direction) <- c("All Observations", "All transgression", "Exceed upper range", "Exceed lower range")
 
 ### Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "All trans- gression", "Larger variation", "Smaller variation")) %>%
+    within(levels(direction) <- c("All Obser- vations", "All trans- gression", "Exceed upper range", "Exceed lower range")) %>%
     within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
@@ -299,24 +312,23 @@ plot <- ggplot(
   facet_grid(
     scale = "free", metrics ~ direction,
     # strip text into two lines
-    labeller = label_wrap_gen(width = 11)
+    labeller = label_wrap_gen(width = 10)
     ) +
   xlab("") + ylab("") +
   theme(
-    strip.text = element_text(size = 14),
-    axis.text.y = element_text(size = 14),
+    strip.text = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     axis.ticks.x = element_blank(),
-    legend.text = element_text(size = 14),
+    legend.text = element_text(size = 11),
     legend.background = element_rect("grey95")
   )
 plot
 
 ggsave(
-  plot = plot +
-    theme(legend.position = "none"), 
-  file = "../Analysis/Variation.TS.frequency.svg", height = 3.4, width = 5.1
+  plot = plot,
+  file = "../Analysis/Variation.TS.frequency.svg", height = 3.7, width = 5.0
   )
 
 ### Total number of observations and percentage ###
@@ -415,18 +427,18 @@ for (k in c("alltaxon", "insect")) {
     mutate(
       group = 
         ifelse(str_detect(factors, "direction.:"), 
-               "increasing variation",
+               "Exceed upper range",
                ifelse(str_detect(factors, "parentalMother:"),
-                      "polar overdominance",
+                      "Exceed mother",
                       ifelse(factors == "hetero.sexMale:direction+",
-                             "increasing variation",
-                             "transgressive segregation"
+                             "Exceed upper range",
+                             "Transgression for both direction"
                              )
                       )
                )
     ) %>%
     mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("transgressive segregation", "increasing variation", "polar overdominance"))) %>%
+    within(group <- ordered(group, c("Transgression for both direction", "Exceed upper range", "Exceed mother"))) %>%
     ### Change factor names ###
     within(
       factors <- str_remove_all(
@@ -438,19 +450,18 @@ for (k in c("alltaxon", "insect")) {
     within(
       factors <- factor(
         factors, ordered = TRUE, 
-        levels = c("trait.typesound", "hetero.sexMale", "parentalMother", "reciprocalViable", "distributionOverlap", "pheno.div.ratio",  "divergence.COI",  "direction+", "(Intercept)")
+        levels = c("parentalMother", "direction+", "trait.typesound", "hetero.sexMale", "reciprocalViable", "distributionOverlap", "pheno.div.ratio",  "divergence.COI",  "(Intercept)")
         )
       )
+  levels(sum$factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
   
   ### Plot ###
   metaplot <- ggplot(sum, aes(
-    x = post.mean, 
-    # Inverse order of factors
-    y = factors
+    x = post.mean, y = factors
     )) +
     # Vertical line
     geom_vline(
-      xintercept = 0, size = 0.3, 
+      xintercept = 0, size = 0.2, 
       colour = "grey30", linetype = "dotted"         
       ) +
     # CI
@@ -463,34 +474,27 @@ for (k in c("alltaxon", "insect")) {
       ) +
     # Color of plots and errorbars
     scale_colour_manual(values = c("grey60", "black")) +
-    geom_point(size = 1.5, aes(colour = significance)) +
+    geom_point(size = 1, aes(colour = significance)) +
     scale_fill_manual(values = c("grey60", "black")) +
     # Title
     ggtitle(k) +
-    ylab("") + xlab("estimate with CI") +
+    ylab("") + xlab("Estimate with 95% CI") +
     # Combine different plots for main factors and interactions
-    facet_grid(group~., scales = "free", space = "free") +
+    facet_grid(
+      group~., scales = "free", space = "free",
+      labeller = label_wrap_gen(width = 20)
+      ) +
     # Themes
-    theme_bw() +
-    theme(
-      panel.grid = element_blank(),
-      legend.position = "none",
-      panel.border=element_blank(),
-      axis.text.x = element_text(size = 11),
-      axis.text.y = element_text(size = 12),
-      axis.line=element_line(colour = "grey70")
-      )
+    foresttheme
   print(metaplot)
   
   ggsave(
       plot = metaplot, 
       file = paste("../Analysis/variation.TS.result", k, "svg", sep = "."), 
-      height = 6.75, width = 4.6
+      height = 4.7, width = 4.0
       )
   
   ### Output result ###
-  
-  
   sum %>% 
     select(group, factors, Mean, SD, pMCMC, significance) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
@@ -535,73 +539,73 @@ dat.TS.smaller <- filter(rawdat, direction == "-")
 # +++++++++++++++++++++++++++++++++++++++++++#
 # Regression: Genetic distance
 # +++++++++++++++++++++++++++++++++++++++++++#
-
-### Setting prior to logistic regression ###
-prior <- list(
-  B=list(
-    mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-    V = gelman.prior(~ direction:divergence.COI + divergence.COI,
-    data = rawdat, # formula and data
-    scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-  R=list(V=1,fix=1),
-  G = list(
-    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-    )
-  )
-## Phylogenetic binomial regression ###
-phylmix <-MCMCglmm(
-  fixed = TS ~ direction:divergence.COI + divergence.COI,
-  # idh(SE):units | weight by SE of effect size
-  random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-  family = "categorical",
-  verbose = FALSE,
-  ginverse = list(spL.name = phylo_MCMC),
-  prior = prior,
-  data = rawdat,
-  nitt = 60000,  # Increase the number of iterations, default is 13000
-  burnin = 5000  # Increase the number of burnin, default is 3000
-)
-phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-### Save model ###
-saveRDS(phylmix, file ="../Analysis/Mean.transgression.divergence.COI.obj")
-
-# +++++++++++++++++++++++++++++++++++++++++++#
-# Regression: Phenotypic divergence
-# +++++++++++++++++++++++++++++++++++++++++++#
-### Setting prior to logistic regression ###
-prior <- list(
-  B=list(
-    mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-    V = gelman.prior(~ direction:pheno.div.ratio + pheno.div.ratio,
-    data = rawdat, # formula and data
-    scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-  R=list(V=1,fix=1),
-  G = list(
-    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-    )
-  )
-## Phylogenetic binomial regression ###
-phylmix <-MCMCglmm(
-  fixed = TS ~ direction:divergence.COI + divergence.COI,
-  # idh(SE):units | weight by SE of effect size
-  random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-  family = "categorical",
-  verbose = FALSE,
-  ginverse = list(spL.name = phylo_MCMC),
-  prior = prior,
-  data = rawdat,
-  nitt = 60000,  # Increase the number of iterations, default is 13000
-  burnin = 5000  # Increase the number of burnin, default is 3000
-)
-phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-### Save model ###
-saveRDS(phylmix, file ="../Analysis/Mean.transgression.pheno.div.ratio.obj")
+# 
+# ### Setting prior to logistic regression ###
+# prior <- list(
+#   B=list(
+#     mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+#     V = gelman.prior(~ direction:divergence.COI + divergence.COI,
+#     data = rawdat, # formula and data
+#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+#   R=list(V=1,fix=1),
+#   G = list(
+#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#     )
+#   )
+# ## Phylogenetic binomial regression ###
+# phylmix <-MCMCglmm(
+#   fixed = TS ~ direction:divergence.COI + divergence.COI,
+#   # idh(SE):units | weight by SE of effect size
+#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+#   family = "categorical",
+#   verbose = FALSE,
+#   ginverse = list(spL.name = phylo_MCMC),
+#   prior = prior,
+#   data = rawdat,
+#   nitt = 60000,  # Increase the number of iterations, default is 13000
+#   burnin = 5000  # Increase the number of burnin, default is 3000
+# )
+# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+# ### Save model ###
+# saveRDS(phylmix, file ="../Analysis/Variation.transgression.divergence.COI.obj")
+# 
+# # +++++++++++++++++++++++++++++++++++++++++++#
+# # Regression: Phenotypic divergence
+# # +++++++++++++++++++++++++++++++++++++++++++#
+# ### Setting prior to logistic regression ###
+# prior <- list(
+#   B=list(
+#     mu = rep(0, 3), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
+#     V = gelman.prior(~ direction:pheno.div.ratio + pheno.div.ratio,
+#     data = rawdat, # formula and data
+#     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
+#   R=list(V=1,fix=1),
+#   G = list(
+#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#     )
+#   )
+# ## Phylogenetic binomial regression ###
+# phylmix <-MCMCglmm(
+#   fixed = TS ~ direction:pheno.div.ratio + pheno.div.ratio,
+#   # idh(SE):units | weight by SE of effect size
+#   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
+#   family = "categorical",
+#   verbose = FALSE,
+#   ginverse = list(spL.name = phylo_MCMC),
+#   prior = prior,
+#   data = rawdat,
+#   nitt = 60000,  # Increase the number of iterations, default is 13000
+#   burnin = 5000  # Increase the number of burnin, default is 3000
+# )
+# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
+# ### Save model ###
+# saveRDS(phylmix, file ="../Analysis/Variation.transgression.pheno.div.ratio.obj")
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Plot
@@ -611,23 +615,23 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
   
   ### Load model ###
   phylmix <- readRDS(
-    paste("../Analysis/Mean.transgression",i, "obj", sep = ".")
+    paste("../Analysis/Variation.transgression",i, "obj", sep = ".")
     )
   reg <- summary(phylmix$Sol)$statistics %>%
       as.data.frame()
   
   ### Plot ###
   plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
-      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
+      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.2) +
       # Transgression for larger mean
       stat_function(
-        aes(color = "+"), size = 1,
+        aes(color = "+"), size = 0.8,
         fun = function(x) 
           1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
         ) +
       # Transgression for smaller mean
       stat_function(
-        aes(color = "-"), size = 1,
+        aes(color = "-"), size = 0.8,
         fun = function(x) 
           1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
         ) +
@@ -635,20 +639,21 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
       scale_color_manual(values = c("#648FFF", "#FE6100")) + 
       scale_y_continuous(breaks=seq(0,1)) +
       theme_bw() +
-      theme(
-        legend.position = "none",
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text.x = element_text(size = 13),
-        axis.text.y = element_blank(),
-        axis.title  = element_text(size = 15),
-        panel.border = element_rect(colour = "grey70", size = 1)
-        )
+    theme(
+      legend.position = "none",
+      axis.ticks = element_line(size = 0.3, color = "grey50"),
+      axis.text = element_text(size = 9.5, color = "black"),
+      axis.text.y = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(colour = "grey50", size = 0.7),
+      strip.text = element_text(size = 9.5, color = "black")
+      )
   print(plot)
   ggsave(
     plot = plot, 
     file = paste("../Analysis/Variation.TS.continuous", i, "svg", sep = "."), 
-    height = 2.5, width = 2.7
+    height = 1.6, width = 1.7
     )
 
 }
@@ -710,38 +715,34 @@ for (i in c("reciprocal", "trait.type")) {
   #     paste("../Analysis/Variation.transgression", i,k, "obj", sep = ".")
   #     )
   
-  
-  
   ### Load model ###
   phylmix <- readRDS(
     paste("../Analysis/Variation.transgression", i,k, "obj", sep = ".")
     )
 
-    sum <- left_join(
-      # corrected estimates & SD
-      summary(phylmix$Sol)$statistics %>%
-        as.data.frame() %>%
-        rownames_to_column(var = "factors"),
-      # P
-      summary(phylmix)$solutions %>%
+  sum <- left_join(
+    # corrected estimates & SD
+    summary(phylmix$Sol)$statistics %>%
       as.data.frame() %>%
       rownames_to_column(var = "factors"),
-      by = "factors"
-      ) %>%
-      mutate(
-        significance = ifelse(pMCMC < 0.05, "*", ""),
-        direction =
-          ifelse(str_detect(factors, "\\+"), "Toward larger variation",
-                 ifelse(str_detect(factors, "\\-"), "Toward smaller variation",
-                        ifelse(str_detect(factors, "Father_"), "Exceed father trait variation", "Exceed mother trait variation")
-                        )
-                 )
-        )
+    # P
+    summary(phylmix)$solutions %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "factors"),
+    by = "factors"
+    ) %>%
+    mutate(
+      significance = ifelse(pMCMC < 0.05, "*", ""),
+      direction =
+        ifelse(str_detect(factors, "\\+"), "Exceed upper range",
+               ifelse(str_detect(factors, "\\-"), "Exceed lower range",
+                      ifelse(str_detect(factors, "Father_"), "Exceed father", "Exceed mother")
+                      )
+               )
+      )
   
     ### Plot ###
-    categoricalplot <- ggplot(
-      sum, aes(x = post.mean, y = factors)
-      ) +
+    categoricalplot <- ggplot(sum, aes(x = post.mean, y = factors)) +
       # Vertical line
       geom_vline(
         xintercept = 0, size = 0.3,
@@ -752,7 +753,7 @@ for (i in c("reciprocal", "trait.type")) {
         aes(xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI']),
         height = .0001
         ) +
-      geom_point(size = 2, shape = 17) +
+      geom_point(size = 1.3, shape = 17) +
       # Title
       ylab("") + xlab("") +
       # Combine different plots for main factors and interactions
@@ -763,21 +764,14 @@ for (i in c("reciprocal", "trait.type")) {
         direction ~., scales = "free", drop = TRUE,
         labeller = label_wrap_gen(width = 11)
         ) +
-      theme(
-        panel.grid = element_blank(),
-        legend.position = "none",
-        panel.border = element_blank(),
-        axis.text = element_text(size = 13),
-        axis.line=element_line(colour = "grey70"),
-        strip.text = element_text(size = 15)
-        )
+      foresttheme
     print(categoricalplot)
   
   ggsave(
       plot = categoricalplot + theme(axis.text.y = element_blank()),
       file = 
         paste("../Analysis/Variation.TS.categorical", i,k, "svg", sep = "."),
-      height = 2.4, width = 3.8
+      height = 1.8, width = 2.5
       )
 
   #+++++++++++++++++++++++++++++++++++#

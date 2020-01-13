@@ -39,6 +39,19 @@ options(knitr.kable.NA = '') # Hide NAs in kable table
 ### Correcting estimate of binomial regression###
 c2 <- (16 * sqrt(3)/(15 * pi))^2
 
+### Setting plot theme ###
+foresttheme <- theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.line = element_line(size = 0.4, color = "grey50"),
+    axis.ticks = element_line(size = 0.3, color = "grey50"),
+    axis.text = element_text(size = 9.5, color = "black"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    strip.text = element_text(size = 9.5, color = "black")
+    )
+
 ```
 
 ```{r lnRR between hybrids and parental species}
@@ -412,22 +425,22 @@ sum <- left_join(
   by = "factors"
   ) %>%
   mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
-  ### Grouping factors ###
+    ### Grouping factors ###
     mutate(
       group = 
         ifelse(str_detect(factors, "direction.:"), 
-               "increasing variation",
+               "Exceed upper range",
                ifelse(str_detect(factors, "parentalMother:"),
-                      "polar overdominance",
+                      "Exceed mother",
                       ifelse(factors == "hetero.sexMale:direction+",
-                             "increasing variation",
-                             "transgressive segregation"
+                             "Exceed upper range",
+                             "Transgression for both direction"
                              )
                       )
                )
     ) %>%
     mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("transgressive segregation", "increasing variation", "polar overdominance"))) %>%
+    within(group <- ordered(group, c("Transgression for both direction", "Exceed upper range", "Exceed mother"))) %>%
     ### Change factor names ###
     within(
       factors <- str_remove_all(
@@ -439,59 +452,51 @@ sum <- left_join(
     within(
       factors <- factor(
         factors, ordered = TRUE, 
-        levels = c("trait.typesound", "hetero.sexMale", "parentalMother", "reciprocalViable", "distributionOverlap", "pheno.div.ratio",  "divergence.COI",  "direction+", "(Intercept)")
+        levels = c("parentalMother", "direction+", "trait.typesound", "hetero.sexMale", "reciprocalViable", "distributionOverlap", "pheno.div.ratio",  "divergence.COI",  "(Intercept)")
         )
       )
+  levels(sum$factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
 
-### Plot ###
-metaplot <- ggplot(sum, aes(
-  x = post.mean, 
-  # Inverse order of factors
-  y = factors
-  )) +
-  # Vertical line
-  geom_vline(
-    xintercept = 0, size = 0.3, 
-    colour = "grey30", linetype = "dotted"         
-    ) +
-  # CI
-  geom_errorbarh(
-    aes(
-      xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI'],
-      colour=significance 
-      ), 
-    height = .0001
-    ) +
-  # Color of plots and errorbars
-  scale_colour_manual(values = c("grey60", "black")) +
-  geom_point(size = 1.5, aes(colour = significance)) +
-  scale_fill_manual(values = c("grey60", "black")) +
-  # Title
-  ggtitle(k) +
-  ylab("") + xlab("estimate with CI") +
-  # Combine different plots for main factors and interactions
-  facet_grid(group~., scales = "free", space = "free") +
-  # Themes
-  theme_bw() +
-  theme(
-    panel.grid = element_blank(),
-    legend.position = "none",
-    panel.border=element_blank(),
-    axis.text.x = element_text(size = 11),
-    axis.text.y = element_text(size = 12),
-    axis.line=element_line(colour = "grey70")
-    )
+  ### Plot ###
+  metaplot <- ggplot(sum, aes(
+    x = post.mean, y = factors
+    )) +
+    # Vertical line
+    geom_vline(
+      xintercept = 0, size = 0.2, 
+      colour = "grey30", linetype = "dotted"         
+      ) +
+    # CI
+    geom_errorbarh(
+      aes(
+        xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI'],
+        colour=significance 
+        ), 
+      height = .0001
+      ) +
+    # Color of plots and errorbars
+    scale_colour_manual(values = c("grey60", "black")) +
+    geom_point(size = 1, aes(colour = significance)) +
+    scale_fill_manual(values = c("grey60", "black")) +
+    # Title
+    ggtitle(k) +
+    ylab("") + xlab("Estimate with 95% CI") +
+    # Combine different plots for main factors and interactions
+    facet_grid(
+      group~., scales = "free", space = "free",
+      labeller = label_wrap_gen(width = 20)
+      ) +
+    # Themes
+    foresttheme
 print(metaplot)
 
   ggsave(
       plot = metaplot, 
       file = paste("../Analysis/mean.TS.result", k, "svg", sep = "."), 
-      height = 6.75, width = 4.6
+      height = 4.7, width = 4.0
       )
 
-### Output result ###
-
-
+  ### Output result ###
   sum %>% 
     select(group, factors, Mean, SD, pMCMC, significance) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
@@ -620,31 +625,33 @@ for (i in c("divergence.COI", "pheno.div.ratio")) {
   
   ### Plot ###
   plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
-      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.2) +
-      # Transgression for larger mean
-      stat_function(
-        aes(color = "+"), size = 0.8,
-        fun = function(x) 
-          1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
-        ) +
-      # Transgression for smaller mean
-      stat_function(
-        aes(color = "-"), size = 0.8,
-        fun = function(x) 
-          1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
-        ) +
-      ylab("") + xlab("") +
-      scale_color_manual(values = c("#648FFF", "#FE6100")) + 
-      scale_y_continuous(breaks=seq(0,1)) +
-      theme_bw() +
-      theme(
-        legend.position = "none",
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text.x = element_text(size = 9),
-        axis.text.y = element_blank(),
-        panel.border = element_rect(colour = "grey70", size = 0.6)
-        )
+    geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.2) +
+    # Transgression for larger mean
+    stat_function(
+      aes(color = "+"), size = 0.8,
+      fun = function(x) 
+        1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
+      ) +
+    # Transgression for smaller mean
+    stat_function(
+      aes(color = "-"), size = 0.8,
+      fun = function(x) 
+        1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
+      ) +
+    ylab("") + xlab("") +
+    scale_color_manual(values = c("#648FFF", "#FE6100")) + 
+    scale_y_continuous(breaks=seq(0,1)) +
+    theme_bw() +
+    theme(
+      legend.position = "none",
+      axis.ticks = element_line(size = 0.3, color = "grey50"),
+      axis.text = element_text(size = 9.5, color = "black"),
+      axis.text.y = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(colour = "grey50", size = 0.7),
+      strip.text = element_text(size = 9.5, color = "black")
+      )
   print(plot)
   ggsave(
     plot = plot + theme(axis.title  = element_blank()), 
@@ -730,17 +737,15 @@ for (i in c("reciprocal", "trait.type")) {
       mutate(
         significance = ifelse(pMCMC < 0.05, "*", ""),
         direction =
-          ifelse(str_detect(factors, "\\+"), "Toward larger mean",
-                 ifelse(str_detect(factors, "\\-"), "Toward smaller mean",
-                        ifelse(str_detect(factors, "Father_"), "Exceed father trait value", "Exceed mother trait value")
+          ifelse(str_detect(factors, "\\+"), "Exceed upper range",
+                 ifelse(str_detect(factors, "\\-"), "Exceed lower range",
+                        ifelse(str_detect(factors, "Father_"), "Exceed father", "Exceed mother")
                         )
                  )
         )
   
     ### Plot ###
-    categoricalplot <- ggplot(
-      sum, aes(x = post.mean, y = factors)
-      ) +
+    categoricalplot <- ggplot(sum, aes(x = post.mean, y = factors)) +
       # Vertical line
       geom_vline(
         xintercept = 0, size = 0.3,
@@ -751,31 +756,21 @@ for (i in c("reciprocal", "trait.type")) {
         aes(xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI']),
         height = .0001
         ) +
-      geom_point(size = 2, shape = 17) +
+      geom_point(size = 1.3, shape = 17) +
       # Title
       ylab("") + xlab("") +
-      # Combine different plots for main factors and interactions
-      # Themes
-      theme_bw() +
       # Combine different plots for main factors and interactions
       facet_grid(
         direction ~., scales = "free", drop = TRUE,
         labeller = label_wrap_gen(width = 11)
         ) +
-      theme(
-        panel.grid = element_blank(),
-        legend.position = "none",
-        panel.border = element_blank(),
-        axis.text = element_text(size = 13),
-        axis.line=element_line(colour = "grey70"),
-        strip.text = element_text(size = 15)
-        )
+      foresttheme
     print(categoricalplot)
   
     ggsave(
         plot = categoricalplot + theme(axis.text.y = element_blank()),
         file = paste("../Analysis/Mean.TS.categorical", i,k, "svg", sep = "."),
-        height = 2.4, width = 3.8
+        height = 1.8, width = 2.5
         )
     
   #+++++++++++++++++++++++++++++++++++#
@@ -842,56 +837,56 @@ for (i in c("reciprocal", "trait.type")) {
 ```
 ```{r include = FALSE}
 
-for (i in c("divergence.COI", "pheno.div.ratio")) {
-  
-  # Transgression for larger mean
-  reg.larger <- glm(
-    TS ~ dat.TS.larger[, i], 
-    data = dat.TS.larger, family = binomial
-    )$coefficients %>%
-    as.vector
-  # Transgression for smaller mean
-  reg.smaller <- glm(
-    TS ~ dat.TS.smaller[, i], 
-    data = dat.TS.smaller, family = binomial
-    )$coefficients %>%
-    as.vector
-
-  plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
-      geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
-      # Transgression for larger mean
-      stat_function(
-        aes(color = "+"), size = 1,
-        fun = function(x) 
-          1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
-        ) +
-      # Transgression for smaller mean
-      stat_function(
-        aes(color = "-"), size = 1,
-        fun = function(x) 
-          1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
-        ) +
-      ylab("") + xlab("") +
-      scale_color_manual(values = c("#648FFF", "#FE6100")) + 
-      scale_y_continuous(breaks=seq(0,1)) +
-      theme_bw() +
-      theme(
-        legend.position = "none",
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.text.x = element_text(size = 13),
-        axis.text.y = element_blank(),
-        axis.title  = element_text(size = 15),
-        panel.border = element_rect(colour = "grey70", size = 1)
-        )
-  print(plot)
-  ggsave(
-    plot = plot, 
-    file = paste("../Analysis/mean.TS.continuous", i, "svg", sep = "."), 
-    height = 2.5, width = 2.7
-    )
-
-}
+# for (i in c("divergence.COI", "pheno.div.ratio")) {
+#   
+#   # Transgression for larger mean
+#   reg.larger <- glm(
+#     TS ~ dat.TS.larger[, i], 
+#     data = dat.TS.larger, family = binomial
+#     )$coefficients %>%
+#     as.vector
+#   # Transgression for smaller mean
+#   reg.smaller <- glm(
+#     TS ~ dat.TS.smaller[, i], 
+#     data = dat.TS.smaller, family = binomial
+#     )$coefficients %>%
+#     as.vector
+# 
+#   plot <- ggplot(rawdat, aes(x = rawdat[,i], y = rawdat[, "TS"])) +
+#       geom_jitter(height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.5) +
+#       # Transgression for larger mean
+#       stat_function(
+#         aes(color = "+"), size = 1,
+#         fun = function(x) 
+#           1/(1 + exp(-(reg.larger[1] + x*reg.larger[2])))
+#         ) +
+#       # Transgression for smaller mean
+#       stat_function(
+#         aes(color = "-"), size = 1,
+#         fun = function(x) 
+#           1/(1 + exp(-(reg.smaller[1] + x*reg.smaller[2])))
+#         ) +
+#       ylab("") + xlab("") +
+#       scale_color_manual(values = c("#648FFF", "#FE6100")) + 
+#       scale_y_continuous(breaks=seq(0,1)) +
+#       theme_bw() +
+#       theme(
+#         legend.position = "none",
+#         panel.grid.major.y = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         axis.text.x = element_text(size = 13),
+#         axis.text.y = element_blank(),
+#         axis.title  = element_text(size = 15),
+#         panel.border = element_rect(colour = "grey70", size = 1)
+#         )
+#   print(plot)
+#   ggsave(
+#     plot = plot, 
+#     file = paste("../Analysis/mean.TS.continuous", i, "svg", sep = "."), 
+#     height = 2.5, width = 2.7
+#     )
+# 
+# }
 
 # fit = glm(
 #   TS ~ divergence.COI*direction,
