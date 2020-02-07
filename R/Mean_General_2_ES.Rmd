@@ -55,8 +55,7 @@ Phenotypic difference from spSS to the other crosses
 ```{r lnRR & SMD between hybrids and parental species}
 
 # load phenotypic data
-dat <- read.csv("../data/dat.mean.csv", head = TRUE) %>%
-  filter(reciprocal == "Viable")
+dat <- read.csv("../data/dat.mean.csv", head = TRUE)
 
 # Order by taxon
 dat$taxa <- ordered(
@@ -125,7 +124,13 @@ mean.dif <- bind_rows(
   left_join(., dat) 
 
 write.csv(
-  mean.dif, "../data/mean.ES.general.csv", row.names = F
+  mean.dif %>%
+    filter(reciprocal == "Viable"), 
+  "../data/mean.ES.general.csv", row.names = F
+  )
+
+write.csv(
+  mean.dif, "../data/mean.ES.general.alldat.csv", row.names = F
   )
 
 ```

@@ -10,6 +10,10 @@ output:
     toc_float: yes
 ---
 
+# Settings
+
+Assume CV of phenotype in <i>spSS_M</i> & <i>spLL_M</i> are 0.2 and 0.1  
+
 ```{r setup, include=FALSE}
 
 rm(list=ls())  # reset workspace
@@ -19,224 +23,468 @@ options(scipen=100)  # do not show numbers using exponential
 # install & load packages
 pacman::p_load(
   tidyverse,  
+  metafor,    # single factor meta-analyses
+  ape,        # phylogenetic tree
   openxlsx,    # read Excel file
   knitr,      # rmarkdown
+  kableExtra, # nice tables
+  pander,     # nice tables
   magrittr,   # Extend pipe
   svglite,    # Export SVG plots
+  patchwork,  # Combine plots
   ggridges    # Density plot
 )
-opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
+opts_chunk$set(prot=TRUE, message=FALSE, comment="", warning = FALSE) 
 
-```
+mytheme <- theme_bw() +
+  theme(
+    axis.text.y = element_blank(),
+    legend.position = "none",
+    axis.ticks = element_blank(),
+    axis.text = element_text(size = 9.5, color = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(color = "grey60")
+  )
 
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Function calculates
+# Probability for exceeding upper range
+# x: Value of moderator
+#++++++++++++++++++++++++++++++++++++++++++++++
+Upper = function(x) {
+  1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
+}
 
-```{r hypothetical simulation}
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Function calculates
+# Probability for exceeding lower range
+# x: Value of moderator
+#++++++++++++++++++++++++++++++++++++++++++++++
+Lower = function(x) {
+  1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
+}
 
-simudat <- bind_rows(
-  ### spSS ###
-  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spSS"),
-  ### spLL ###
-  rnorm(10000, 100, 10) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spLL"),
-  ### hybLS ###
-  rnorm(10000, 55, 7) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybLS"),
-  ### hybSL ###
-  rnorm(10000, 65, 8) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybSL")
-) %>%
-  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
-  
-ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
-
-simudat <- bind_rows(
-  ### spSS ###
-  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spSS"),
-  ### spLL ###
-  rnorm(10000, 300, 10) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spLL"),
-  ### hybLS ###
-  rnorm(10000, 150, 15) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybLS"),
-  ### hybSL ###
-  rnorm(10000, 170, 15) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybSL")
-  ) %>%
-  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
-  
-ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
-
-
-```
-
-```{r data}
-
-### Phylogeny ###
-
-
-for (i in c("mean", "variation")) {
-  
-# compute branch lengths of tree
-phylo_branch <- read.tree(
-  file = 
-    paste("../data/phylo", i, "general.tre", sep = ".")
-  ) %>%
-  compute.brlen(bin.tree, method = "Grafen", power = 1)
-# saving phylogeneic matrix
-phylo_cor <- vcv(phylo_branch, cor = T)
-
-  # Load effect sizes
-  dat <- read.csv(
-    paste("../data/", i, ".ES.general.csv", sep = ""), 
-    head = TRUE) %>%
-    select(-pheno.div.ratio, -divergence.COI) %>%
-    mutate(pheno.div.ratio = log(Mn.spL/Mn.spS)) %>%
-    mutate_at("surv.Study.name", as.character) %>%
-    left_join(
-      .,
-      read.xlsx(
-        "../data/original.data.xlsx", sheet = "Metadata"
-        )
-    ) %>%
-    filter(cross != "spL")
-
-  ################################################
-  # phylogenetic random regresson (ANOVA)
-  ################################################
-  
-  if (i == "mean") {
-    # Regress lnRR by phenotypic difference between parentals 
-    phyl.random <- rma.mv(
-      yi = lnRR.es, 
-      V = lnRR.sv, 
-      data = dat, method = "REML",
-      random = list(~1 | spL.name),
-      R = list(spL.name = phylo_cor),
-      mods = ~ pheno.div.ratio + cross
-      )
-  } else {
-    # Regress lnCVR by phenotypic difference between parentals 
-    phyl.random <- rma.mv(
-      yi = yi, 
-      V = vi, 
-      data = dat, method = "REML",
-      random = list(~1 | spL.name),
-      R = list(spL.name = phylo_cor),
-      mods = ~ pheno.div.ratio + divergence.COI + cross
-      )
-  }
-  
-
-  ################################################
-  # Output result
-  ################################################
-  
-  reg <- cbind(
-    phyl.random$beta,   # regression: estimate
-    phyl.random$ci.lb,  # regression: 95ci 
-    phyl.random$ci.ub,  # regression: 95ci
-    phyl.random$pval   # P
-    ) %>%
-    cbind(
-      ., row.names(.)
-    ) %>%
-    as.data.frame() %>%
-    rename(estimate = V1, ci.lb = V2, ci.ub = V3, P = V4, factors = V5) %>%
-    mutate_all(as.character) %>%
-    mutate_at(vars(estimate:P), as.numeric)
-  
-  print(
-    reg %>%
-      as.data.frame() %>%
-      mutate_if(is.numeric, round, 3) %>%
-      column_to_rownames("factors")
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Function make hypothetical dataset of 
+# transgression in mean
+# x: Probability for exceeding upper range
+# y: Probability for exceeding lower range
+# z: sale size
+#++++++++++++++++++++++++++++++++++++++++++++++
+transdat = function(up,lw,N) {
+  table <- tibble(
+    simu = c(
+      rep(LL.mean*1.3, 2*round(up*N,0)),
+      rep(SS.mean-15, 2*round(lw*N,0))
+      ),
+    cross = c(
+      rep("hybLS", round(up*N,0)),rep("hybSL", round(up*N,0)),
+      rep("hybLS", round(lw*N,0)),rep("hybSL", round(lw*N,0))
     )
+  )
+}
+
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Function make hypothetical dataset of 
+# hybrid phenotypic distribution
+# me: Effect of the focal factor 
+#     on phenotypic mean of hybrids
+# ve: Effect of the focal factor 
+#     on phenotypic variation of hybrids
+#++++++++++++++++++++++++++++++++++++++++++++++
+hybdat = function(me, ve) {
+
+  LS.mean <- (SS.mean+LL.mean)/2*    # Midparent of phenotypic mean
+    (100-8.32)/100 + me # Parametarized phenotypic mean
+  SL.mean <- (SS.mean+LL.mean)/2*
+    (100-11.52)/100 + me # Parametarized phenotypic mean
+
+  bind_rows(
+    ### hybLS ###
+    rnorm(N, LS.mean, 
+          ((SS.cv+LL.cv)/2 + ve)*  # CV of hybLS with effect of moderators
+            LS.mean               # Mean of hybLS
+          ) %>% 
+    as.data.frame() %>% mutate(cross = "hybLS"),
+    ### hybSL ###
+    rnorm(N, SL.mean,
+          ## Parametarized variation: differ from midparent ##
+          ((SS.cv+LL.cv)/2* (100-11.52)/100 + ve)* # CV with effect of moderators
+            SL.mean # Mean
+          ) %>%
+    as.data.frame() %>% mutate(cross = "hybSL"),
+    ### spSS ###
+    rnorm(N, SS.mean, SS.mean*SS.cv) %>% # N,Mean,SD=CV*mean   
+    as.data.frame() %>% mutate(cross = "spSS"),
+    ### spLL ###
+    rnorm(N, LL.mean, LL.mean*LL.cv) %>% # N,Mean,SD=CV*mean   
+    as.data.frame() %>% mutate(cross = "spLL")
+    ) %>% 
+  ### arranging data ###
+  rename("simu" = ".") %>%
+  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
 
 }
 
+
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Function make plots
+# x: Distribution data
+# y: Transgression data
+#++++++++++++++++++++++++++++++++++++++++++++++
+dist.plot = function(a,b) {
   
+  ggplot() + 
+    geom_hline(yintercept = (SS.mean+LL.mean)/2, linetype = "dotted") +
+    geom_violin(
+      data = a, 
+      aes(x = cross, y = simu, fill = cross), 
+      color = NA, alpha = 0.5
+      ) +
+    scale_fill_manual(
+      values = c("#1a85ffff", "#785EF0", "#FE6100", "#DC267F")
+      ) +
+    geom_jitter(
+      data = b, height = 2, width = 0.2,
+      aes(x = cross, y = simu, color = cross)
+      ) +
+    scale_color_manual(values = c("#FE6100","#785EF0")) +
+    xlab("") + ylab("Trait value") + 
+    facet_grid(. ~ Situation, scales = "free") +
+    mytheme
+}
+
+#' Title: the function to get summary stats from rma objects (metafor)
+#'
+#' @param model: rma.mv object 
+#' @param mod: the name of a moderator 
+get_stats <- function(model, mod = " ") {
+    name <- as.factor(str_replace(row.names(model$beta), mod, ""))
+    estimate <- model$beta # regression: estimate
+    lowerCI <- model$ci.lb # regression: 95ci
+    upperCI <- model$ci.ub # regression: 95ci
+    P       <- model$pval
+    
+    table <- tibble(
+      name = name, estimate = estimate,
+      lowerCI = lowerCI, upperCI = upperCI,
+      P = P
+      )  %>%
+      mutate(significance = ifelse(P < 0.05, "*", ""))
+}
+
+
+#++++++++++++++++++++++++++++++++++++++++++++++++
+# Settigs for hybrid phenotype distribution
+#++++++++++++++++++++++++++++++++++++++++++++++++
+
+SS.mean <- 20  # Phenotypic mean of spSS
+LL.mean <- 80  # Phenotypic mean of spLL
+SS.cv   <- 0.2 # Coefficient of Variation of spSS
+LL.cv   <- 0.1 # Coefficient of Variation of spLL
+N <- 30000     # Simulation sample size
+
+
+#++++++++++++++++++++++++++++++++++++++++++++++++
+# Meta-analysis datasets
+#++++++++++++++++++++++++++++++++++++++++++++++++
+
+# Load effect sizes
+var <- read.csv("../data/variation.ES.general.csv", head = TRUE) %>%
+  filter(cross != "spL")
+# compute branch lengths of tree
+phylo_branch.var <- read.tree(file = "../data/phylo.variation.general.tre") %>%
+  compute.brlen(bin.tree, method = "Grafen", power = 1)
+phylo_cor.var <- vcv(phylo_branch.var, cor = T)
+
+# Load effect sizes
+mean <- read.csv("../data/mean.ES.general.alldat.csv", head = TRUE) %>%
+  filter(cross != "spL")
+# compute branch lengths of tree
+phylo_branch.mean <- read.tree(file = "../data/phylo.mean.general.tre") %>%
+  compute.brlen(bin.tree, method = "Grafen", power = 1)
+phylo_cor.mean <- vcv(phylo_branch.mean, cor = T)
+
 ```
 
 
-Assuming dominance does not change by phenotypic differentiation
+# Genetic distnce
+1. Did not affect overall phenotypic mean<br>
+2. Affect mean transgression frequency (Upper:)<br>
+3. Increase affect overall phenotypic variation (EffectSize:0.199)<br>
+4. Affect variance transgression frequency
 
-```{r parametarized simulation}
+```{r genetic distance}
 
-simudat <- bind_rows(
-  ### spSS ###
-  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spSS"),
-  ### spLL ###
-  rnorm(10000, 100, 10) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spLL"),
-  ### hybLS ###
-  rnorm(10000, (100+20)/2*(100-8.35)/100, 15) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybLS"),
-  ### hybSL ###
-  rnorm(10000, (100+20)/2*(100-11.56)/100, 15) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybSL")
-  ) %>%
-  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
-  
-ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
+phylmix <- readRDS(file = "../Analysis/Mean.transgression.divergence.COI.obj")
+reg <- summary(phylmix$Sol)$statistics %>% # corrected estimates & SD
+   as.data.frame()
 
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Hypothetical dataset for the phenotypic distribution
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Dist <- bind_rows(
+  # Close
+  hybdat(me = 0, ve = -0.199/3) %>%
+  mutate(Situation = "Close"),
+  # Distant
+  hybdat(me = 0, ve = +0.199/3) %>%
+  mutate(Situation = "Distant")
+  )
 
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Hypothetical dataset for transgression in mean
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Trans <- bind_rows(
+  # Close
+  transdat(up = Upper(0.001), lw = Lower(0.001), N = 100) %>%
+  mutate(Situation = "Close"),
+  # Distant
+  transdat(up = Upper(1), lw = Lower(1), N = 100) %>%
+  mutate(Situation = "Distant")
+)
 
-simudat <- bind_rows(
-  ### spSS ###
-  rnorm(10000, 20, 5) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spSS"),
-  ### spLL ###
-  rnorm(10000, 300, 10) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "spLL"),
-  ### hybLS ###
-  rnorm(10000, (300+20)/2*(100-8.35)/100, 15) %>% # Here, var indicates SD   
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybLS"),
-  ### hybSL ###
-  rnorm(10000, (300+20)/2*(100-11.56)/100, 15) %>% # No difference in CV
-  as.data.frame() %>%
-  rename("simu" = ".") %>%
-  mutate(cross = "hybSL")
-  ) %>%
-  within(cross <- ordered(cross, c("spSS", "hybSL", "hybLS", "spLL")))
-  
-ggplot(simudat, aes(y = cross, x = simu)) + geom_density_ridges()
+dist.plot(Dist,Trans) + ggtitle("Genetic divergence")
 
+```
+
+# Phenotypic divergence
+1. Did not affect overall phenotypic mean <br>
+2. Affect mean transgression frequency <br>
+3. Increase overall phenotypic variation (EffectSize:0.199) <br>
+4. Affect variance transgression frequency <br>
+
+```{r Phenotypic divergence}
+
+SS.cv   <- 0.15 # Coefficient of Variation of spSS
+LL.cv   <- 0.1 # Coefficient of Variation of spL
+
+phylmix <- readRDS(file = "../Analysis/Mean.transgression.pheno.div.ratio.obj")
+reg <- summary(phylmix$Sol)$statistics %>% # corrected estimates & SD
+   as.data.frame()
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Phenotypically distant species pair
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+LL.mean <- 200  # Phenotypic mean of spLL (10times larger than spSS)
+
+Dist.dist <- hybdat(me = 10, ve = 0.141) %>% # 10times larger
+  mutate(Situation = "Distant")
+
+trans.dist <- transdat(up = Upper(1), lw = Lower(1), N = 100) %>%
+  mutate(Situation = "Distant")
+
+plot.dist <- ggplot() + 
+  geom_hline(yintercept = (SS.mean+LL.mean)/2, linetype = "dotted") +
+  geom_violin(
+    data = Dist.dist, 
+    aes(x = cross, y = simu, fill = cross), 
+    color = NA, alpha = 0.5
+    ) +
+  scale_fill_manual(
+    values = c("#1a85ffff", "#785EF0", "#FE6100", "#DC267F")
+    ) +
+  geom_jitter(
+    data = trans.dist, height = 2, width = 0.2,
+    aes(x = cross, y = simu, color = cross)
+    ) +
+  scale_color_manual(values = c("#FE6100","#785EF0")) +
+  xlab("") + ylab("") + 
+  facet_grid(. ~ Situation, scales = "free") +
+  mytheme
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Phenotypically close species pair
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+LL.mean <- 30  # Phenotypic mean of spLL (1.5times larger than spSS)
+Dist.close <- hybdat(me = 0, ve = 0) %>%
+  mutate(Situation = "Close")
+
+Trans.close <- transdat(up = Upper(0.001), lw = Lower(0.001), N = 100) %>%
+  mutate(Situation = "Close")
+
+plot.close <- ggplot() + 
+  geom_hline(yintercept = (SS.mean+LL.mean)/2, linetype = "dotted") +
+  geom_violin(
+    data = Dist.close, 
+    aes(x = cross, y = simu, fill = cross), 
+    color = NA, alpha = 0.5
+    ) +
+  scale_fill_manual(
+    values = c("#1a85ffff", "#785EF0", "#FE6100", "#DC267F")
+    ) +
+  geom_jitter(
+    data = Trans.close, height = 2, width = 0.2,
+    aes(x = cross, y = simu, color = cross)
+    ) +
+  scale_color_manual(values = c("#FE6100","#785EF0")) +
+  xlab("") + ylab("Trait value") + 
+  facet_grid(. ~ Situation, scales = "free") +
+  mytheme
+
+plot.close + plot.dist
+
+```
+
+# Viability of reciprocal hybrids
+1. Did not affect overall phenotypic mean & variation<br>
+2. Affect transgression in mean
+
+```{r reciprocal hybrids}
+
+phylmix <- readRDS(file = "../Analysis/Mean.transgression.reciprocal.alltaxon.obj")
+reg <- summary(phylmix$Sol)$statistics %>% # corrected estimates & SD
+   as.data.frame()
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Single factor meta-analysis for mean
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# ma.mean <- rma.mv(
+#   yi = lnRR.es, V = lnRR.sv,
+#   data = mean, method = "REML",
+#   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+#   R = list(spL.name = phylo_cor.mean),
+#   mods = ~ reciprocal
+#   )
+# saveRDS(ma.mean, file = "../Analysis/Mean.meta.reciprocal.obj")
+
+readRDS(file = "../Analysis/Mean.meta.reciprocal.obj") %>%
+  get_stats %>%
+  kable("html", digits = 3, caption = "Mean") %>% 
+  kable_styling("striped", position = "left")
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Single factor meta-analysis for variation
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# # Meta regression
+# ma.var <- rma.mv(
+#   yi = yi, V = vi,
+#   data = var, method = "REML",
+#   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+#   R = list(spL.name = phylo_cor.var),
+#   mods = ~ reciprocal
+#   )
+# saveRDS(ma.var, file = "../Analysis/Variation.meta.reciprocal.obj")
+
+readRDS(file = "../Analysis/Variation.meta.reciprocal.obj") %>%
+  get_stats %>%
+  kable("html", digits = 3, caption = "Variation") %>% 
+  kable_styling("striped", position = "left")
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Hypothetical dataset for the phenotypic distribution
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Dist <- bind_rows(
+  # Inviable
+  hybdat(me = 0, ve = 0) %>%
+  mutate(Situation = "Inviable"),
+  # Viable
+  hybdat(me = 0, ve = 0) %>%
+  mutate(Situation = "Viable")
+  )
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Hypothetical dataset for transgression in mean
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Trans <- bind_rows(
+  # Inviable
+  transdat(
+    up = 1/(1 + exp(-(reg[3,1]))), lw = 1/(1 + exp(-(reg[1,1]))), 
+    N = 50) %>%
+  mutate(Situation = "Inviable"),
+  # Viable
+  transdat(
+    up = 1/(1 + exp(-(reg[4,1]))), lw = 1/(1 + exp(-(reg[2,1]))), 
+    N = 50) %>%
+  mutate(Situation = "Viable")
+)
+
+dist.plot(Dist,Trans) + ggtitle("Reciprocal hybrids")
 
 ```
 
 
+# Trait type
+1. Did not affect overall trait mean & variation
+2. Did not affect transgression
 
+```{r Trait type}
 
+phylmix <- readRDS(file = "../Analysis/Mean.transgression.trait.type.alltaxon.obj")
+reg <- summary(phylmix$Sol)$statistics %>% # corrected estimates & SD
+   as.data.frame()
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Single factor meta-analysis for mean
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# Regress by lnRR of phenotypic difference between parentals
+# ma.mean <- rma.mv(
+#   yi = lnRR.es, V = lnRR.sv,
+#   data = mean, method = "REML",
+#   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+#   R = list(spL.name = phylo_cor.mean),
+#   mods = ~ trait.type
+#   )
+# saveRDS(ma.mean, file = "../Analysis/Mean.meta.trait.type.obj")
+
+readRDS(file = "../Analysis/Mean.meta.trait.type.obj") %>%
+  get_stats %>%
+  kable("html", digits = 3, caption = "Mean") %>% 
+  kable_styling("striped", position = "left")
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Single factor meta-analysis for variation
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# # Meta regression
+# ma.var <- rma.mv(
+#   yi = yi, V = vi,
+#   data = var, method = "REML",
+#   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+#   R = list(spL.name = phylo_cor.var),
+#   mods = ~ trait.type
+#   )
+# saveRDS(ma.var, file = "../Analysis/Variation.meta.trait.type.obj")
+
+readRDS(file = "../Analysis/Variation.meta.trait.type.obj") %>%
+  get_stats %>%
+  kable("html", digits = 3, caption = "Variation") %>% 
+  kable_styling("striped", position = "left")
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Hypothetical dataset for the phenotypic distribution
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Dist <- bind_rows(
+  # Sound
+  hybdat(me = 2, ve = -0.05) %>%
+  mutate(Situation = "Sound"),
+  # Morphology
+  hybdat(me = 0, ve = 0) %>%
+  mutate(Situation = "Morphology")
+  )
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Hypothetical dataset for transgression in mean
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Trans <- bind_rows(
+  # Inviable
+  transdat(
+    up = 1/(1 + exp(-(reg[3,1]/reg[3,2]))), lw = 1/(1 + exp(-(reg[1,1]/reg[1,2]))), 
+    N = 20) %>%
+  mutate(Situation = "Sound"),
+  # Viable
+  transdat(
+    up = 1/(1 + exp(-(reg[4,1]/reg[4,2]))), lw = 1/(1 + exp(-(reg[2,1]/reg[2,2]))), 
+    N = 20) %>%
+  mutate(Situation = "Morphology")
+)
+
+dist.plot(Dist,Trans) + ggtitle("Trait type")
+
+```

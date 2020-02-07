@@ -105,6 +105,16 @@ dat <- left_join(pheno, meta)
 # add unique ID for each effect size (row)
 dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(dat)[1])), sep="")
 
+#+++++++++++++++++++++++++++++++++
+print("Scaling")
+#+++++++++++++++++++++++++++++++++
+print("Phenotypic divergence ratio")
+attributes(pheno$pheno.div.ratio)
+print("Minimum scaled value")
+min(pheno$pheno.div.ratio)
+print("Maximum scaled value")
+max(pheno$pheno.div.ratio)
+
 ```
 
 # summary figure
