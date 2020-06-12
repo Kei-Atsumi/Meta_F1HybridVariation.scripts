@@ -21,18 +21,21 @@ options(scipen=100)  # do not show numbers using exponential
 
 # load packages
 pacman::p_load(
-  tidyverse,
-  kableExtra,
-  pander,     # nice tables
-  metafor,    # Meta-analysis
-  knitr,      # rmarkdown
-  magrittr,   # Extend pipe
-  ape,        # Phylogeny
-  phytools,   # Phylogeny
-  svglite,    # Export SVG plots
-  ggbeeswarm, # bee-swarm plots
-  plotly      # interactive plots using ggplot2
+  tidyverse
+  , kableExtra
+  , pander     # nice tables
+  , metafor    # Meta-analysis
+  , knitr      # rmarkdown
+  , magrittr   # Extend pipe
+  , ape        # Phylogeny
+  , phytools   # Phylogeny
+  , svglite    # Export SVG plots
+  , ggbeeswarm # bee-swarm plots
+  , plotly      # interactive plots using ggplot
 )
+# devtools::install_github("itchyshin/orchard_plot", subdir = "orchaRd", force = TRUE, build_vignettes = TRUE)
+library(orchaRd)
+
 
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE)
 options(knitr.kable.NA = '') # Hide NAs in kable table
@@ -255,13 +258,13 @@ for (j in c("withTS", "withoutTS")) {
         filter(data.type == j, insect == k)
     }
   
-    # ### phylogenetic random regresson comparing with midparent ### 
+    # ### phylogenetic random regresson comparing with midparent ###
     # midparent.compare <- rma.mv(
     #   yi = lnRR.midparent.es,
     #   V = lnRR.sv,
     #   data = dat,
     #   method = "REML",
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
     #   R = list(spL.name = phylo_cor),
     #   mods = ~ relevel(cross, ref = "midparent")
     #   )
@@ -355,14 +358,14 @@ for (j in c("withTS", "withoutTS")) {
   for (k in c("alltaxon", "insect")) {
     for (h in c("spL", "hybLS", "hybSL")) {
 
-      # if (k == "alltaxon") {
-      #   dat <- with.without.TS %>%
-      #     filter(cross == h, data.type == j)
-      # } else {
-      #   dat <- with.without.TS %>%
-      #     filter(cross == h, data.type == j, insect == k)
-      # }
-      # 
+      if (k == "alltaxon") {
+        dat <- with.without.TS %>%
+          filter(cross == h, data.type == j)
+      } else {
+        dat <- with.without.TS %>%
+          filter(cross == h, data.type == j, insect == k)
+      }
+
       # # Phylogenetic random meta-analysis
       # phyl.random <- rma.mv(
       #   yi = lnRR.es, V = lnRR.sv,
@@ -535,21 +538,21 @@ for (j in c("withTS", "withoutTS")) {
         filter(data.type == j, insect == k)
     }
   
-    ################################################
+    #+++++++++++++++++++++++++++++++++++++++++++++#
     # phylogenetic random regresson (ANOVA)
-    ################################################
-    # # Regress by lnRR of phenotypic difference between parentals 
+    #+++++++++++++++++++++++++++++++++++++++++++++#
+    # # Regress by lnRR of phenotypic difference between parentals
     # phyl.random.spL <- rma.mv(
-    #   yi = lnRR.es, V = lnRR.sv, 
+    #   yi = lnRR.es, V = lnRR.sv,
     #   data = dat, method = "REML",
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
     #   R = list(spL.name = phylo_cor),
     #   mods = ~ relevel(cross, ref = "spL")
     #   )
     # phyl.random.hybLS <- rma.mv(
-    #   yi = lnRR.es, V = lnRR.sv, 
+    #   yi = lnRR.es, V = lnRR.sv,
     #   data = dat, method = "REML",
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
     #   R = list(spL.name = phylo_cor),
     #   mods = ~ cross
     #   )
@@ -563,8 +566,8 @@ for (j in c("withTS", "withoutTS")) {
     #   file = paste("../Analysis/Mean.compare.from.hybLS", j, k, "obj", sep = ".")
     #   )
 
-    ### Load model ###
-    # phyl.random.spL <- readRDS(paste("../Analysis/Mean.compare.from.spL", j, k, "obj", sep = "."))
+    ## Load model ###
+    phyl.random.spL <- readRDS(paste("../Analysis/Mean.compare.from.spL", j, k, "obj", sep = "."))
     phyl.random.hybLS <- readRDS(paste("../Analysis/Mean.compare.from.hybLS", j, k, "obj", sep = "."))
 
   assign(
@@ -620,35 +623,35 @@ for (l in c("normal", "sensitivity")) {
           filter(data.type == j, insect == k, cross != "spL")
       }
       
-      # if (l == "normal") {
-      # # Regress by lnRR of phenotypic difference between parentals
-      # phyl.random <- rma.mv(
-      #   yi = lnRR.es, V = lnRR.sv,
-      #   data = dat, method = "REML",
-      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-      #   R = list(spL.name = phylo_cor),
-      #   mods = ~ cross*hetero.sex +
-      #     pheno.div.ratio + divergence.COI +
-      #     trait.type + distribution
-      #   )
-      # } else {
-      # # Regress by lnRR of phenotypic difference between parentals
-      # phyl.random <- rma.mv(
-      #   yi = lnRR.es, V = lnRR.sv,
-      #   data = dat, method = "REML",
-      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
-      #   R = list(spL.name = phylo_cor),
-      #   mods = ~ cross*hetero.sex +
-      #     pheno.div.ratio + divergence.COI +
-      #     trait.type + distribution +
-      #     sqrt(lnRR.sv)                       # add SE
-      #   )
-      # }
-      # 
-      # saveRDS(
-      #   phyl.random,
-      #   file = paste("../Analysis/Mean.metareg", j, k, l, "obj", sep = ".")
-      #   )
+      if (l == "normal") {
+      # Regress by lnRR of phenotypic difference between parentals
+      phyl.random <- rma.mv(
+        yi = lnRR.es, V = lnRR.sv,
+        data = dat, method = "REML",
+        random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+        R = list(spL.name = phylo_cor),
+        mods = ~ cross*hetero.sex +
+          pheno.div.ratio + divergence.COI +
+          trait.type + distribution
+        )
+      } else {
+      # Regress by lnRR of phenotypic difference between parentals
+      phyl.random <- rma.mv(
+        yi = lnRR.es, V = lnRR.sv,
+        data = dat, method = "REML",
+        random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+        R = list(spL.name = phylo_cor),
+        mods = ~ cross*hetero.sex +
+          pheno.div.ratio + divergence.COI +
+          trait.type + distribution +
+          sqrt(lnRR.sv)                       # add SE
+        )
+      }
+
+      saveRDS(
+        phyl.random,
+        file = paste("../Analysis/Mean.metareg", j, k, l, "obj", sep = ".")
+        )
       
       ### Load model ###
       phyl.random <- readRDS(paste("../Analysis/Mean.metareg", j, k, l, "obj", sep = "."))
@@ -697,13 +700,14 @@ for (l in c("normal", "sensitivity")) {
 
 
 # Assesing maternal inheritance part 2
-Comparing the differences between parentals and hybrids
+Comparing the differences between parentals and hybrids  
+Model did not converge when data is restricted to without TS
 
 ```{r maternal vs paternal categorical, results='asis'}
 
 # Select ESs that can compare maternal and paternal inheritance
 
-for (j in c("withTS", "withoutTS")) {
+for (j in c("withTS")) {
   for (k in c("alltaxon", "insect")) {
     
     if (k == "alltaxon") {
@@ -716,9 +720,9 @@ for (j in c("withTS", "withoutTS")) {
         mutate(cross.sex = str_c(hetero.sex, cross, sep = "_"))
     }
     
-    if (k == "insect" && j == "withoutTS") {
-      
-    } else {
+    # if (k == "insect" && j == "withoutTS") {
+    #   
+    # } else {
 
     ################################################
     # phylogenetic random regresson (ANOVA)
@@ -726,7 +730,7 @@ for (j in c("withTS", "withoutTS")) {
     phyl.random <- rma.mv(
       yi = lnRR.es, V = lnRR.sv, 
       data = dat, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID),
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
       R = list(spL.name = phylo_cor),
       mods = ~ pheno.div.ratio + cross.sex -1
       )
@@ -749,7 +753,7 @@ for (j in c("withTS", "withoutTS")) {
       scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
       geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
       coord_flip() +
-      ylab("lnRR") + xlab(paste(l,j,k)) +
+      ylab("lnRR") + xlab(paste(j,k)) +
         # Themes
       theme_bw() +
       theme(
@@ -767,11 +771,11 @@ for (j in c("withTS", "withoutTS")) {
       mutate_if(is.numeric, round, 3) %>%
       # Show dataset name
       within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
-      kable("html", digits = 3, caption = paste(l,j,k)) %>% 
+      kable("html", digits = 3, caption = paste(j,k)) %>% 
       kable_styling("striped", position = "left") %>%
       print()
     
-    }
+    # }
 
   }
 }
@@ -793,21 +797,21 @@ for (j in c("withTS", "withoutTS")) {
       midparent.dat <- midparent %>%
         filter(data.type == j, insect == k)
     }
-    # # Phylogenetic random meta-analysis for midparent
-    # midparent.random <- rma.mv(
-    #   yi = lnRR.midparent.es,
-    #   V = lnRR.sv,
-    #   data = midparent.dat %>% filter(cross == "midparent"),
-    #   method = "REML",
-    #   mods = ~ lnRR.sv,
-    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-    #   R = list(spL.name = phylo_cor)
-    #   )
-    # ### Save model ###
-    # saveRDS(
-    #   midparent.random,
-    #   file = paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = ".")
-    #   )
+    # Phylogenetic random meta-analysis for midparent
+    midparent.random <- rma.mv(
+      yi = lnRR.midparent.es,
+      V = lnRR.sv,
+      data = midparent.dat %>% filter(cross == "midparent"),
+      method = "REML",
+      mods = ~ lnRR.sv,
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      R = list(spL.name = phylo_cor)
+      )
+    ### Save model ###
+    saveRDS(
+      midparent.random,
+      file = paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = ".")
+      )
 
     ### Load model ###
     midparent.random <- readRDS(paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = "."))

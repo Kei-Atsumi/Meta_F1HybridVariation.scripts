@@ -18,18 +18,18 @@ options(scipen=100)  # do not show numbers using exponential
 # install & load packages
 # install.packages("tidyverse" ,"metafor", "openxlsx", "data.table")
 pacman::p_load(
-  tidyverse,
-  magrittr,
-  metafor,
-  knitr,
-  rotl,
-  kableExtra,
-  pander,     # nice tables
-  ape,        # Phylogeny
-  phytools,   # Phylogeny
-  svglite,    # Export SVG plots
-  ggiraphExtra # Geom predict
-
+  tidyverse
+  , magrittr
+  , metafor
+  , knitr
+  , rotl
+  , kableExtra
+  , pander     # nice tables
+  , ape        # Phylogeny
+  , phytools   # Phylogeny
+  , svglite    # Export SVG plots
+  # , ggiraphExtra # Geom predict
+  # , R.rsp
 )
 opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
 
