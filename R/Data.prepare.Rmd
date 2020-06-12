@@ -12,7 +12,7 @@ output:
 
 # Preparing environment
 
-```{r setup}
+```{r setup, message = FALSE}
 
 rm(list=ls())  # reset workspace
 sessionInfo()  # show R version etc
@@ -40,7 +40,7 @@ library(ggtree)
 
 ```
 
-# Load data and pre-processing and visual data checks
+# Load data and pre-processing
 
 ```{r load unprocessed dat, results = 'asis'}
 
@@ -48,6 +48,8 @@ library(ggtree)
 pheno <- read.xlsx(
     "../data/original.data.xlsx", sheet = "Phenotype"
     ) %>%
+  # Excluding data without any parent data
+  drop_na(contains("SD.sp")) %>%
   # to numeric
   mutate_at(vars(Mn.sp1:Bottleneck.sp2M), as.numeric) %>%
   # delete observation with negative mean trait value
@@ -75,28 +77,7 @@ meta <- read.xlsx(
   # Logalize genetic divergence
   mutate_at(vars(contains("divergence")), log10) %>%
   mutate(sq.divergence.COI = (scale(divergence.COI))^2)
-
-#+++++++++++++++++++++++++
-print("Metadata summary")
-meta.sum <- left_join(
-    meta %>% group_by(taxa) %>%
-      summarise(species = length(species.pair)),
-    meta %>% group_by(taxa) %>%
-      summarise_at(
-        vars(hetero.sex:divergence.COI, contains("surv.relat")),
-        funs(sum(!is.na(.)))
-        ),
-    by = "taxa"
-  ) 
-meta.sum %>%
-  ungroup %>%
-  summarise_at(vars(-taxa), funs(sum)) %>% 
-  as.data.frame() %>%
-  mutate(taxa = "Total") %>%
-  bind_rows(meta.sum, .) %>%
-  kable("html", digits = 3) %>% 
-  kable_styling("striped", position = "left")
-
+  
 
 #+++++++++++++++++++++++++++++++++
 # Combine phenotypic and metadata
@@ -180,7 +161,6 @@ plot.phylo <- ggtree(tree) +
 #+++++++++++++++++++++#
 
 summary <- dat %>%
-  drop_na(contains("SD.sp")) %>%
   group_by(taxa) %>%
   summarise(
     'Species pair' = length(unique(species.pair)),
@@ -190,14 +170,14 @@ summary <- dat %>%
   # Order taxon so that match with phylogenetic tree topology
   within(taxa <- ordered(taxa, levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")))
 
+
+### Table ###
 summary %>%
   summarise_if(is.numeric, sum) %>%
     mutate(taxa = "Total") %>%
   bind_rows(summary, .) %>%
   kable("html", digits = 3) %>% 
   kable_styling("striped", position = "left")
-
-  
 
 ### Plot ###
 plot.sum <- ggplot(
@@ -233,7 +213,6 @@ plot.sum <- ggplot(
 #+++++++++++++++++#
 # Combine figures
 #+++++++++++++++++#
-
 plot.all <- plot.phylo + plot.sum
 plot.all
 ggsave(
@@ -241,33 +220,78 @@ ggsave(
   file = "../Analysis/data.svg", height = 5, width = 8.5
   )
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-print("Data removed in meta-analysis due to inviable reciprocal cross")
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-rem.ma <- dat %>%
-  filter(reciprocal == "Viable") %>%
-  select(c("taxa", "species.pair")) %>%
-  distinct_all()
-rem.ma %>%
-  kable("html", 
-        caption = paste(length(rem.ma$species.pair), "species pairs")
-        ) %>% 
-  kable_styling("striped", position = "left")
+```
+
+# Metadata
+
+```{r, results='asis'}
+
+metavars <- c("reciprocal", "distribution", "hetero.sex")
+
+meta.unique <- dat %>%
+  distinct_at("species.pair", .keep_all = TRUE) %>%
+  mutate_at(metavars, as.factor)
+
+meta.all.sp <- meta.unique %>% 
+  group_by(taxa) %>%
+  summarise(Total = length(species.pair)) 
+
+for (i in metavars) {
+  
+  bind_rows(
+    # At each taxon
+    meta.unique %>% 
+      group_by_("taxa", i) %>%
+      summarise(species = length(species.pair))
+    ,
+    # All taxon
+    meta.unique %>% 
+      group_by_(i) %>%
+      summarise(species = length(unique(species.pair))) %>% 
+      mutate(taxa = "Total")
+    ) %>%
+    ungroup %>%
+    spread(key = i, value = "species") %>%
+    mutate_all(~replace(., is.na(.), 0)) %>% # replace NA by 0
+    as.data.frame %>%
+    # All species pair at each taxon: summing columns
+    mutate(Total = rowSums(.[2:(1+nlevels(meta.unique[, i]))])) %>%
+    # Calc % of level 2 (i.e. male hetero, ...)
+    mutate('%' = round(.[3]/Total*100, 1)) %>%
+    rename(!!paste0(levels(meta.unique[, i])[2], "%") := "%") %>%
+    # Table output
+    kable("html", digits = 3, caption = i) %>% 
+    kable_styling("striped", position = "left") %>% 
+    print()
+
+}  
   
 
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-print("Data removed in regression analyses due to lack of metadata")
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-rem.reg <- dat %>%
-  filter(is.na(sex.determination) | is.na(divergence.COI)) %>%
-  select(c("taxa", "species.pair")) %>%
-  distinct_all()
-rem.reg %>%
-  kable("html", 
-        caption = paste(length(rem.reg$species.pair), "species pairs")
-        ) %>% 
-  kable_styling("striped", position = "left")
+```
 
+
+# Data used in meta-regression (all metadata available)
+
+```{r}
+
+full_join(
+  # All species pair
+  dat %>%
+    select(c("taxa", "species.pair")) %>%
+    distinct_all() %>%
+    group_by(taxa) %>%
+    summarise('All species' = length(species.pair)),
+  # Species pair used in meta-regression
+  dat %>%
+    filter(!is.na(sex.determination), !is.na(divergence.COI)) %>%
+    select(c("taxa", "species.pair")) %>%
+    distinct_all() %>%
+    group_by(taxa) %>%
+    summarise('Metadata available' = length(species.pair))
+  ) %>%
+  mutate_all(~replace(., is.na(.), 0)) %>% # replace NA by 0
+  kable("html") %>% 
+  kable_styling("striped", position = "left")
 
 ```
 
