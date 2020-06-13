@@ -1597,7 +1597,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">General pattern of phenotypic mean</h1>
 <h4 class="author">Keisuke Atsumi</h4>
-<h4 class="date">20/06/12 16:33</h4>
+<h4 class="date">20/06/13 11:43</h4>
 
 </div>
 
@@ -1614,17 +1614,21 @@ div.tocify {
 &gt; #&#39; @param model: rma.mv object 
 &gt; #&#39; @param mod: the name of a moderator 
 &gt; get_pred &lt;- function(model, mod = &quot; &quot;) {
-+     name &lt;- as.factor(str_replace(row.names(model$beta), mod, &quot;&quot;))
-+     len &lt;- length(name)
-+     
-+     if (len != 1) {
-+         newdata &lt;- matrix(NA, ncol = len, nrow = len)
-+         for (i in 1:len) {
-+             # getting the position of unique case from X (design matrix)
-+             pos &lt;- which(model$X[, i] == 1)[[1]]
-+             newdata[, i] &lt;- model$X[pos, ]
-+         }
-+         pred &lt;- predict.rma(model, newmods = newdata)
++   I2s &lt;- i2_ml(model) %&gt;%
++     as.data.frame() 
++   I2percentage &lt;- round(I2s/I2s[1,1]*100, 1) # I2s[1,1] = I2 total
++ 
++   name &lt;- as.factor(str_replace(row.names(model$beta), mod, &quot;&quot;))
++   len &lt;- length(name)
++   
++   if (len != 1) {
++       newdata &lt;- matrix(NA, ncol = len, nrow = len)
++       for (i in 1:len) {
++           # getting the position of unique case from X (design matrix)
++           pos &lt;- which(model$X[, i] == 1)[[1]]
++           newdata[, i] &lt;- model$X[pos, ]
++       }
++       pred &lt;- predict.rma(model, newmods = newdata)
 +     } else {
 +         pred &lt;- predict.rma(model)
 +     }
@@ -1638,13 +1642,27 @@ div.tocify {
 +       &#39;lowerPR&#39; = pred$cr.lb,  # lower prediction range
 +       &#39;upperPR&#39; = pred$cr.ub, # lower prediction range
 +       &#39;P&#39;        = model$pval,
-+       &#39;V[species with phylogeny]&#39; =
-+         c(model$sigma2[1], rep(&quot;&quot;, length(model$beta)-1)),
-+       &#39;V[study]&#39; =
-+         c(model$sigma2[2], rep(&quot;&quot;, length(model$beta)-1)),
-+       &#39;V[crossed strain]&#39; =
-+         c(model$sigma2[3], rep(&quot;&quot;, length(model$beta)-1))
-+       )  %&gt;%
++     # &#39;V[species with phylogeny]&#39; =
++     #   c(model$sigma2[1], rep(&quot;&quot;, length(model$beta))),
++     # &#39;V[study]&#39; =
++     #   c(model$sigma2[2], rep(&quot;&quot;, length(model$beta))),
++     # &#39;V[crossed strain]&#39; =
++     #   c(model$sigma2[3], rep(&quot;&quot;, length(model$beta))),
++     # &#39;V[residual]&#39; = 
++     #   c(model$sigma2[4], rep(&quot;&quot;, length(model$beta))),
++     &#39;I2[total]&#39; = 
++       c(round(I2s[1,1], 3), rep(&quot;&quot;, length(model$beta)-1)),
++     &#39;%I2[species with phylogeny]&#39; = 
++       c(paste0(I2percentage[&quot;I2_spL.name&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++     &#39;%I2[study]&#39; =
++       c(paste0(I2percentage[&quot;I2_Study.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++     &#39;%I2[crossed strain]&#39; =
++       c(paste0(I2percentage[&quot;I2_Cross.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++     &#39;%I2[residual]&#39; = 
++       c(paste0(I2percentage[&quot;I2_ES.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++     )  %&gt;%
++     as.data.frame() %&gt;%
++     mutate_at(vars(&#39;Estimate&#39;:&#39;I2[total]&#39;), as.numeric) %&gt;%
 +     mutate(significance = ifelse(P &lt; 0.05, &quot;*&quot;, &quot;&quot;))
 + }
 &gt; 
@@ -1683,15 +1701,16 @@ div.tocify {
 +     &#39;LowerCI&#39; = c(&quot;&quot;, model$ci.lb), # regression: 95ci, 
 +     &#39;UpperCI&#39;  = c(&quot;&quot;, model$ci.ub), # regression: 95ci
 +     &#39;P&#39;        = c(&quot;&quot;, model$pval),
-+     &#39;V[species with phylogeny]&#39; =
-+       c(model$sigma2[1], rep(&quot;&quot;, length(model$beta))),
-+     &#39;V[study]&#39; =
-+       c(model$sigma2[2], rep(&quot;&quot;, length(model$beta))),
-+     &#39;V[crossed strain]&#39; =
-+       c(model$sigma2[3], rep(&quot;&quot;, length(model$beta))),
-+     &#39;V[residual]&#39; = 
-+       c(model$sigma2[4], rep(&quot;&quot;, length(model$beta))),
-+     &#39;I2[total]&#39; = round(I2s[1,1], 3),
++     # &#39;V[species with phylogeny]&#39; =
++     #   c(model$sigma2[1], rep(&quot;&quot;, length(model$beta))),
++     # &#39;V[study]&#39; =
++     #   c(model$sigma2[2], rep(&quot;&quot;, length(model$beta))),
++     # &#39;V[crossed strain]&#39; =
++     #   c(model$sigma2[3], rep(&quot;&quot;, length(model$beta))),
++     # &#39;V[residual]&#39; = 
++     #   c(model$sigma2[4], rep(&quot;&quot;, length(model$beta))),
++     &#39;I2[total]&#39; = 
++       c(round(I2s[1,1], 3), rep(&quot;&quot;, length(model$beta))),
 +     &#39;%I2[species with phylogeny]&#39; = 
 +       c(paste0(I2percentage[&quot;I2_spL.name&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta))),
 +     &#39;%I2[study]&#39; =
@@ -1702,7 +1721,7 @@ div.tocify {
 +       c(paste0(I2percentage[&quot;I2_ES.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta))),
 +     )  %&gt;%
 +     as.data.frame() %&gt;%
-+     mutate_at(vars(&#39;Estimate&#39;:&#39;V[crossed strain]&#39;), as.numeric) %&gt;%
++     mutate_at(vars(&#39;Estimate&#39;:&#39;I2[total]&#39;), as.numeric) %&gt;%
 +     mutate(significance = ifelse(P &lt; 0.05, &quot;*&quot;, &quot;&quot;))
 + }</code></pre>
 </div>
@@ -1886,18 +1905,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -1936,18 +1943,6 @@ withTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-0.082
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.115473392462378
-</td>
-<td style="text-align:right;">
 0.997
 </td>
 <td style="text-align:left;">
@@ -1987,15 +1982,6 @@ midparent (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.997
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -2029,15 +2015,6 @@ hybLS
 0
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.997
 </td>
 <td style="text-align:left;">
 </td>
@@ -2073,15 +2050,6 @@ hybSL
 0
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.997
 </td>
 <td style="text-align:left;">
 </td>
@@ -2113,18 +2081,6 @@ withoutTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-0.087
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.135137720769576
-</td>
-<td style="text-align:right;">
 0.998
 </td>
 <td style="text-align:left;">
@@ -2164,15 +2120,6 @@ midparent (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -2206,15 +2153,6 @@ hybLS
 0
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -2251,15 +2189,6 @@ hybSL
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -2288,18 +2217,6 @@ withTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.082
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.115473392462378
 </td>
 <td style="text-align:right;">
 0.997
@@ -2341,15 +2258,6 @@ midparent (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.997
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -2383,15 +2291,6 @@ hybLS
 0
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.997
 </td>
 <td style="text-align:left;">
 </td>
@@ -2428,15 +2327,6 @@ hybSL
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.997
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -2465,18 +2355,6 @@ withoutTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.087
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.135137720769576
 </td>
 <td style="text-align:right;">
 0.998
@@ -2518,15 +2396,6 @@ midparent (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -2560,15 +2429,6 @@ hybLS
 0
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -2604,15 +2464,6 @@ hybSL
 0
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -2812,8 +2663,8 @@ hybSL
 +   res.ma.withTS.insect, res.ma.withoutTS.insect
 +   ) %&gt;%
 +   as.data.frame() %&gt;%
-+   mutate_at(vars(&#39;Estimate&#39;:&#39;V[crossed strain]&#39;), as.numeric) %&gt;%
-+   select(Dataset, cross, Estimate, UpperCI, LowerCI, contains(&quot;PR&quot;), contains(&quot;V&quot;)) %&gt;%
++   # mutate_at(vars(&#39;Estimate&#39;:&#39;%I2[residual]&#39;), as.numeric) %&gt;%
++   # select(Dataset, cross, Estimate, UpperCI, LowerCI, contains(&quot;PR&quot;), contains(&quot;I2&quot;)) %&gt;%
 +   kable(&quot;html&quot;, digits = 3) %&gt;% kable_styling(&quot;striped&quot;, position = &quot;left&quot;)</code></pre>
 <table class="table table-striped" style>
 <thead>
@@ -2822,16 +2673,16 @@ hybSL
 Dataset
 </th>
 <th style="text-align:left;">
-cross
+Fixed effects
 </th>
 <th style="text-align:right;">
 Estimate
 </th>
 <th style="text-align:right;">
-UpperCI
+LowerCI
 </th>
 <th style="text-align:right;">
-LowerCI
+UpperCI
 </th>
 <th style="text-align:right;">
 lowerPR
@@ -2840,13 +2691,31 @@ lowerPR
 upperPR
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
+P
 </th>
 <th style="text-align:right;">
-V[study]
+I2[total]
+</th>
+<th style="text-align:left;">
+%I2[species with phylogeny]
+</th>
+<th style="text-align:left;">
+%I2[study]
+</th>
+<th style="text-align:left;">
+%I2[crossed strain]
+</th>
+<th style="text-align:left;">
+%I2[residual]
+</th>
+<th style="text-align:left;">
+significance
 </th>
 <th style="text-align:right;">
-V[crossed strain]
+N
+</th>
+<th style="text-align:left;">
+cross
 </th>
 </tr>
 </thead>
@@ -2856,16 +2725,16 @@ V[crossed strain]
 withTS alltaxon
 </td>
 <td style="text-align:left;">
-spL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.842
 </td>
 <td style="text-align:right;">
-1.292
+0.392
 </td>
 <td style="text-align:right;">
-0.392
+1.292
 </td>
 <td style="text-align:right;">
 -0.571
@@ -2874,29 +2743,47 @@ spL
 2.254
 </td>
 <td style="text-align:right;">
-0.147
+0.000
 </td>
 <td style="text-align:right;">
-0.027
+0.999
 </td>
+<td style="text-align:left;">
+31.6%
+</td>
+<td style="text-align:left;">
+5.7%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+62.7%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+101
+</td>
+<td style="text-align:left;">
+spL
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybLS
+intrcpt
 </td>
 <td style="text-align:right;">
 0.481
 </td>
 <td style="text-align:right;">
-0.721
+0.240
 </td>
 <td style="text-align:right;">
-0.240
+0.721
 </td>
 <td style="text-align:right;">
 -0.433
@@ -2905,29 +2792,47 @@ hybLS
 1.394
 </td>
 <td style="text-align:right;">
-0.037
+0.000
 </td>
 <td style="text-align:right;">
-0.003
+0.997
 </td>
+<td style="text-align:left;">
+18.6%
+</td>
+<td style="text-align:left;">
+1.6%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+79.8%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+101
+</td>
+<td style="text-align:left;">
+hybLS
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybSL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.432
 </td>
 <td style="text-align:right;">
-0.697
+0.167
 </td>
 <td style="text-align:right;">
-0.167
+0.697
 </td>
 <td style="text-align:right;">
 -0.594
@@ -2936,13 +2841,31 @@ hybSL
 1.457
 </td>
 <td style="text-align:right;">
-0.045
+0.001
 </td>
 <td style="text-align:right;">
-0.004
+0.998
 </td>
+<td style="text-align:left;">
+17.7%
+</td>
+<td style="text-align:left;">
+1.8%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+80.6%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+101
+</td>
+<td style="text-align:left;">
+hybSL
 </td>
 </tr>
 <tr>
@@ -2950,16 +2873,16 @@ hybSL
 withoutTS alltaxon
 </td>
 <td style="text-align:left;">
-spL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.922
 </td>
 <td style="text-align:right;">
-1.410
+0.434
 </td>
 <td style="text-align:right;">
-0.434
+1.410
 </td>
 <td style="text-align:right;">
 -0.576
@@ -2968,29 +2891,47 @@ spL
 2.420
 </td>
 <td style="text-align:right;">
-0.166
+0.000
 </td>
 <td style="text-align:right;">
-0.039
+0.999
 </td>
+<td style="text-align:left;">
+31.7%
+</td>
+<td style="text-align:left;">
+7.4%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+60.9%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+66
+</td>
+<td style="text-align:left;">
+spL
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybLS
+intrcpt
 </td>
 <td style="text-align:right;">
 0.460
 </td>
 <td style="text-align:right;">
-0.710
+0.210
 </td>
 <td style="text-align:right;">
-0.210
+0.710
 </td>
 <td style="text-align:right;">
 -0.367
@@ -2999,29 +2940,47 @@ hybLS
 1.287
 </td>
 <td style="text-align:right;">
-0.042
-</td>
-<td style="text-align:right;">
 0.000
 </td>
 <td style="text-align:right;">
-0
+0.997
+</td>
+<td style="text-align:left;">
+25.7%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+74.3%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
+<td style="text-align:right;">
+66
+</td>
+<td style="text-align:left;">
+hybLS
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybSL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.419
 </td>
 <td style="text-align:right;">
-0.675
+0.162
 </td>
 <td style="text-align:right;">
-0.162
+0.675
 </td>
 <td style="text-align:right;">
 -0.367
@@ -3030,13 +2989,31 @@ hybSL
 1.204
 </td>
 <td style="text-align:right;">
-0.045
+0.001
 </td>
 <td style="text-align:right;">
-0.002
+0.996
 </td>
+<td style="text-align:left;">
+31.6%
+</td>
+<td style="text-align:left;">
+1.1%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+67.3%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+66
+</td>
+<td style="text-align:left;">
+hybSL
 </td>
 </tr>
 <tr>
@@ -3044,16 +3021,16 @@ hybSL
 withTS insect
 </td>
 <td style="text-align:left;">
-spL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.842
 </td>
 <td style="text-align:right;">
-1.292
+0.392
 </td>
 <td style="text-align:right;">
-0.392
+1.292
 </td>
 <td style="text-align:right;">
 -0.571
@@ -3062,29 +3039,47 @@ spL
 2.254
 </td>
 <td style="text-align:right;">
-0.147
+0.000
 </td>
 <td style="text-align:right;">
-0.027
+0.999
 </td>
+<td style="text-align:left;">
+31.6%
+</td>
+<td style="text-align:left;">
+5.7%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+62.7%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+101
+</td>
+<td style="text-align:left;">
+spL
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybLS
+intrcpt
 </td>
 <td style="text-align:right;">
 0.481
 </td>
 <td style="text-align:right;">
-0.721
+0.240
 </td>
 <td style="text-align:right;">
-0.240
+0.721
 </td>
 <td style="text-align:right;">
 -0.433
@@ -3093,29 +3088,47 @@ hybLS
 1.394
 </td>
 <td style="text-align:right;">
-0.037
+0.000
 </td>
 <td style="text-align:right;">
-0.003
+0.997
 </td>
+<td style="text-align:left;">
+18.6%
+</td>
+<td style="text-align:left;">
+1.6%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+79.8%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+101
+</td>
+<td style="text-align:left;">
+hybLS
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybSL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.432
 </td>
 <td style="text-align:right;">
-0.697
+0.167
 </td>
 <td style="text-align:right;">
-0.167
+0.697
 </td>
 <td style="text-align:right;">
 -0.594
@@ -3124,13 +3137,31 @@ hybSL
 1.457
 </td>
 <td style="text-align:right;">
-0.045
+0.001
 </td>
 <td style="text-align:right;">
-0.004
+0.998
 </td>
+<td style="text-align:left;">
+17.7%
+</td>
+<td style="text-align:left;">
+1.8%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+80.6%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+101
+</td>
+<td style="text-align:left;">
+hybSL
 </td>
 </tr>
 <tr>
@@ -3138,16 +3169,16 @@ hybSL
 withoutTS insect
 </td>
 <td style="text-align:left;">
-spL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.922
 </td>
 <td style="text-align:right;">
-1.410
+0.434
 </td>
 <td style="text-align:right;">
-0.434
+1.410
 </td>
 <td style="text-align:right;">
 -0.576
@@ -3156,29 +3187,47 @@ spL
 2.420
 </td>
 <td style="text-align:right;">
-0.166
+0.000
 </td>
 <td style="text-align:right;">
-0.039
+0.999
 </td>
+<td style="text-align:left;">
+31.7%
+</td>
+<td style="text-align:left;">
+7.4%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+60.9%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+66
+</td>
+<td style="text-align:left;">
+spL
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybLS
+intrcpt
 </td>
 <td style="text-align:right;">
 0.460
 </td>
 <td style="text-align:right;">
-0.710
+0.210
 </td>
 <td style="text-align:right;">
-0.210
+0.710
 </td>
 <td style="text-align:right;">
 -0.367
@@ -3187,29 +3236,47 @@ hybLS
 1.287
 </td>
 <td style="text-align:right;">
-0.042
-</td>
-<td style="text-align:right;">
 0.000
 </td>
 <td style="text-align:right;">
-0
+0.997
+</td>
+<td style="text-align:left;">
+25.7%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+74.3%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
+<td style="text-align:right;">
+66
+</td>
+<td style="text-align:left;">
+hybLS
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
-hybSL
+intrcpt
 </td>
 <td style="text-align:right;">
 0.419
 </td>
 <td style="text-align:right;">
-0.675
+0.162
 </td>
 <td style="text-align:right;">
-0.162
+0.675
 </td>
 <td style="text-align:right;">
 -0.367
@@ -3218,17 +3285,47 @@ hybSL
 1.204
 </td>
 <td style="text-align:right;">
-0.045
+0.001
 </td>
 <td style="text-align:right;">
-0.002
+0.996
 </td>
+<td style="text-align:left;">
+31.6%
+</td>
+<td style="text-align:left;">
+1.1%
+</td>
+<td style="text-align:left;">
+0%
+</td>
+<td style="text-align:left;">
+67.3%
+</td>
+<td style="text-align:left;">
+<ul>
+<li></td>
 <td style="text-align:right;">
-0
+66
+</td>
+<td style="text-align:left;">
+hybSL
 </td>
 </tr>
 </tbody>
-</table>
+</table></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul></li>
+</ul>
 </div>
 <div id="comparing-mean-across-all-crosses" class="section level1">
 <h1>Comparing mean across all crosses</h1>
@@ -3328,18 +3425,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -3378,18 +3463,6 @@ withTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-0.118
-</td>
-<td style="text-align:right;">
-0.004
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.157847504349049
-</td>
-<td style="text-align:right;">
 0.998
 </td>
 <td style="text-align:left;">
@@ -3429,15 +3502,6 @@ hybLS (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -3471,15 +3535,6 @@ hybSL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -3515,15 +3570,6 @@ spLL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -3554,18 +3600,6 @@ withoutTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-0.128
-</td>
-<td style="text-align:right;">
-0.000
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.184661976767468
-</td>
-<td style="text-align:right;">
 0.999
 </td>
 <td style="text-align:left;">
@@ -3605,15 +3639,6 @@ hybLS (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.999
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -3647,15 +3672,6 @@ hybSL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.999
 </td>
 <td style="text-align:left;">
 </td>
@@ -3692,15 +3708,6 @@ spLL
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.999
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -3728,18 +3735,6 @@ withTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.118
-</td>
-<td style="text-align:right;">
-0.004
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.157847504349049
 </td>
 <td style="text-align:right;">
 0.998
@@ -3781,15 +3776,6 @@ hybLS (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -3823,15 +3809,6 @@ hybSL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -3868,15 +3845,6 @@ spLL
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -3904,18 +3872,6 @@ withoutTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.128
-</td>
-<td style="text-align:right;">
-0.000
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.184661976767468
 </td>
 <td style="text-align:right;">
 0.999
@@ -3957,15 +3913,6 @@ hybLS (intrcpt)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.999
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -3999,15 +3946,6 @@ hybSL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.999
 </td>
 <td style="text-align:left;">
 </td>
@@ -4043,15 +3981,6 @@ spLL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.999
 </td>
 <td style="text-align:left;">
 </td>
@@ -4099,35 +4028,35 @@ Included the analysis accomodating potential publication bias by including SE of
 +           filter(data.type == j, insect == k, cross != &quot;spL&quot;)
 +       }
 +       
-+       if (l == &quot;normal&quot;) {
-+       # Regress by lnRR of phenotypic difference between parentals
-+       phyl.random &lt;- rma.mv(
-+         yi = lnRR.es, V = lnRR.sv,
-+         data = dat, method = &quot;REML&quot;,
-+         random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-+         R = list(spL.name = phylo_cor),
-+         mods = ~ cross*hetero.sex +
-+           pheno.div.ratio + divergence.COI +
-+           trait.type + distribution
-+         )
-+       } else {
-+       # Regress by lnRR of phenotypic difference between parentals
-+       phyl.random &lt;- rma.mv(
-+         yi = lnRR.es, V = lnRR.sv,
-+         data = dat, method = &quot;REML&quot;,
-+         random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-+         R = list(spL.name = phylo_cor),
-+         mods = ~ cross*hetero.sex +
-+           pheno.div.ratio + divergence.COI +
-+           trait.type + distribution +
-+           sqrt(lnRR.sv)                       # add SE
-+         )
-+       }
-+ 
-+       saveRDS(
-+         phyl.random,
-+         file = paste(&quot;../Analysis/Mean.metareg&quot;, j, k, l, &quot;obj&quot;, sep = &quot;.&quot;)
-+         )
++       # if (l == &quot;normal&quot;) {
++       # # Regress by lnRR of phenotypic difference between parentals
++       # phyl.random &lt;- rma.mv(
++       #   yi = lnRR.es, V = lnRR.sv,
++       #   data = dat, method = &quot;REML&quot;,
++       #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
++       #   R = list(spL.name = phylo_cor),
++       #   mods = ~ cross*hetero.sex +
++       #     pheno.div.ratio + divergence.COI +
++       #     trait.type + distribution
++       #   )
++       # } else {
++       # # Regress by lnRR of phenotypic difference between parentals
++       # phyl.random &lt;- rma.mv(
++       #   yi = lnRR.es, V = lnRR.sv,
++       #   data = dat, method = &quot;REML&quot;,
++       #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
++       #   R = list(spL.name = phylo_cor),
++       #   mods = ~ cross*hetero.sex +
++       #     pheno.div.ratio + divergence.COI +
++       #     trait.type + distribution +
++       #     sqrt(lnRR.sv)                       # add SE
++       #   )
++       # }
++       # 
++       # saveRDS(
++       #   phyl.random,
++       #   file = paste(&quot;../Analysis/Mean.metareg&quot;, j, k, l, &quot;obj&quot;, sep = &quot;.&quot;)
++       #   )
 +       
 +       ### Load model ###
 +       phyl.random &lt;- readRDS(paste(&quot;../Analysis/Mean.metareg&quot;, j, k, l, &quot;obj&quot;, sep = &quot;.&quot;))
@@ -4197,18 +4126,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -4242,18 +4159,6 @@ withTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.211026481081015
 </td>
 <td style="text-align:right;">
 0.998
@@ -4293,15 +4198,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4332,15 +4228,6 @@ crosshybSL
 0.454
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4373,15 +4260,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4412,15 +4290,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4454,15 +4323,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4493,15 +4353,6 @@ trait.typesound
 0.876
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4534,15 +4385,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4573,15 +4415,6 @@ crosshybSL:hetero.sexMale
 0.094
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4622,18 +4455,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -4667,18 +4488,6 @@ withTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.211026481081015
 </td>
 <td style="text-align:right;">
 0.998
@@ -4718,15 +4527,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4757,15 +4557,6 @@ crosshybSL
 0.454
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4798,15 +4589,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4837,15 +4619,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4879,15 +4652,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4918,15 +4682,6 @@ trait.typesound
 0.876
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -4959,15 +4714,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -4998,15 +4744,6 @@ crosshybSL:hetero.sexMale
 0.094
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -5047,18 +4784,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -5092,18 +4817,6 @@ withoutTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.0183768586383249
 </td>
 <td style="text-align:right;">
 0.98
@@ -5143,15 +4856,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5182,15 +4886,6 @@ crosshybSL
 0.459
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5223,15 +4918,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5262,15 +4948,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5304,15 +4981,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5343,15 +5011,6 @@ trait.typesound
 0.541
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5384,15 +5043,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5423,15 +5073,6 @@ crosshybSL:hetero.sexMale
 0.133
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5472,18 +5113,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -5517,18 +5146,6 @@ withoutTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.0183768586383249
 </td>
 <td style="text-align:right;">
 0.98
@@ -5568,15 +5185,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5607,15 +5215,6 @@ crosshybSL
 0.459
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5648,15 +5247,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5687,15 +5277,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5729,15 +5310,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5768,15 +5340,6 @@ trait.typesound
 0.541
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5809,15 +5372,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -5848,15 +5402,6 @@ crosshybSL:hetero.sexMale
 0.133
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -5897,18 +5442,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -5942,18 +5475,6 @@ withTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.211625562891601
 </td>
 <td style="text-align:right;">
 0.998
@@ -5993,15 +5514,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6032,15 +5544,6 @@ crosshybSL
 0.435
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6073,15 +5576,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6112,15 +5606,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6154,15 +5639,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6193,15 +5669,6 @@ trait.typesound
 0.764
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6234,15 +5701,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6274,15 +5732,6 @@ sqrt(lnRR.sv)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6313,15 +5762,6 @@ crosshybSL:hetero.sexMale
 0.088
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6362,18 +5802,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -6407,18 +5835,6 @@ withTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.211625562891601
 </td>
 <td style="text-align:right;">
 0.998
@@ -6458,15 +5874,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6497,15 +5904,6 @@ crosshybSL
 0.435
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6538,15 +5936,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6577,15 +5966,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6619,15 +5999,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6658,15 +6029,6 @@ trait.typesound
 0.764
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6699,15 +6061,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6739,15 +6092,6 @@ sqrt(lnRR.sv)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6778,15 +6122,6 @@ crosshybSL:hetero.sexMale
 0.088
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.998
 </td>
 <td style="text-align:left;">
 </td>
@@ -6827,18 +6162,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -6872,18 +6195,6 @@ withoutTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.0186138582175269
 </td>
 <td style="text-align:right;">
 0.98
@@ -6923,15 +6234,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -6962,15 +6264,6 @@ crosshybSL
 0.462
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7003,15 +6296,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7042,15 +6326,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7084,15 +6359,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7123,15 +6389,6 @@ trait.typesound
 0.544
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7164,15 +6421,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7204,15 +6452,6 @@ sqrt(lnRR.sv)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7243,15 +6482,6 @@ crosshybSL:hetero.sexMale
 0.135
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7292,18 +6522,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -7337,18 +6555,6 @@ withoutTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.0186138582175269
 </td>
 <td style="text-align:right;">
 0.98
@@ -7388,15 +6594,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7427,15 +6624,6 @@ crosshybSL
 0.462
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7468,15 +6656,6 @@ hetero.sexMale
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7507,15 +6686,6 @@ pheno.div.ratio
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7549,15 +6719,6 @@ divergence.COI
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7588,15 +6749,6 @@ trait.typesound
 0.544
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7629,15 +6781,6 @@ distributionOverlap
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7669,15 +6812,6 @@ sqrt(lnRR.sv)
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7708,15 +6842,6 @@ crosshybSL:hetero.sexMale
 0.135
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.98
 </td>
 <td style="text-align:left;">
 </td>
@@ -7844,18 +6969,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -7889,18 +7002,6 @@ withTS alltaxon
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.132017519234588
 </td>
 <td style="text-align:right;">
 0.996
@@ -7940,15 +7041,6 @@ pheno.div.ratio
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -7981,15 +7073,6 @@ cross.sexFemale_hybLS
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -8020,15 +7103,6 @@ cross.sexFemale_hybSL
 0.064
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
 </td>
 <td style="text-align:left;">
 </td>
@@ -8061,15 +7135,6 @@ cross.sexMale_hybLS
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -8101,15 +7166,6 @@ cross.sexMale_hybSL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
 </td>
 <td style="text-align:left;">
 </td>
@@ -8151,18 +7207,6 @@ UpperCI
 P
 </th>
 <th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
-<th style="text-align:right;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -8196,18 +7240,6 @@ withTS insect
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.132017519234588
 </td>
 <td style="text-align:right;">
 0.996
@@ -8247,15 +7279,6 @@ pheno.div.ratio
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -8288,15 +7311,6 @@ cross.sexFemale_hybLS
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -8327,15 +7341,6 @@ cross.sexFemale_hybSL
 0.064
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
 </td>
 <td style="text-align:left;">
 </td>
@@ -8368,15 +7373,6 @@ cross.sexMale_hybLS
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
-</td>
 <td style="text-align:left;">
 </td>
 <td style="text-align:left;">
@@ -8408,15 +7404,6 @@ cross.sexMale_hybSL
 0.000
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
-<td style="text-align:right;">
-0.996
 </td>
 <td style="text-align:left;">
 </td>
@@ -8452,21 +7439,21 @@ cross.sexMale_hybSL
 +       midparent.dat &lt;- midparent %&gt;%
 +         filter(data.type == j, insect == k)
 +     }
-+     # Phylogenetic random meta-analysis for midparent
-+     midparent.random &lt;- rma.mv(
-+       yi = lnRR.midparent.es,
-+       V = lnRR.sv,
-+       data = midparent.dat %&gt;% filter(cross == &quot;midparent&quot;),
-+       method = &quot;REML&quot;,
-+       mods = ~ lnRR.sv,
-+       random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-+       R = list(spL.name = phylo_cor)
-+       )
-+     ### Save model ###
-+     saveRDS(
-+       midparent.random,
-+       file = paste(&quot;../Analysis/Mean.PET-PEESE.midparent&quot;, j, k, &quot;obj&quot;, sep = &quot;.&quot;)
-+       )
++     # # Phylogenetic random meta-analysis for midparent
++     # midparent.random &lt;- rma.mv(
++     #   yi = lnRR.midparent.es,
++     #   V = lnRR.sv,
++     #   data = midparent.dat %&gt;% filter(cross == &quot;midparent&quot;),
++     #   method = &quot;REML&quot;,
++     #   mods = ~ lnRR.sv,
++     #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
++     #   R = list(spL.name = phylo_cor)
++     #   )
++     # ### Save model ###
++     # saveRDS(
++     #   midparent.random,
++     #   file = paste(&quot;../Analysis/Mean.PET-PEESE.midparent&quot;, j, k, &quot;obj&quot;, sep = &quot;.&quot;)
++     #   )
 + 
 +     ### Load model ###
 +     midparent.random &lt;- readRDS(paste(&quot;../Analysis/Mean.PET-PEESE.midparent&quot;, j, k, &quot;obj&quot;, sep = &quot;.&quot;))
@@ -8597,7 +7584,7 @@ cross.sexMale_hybSL
 +   res.ma.withTS.insect, res.ma.withoutTS.insect
 +   ) %&gt;%
 +   as.data.frame() %&gt;%
-+   mutate_at(vars(&#39;Estimate&#39;:&#39;V[crossed strain]&#39;), as.numeric) %&gt;%
++   mutate_at(vars(&#39;Estimate&#39;:&#39;P&#39;), as.numeric) %&gt;%
 +   select(Dataset, cross, &#39;Fixed effects&#39;, Estimate, UpperCI, LowerCI, contains(&quot;PR&quot;), contains(&quot;V&quot;)) %&gt;%
 +   kable(&quot;html&quot;, digits = 3) %&gt;% kable_styling(&quot;striped&quot;, position = &quot;left&quot;)</code></pre>
 <table class="table table-striped" style>
@@ -8621,18 +7608,6 @@ UpperCI
 <th style="text-align:right;">
 LowerCI
 </th>
-<th style="text-align:right;">
-V[species with phylogeny]
-</th>
-<th style="text-align:right;">
-V[study]
-</th>
-<th style="text-align:right;">
-V[crossed strain]
-</th>
-<th style="text-align:left;">
-V[residual]
-</th>
 </tr>
 </thead>
 <tbody>
@@ -8651,18 +7626,6 @@ spL
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.143
-</td>
-<td style="text-align:right;">
-0.035
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.289067973642559
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8681,14 +7644,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 0.381
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
 </td>
 </tr>
 <tr>
@@ -8709,14 +7664,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.940
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8731,18 +7678,6 @@ hybLS
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.035
-</td>
-<td style="text-align:right;">
-0.005
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.15871592711063
 </td>
 </tr>
 <tr>
@@ -8763,14 +7698,6 @@ intrcpt
 <td style="text-align:right;">
 0.233
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8790,14 +7717,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.497
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8812,18 +7731,6 @@ hybSL
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.044
-</td>
-<td style="text-align:right;">
-0.006
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.204998446619515
 </td>
 </tr>
 <tr>
@@ -8844,14 +7751,6 @@ intrcpt
 <td style="text-align:right;">
 0.157
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8871,14 +7770,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.811
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8893,18 +7784,6 @@ midparent
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.072
-</td>
-<td style="text-align:right;">
-0.021
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.14405442361049
 </td>
 </tr>
 <tr>
@@ -8925,14 +7804,6 @@ intrcpt
 <td style="text-align:right;">
 0.221
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -8951,14 +7822,6 @@ lnRR.sv
 </td>
 <td style="text-align:right;">
 -0.815
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
 </td>
 </tr>
 <tr>
@@ -8976,18 +7839,6 @@ spL
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.166
-</td>
-<td style="text-align:right;">
-0.046
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.310545798562734
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9006,14 +7857,6 @@ intrcpt
 </td>
 <td style="text-align:right;">
 0.414
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
 </td>
 </tr>
 <tr>
@@ -9034,14 +7877,6 @@ lnRR.sv
 <td style="text-align:right;">
 -1.109
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9056,18 +7891,6 @@ hybLS
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.042
-</td>
-<td style="text-align:right;">
-0.000
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.119682442687643
 </td>
 </tr>
 <tr>
@@ -9088,14 +7911,6 @@ intrcpt
 <td style="text-align:right;">
 0.203
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9115,14 +7930,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.738
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9137,18 +7944,6 @@ hybSL
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.042
-</td>
-<td style="text-align:right;">
-0.003
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.0931848383117534
 </td>
 </tr>
 <tr>
@@ -9169,14 +7964,6 @@ intrcpt
 <td style="text-align:right;">
 0.150
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9196,14 +7983,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.553
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9218,18 +7997,6 @@ midparent
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.083
-</td>
-<td style="text-align:right;">
-0.030
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.155498870370917
 </td>
 </tr>
 <tr>
@@ -9250,14 +8017,6 @@ intrcpt
 <td style="text-align:right;">
 0.243
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9277,14 +8036,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.889
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9300,18 +8051,6 @@ spL
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.143
-</td>
-<td style="text-align:right;">
-0.035
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.289067973642559
 </td>
 </tr>
 <tr>
@@ -9332,14 +8071,6 @@ intrcpt
 <td style="text-align:right;">
 0.381
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9359,14 +8090,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.940
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9381,18 +8104,6 @@ hybLS
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.035
-</td>
-<td style="text-align:right;">
-0.005
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.15871592711063
 </td>
 </tr>
 <tr>
@@ -9413,14 +8124,6 @@ intrcpt
 <td style="text-align:right;">
 0.233
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9440,14 +8143,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.497
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9462,18 +8157,6 @@ hybSL
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.044
-</td>
-<td style="text-align:right;">
-0.006
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.204998446619515
 </td>
 </tr>
 <tr>
@@ -9494,14 +8177,6 @@ intrcpt
 <td style="text-align:right;">
 0.157
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9521,14 +8196,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.811
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9543,18 +8210,6 @@ midparent
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.072
-</td>
-<td style="text-align:right;">
-0.021
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.14405442361049
 </td>
 </tr>
 <tr>
@@ -9575,14 +8230,6 @@ intrcpt
 <td style="text-align:right;">
 0.221
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9602,14 +8249,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.815
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9625,18 +8264,6 @@ spL
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.166
-</td>
-<td style="text-align:right;">
-0.046
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.310545798562734
 </td>
 </tr>
 <tr>
@@ -9657,14 +8284,6 @@ intrcpt
 <td style="text-align:right;">
 0.414
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9684,14 +8303,6 @@ lnRR.sv
 <td style="text-align:right;">
 -1.109
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9706,18 +8317,6 @@ hybLS
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.042
-</td>
-<td style="text-align:right;">
-0.000
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.119682442687643
 </td>
 </tr>
 <tr>
@@ -9738,14 +8337,6 @@ intrcpt
 <td style="text-align:right;">
 0.203
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9765,14 +8356,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.738
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9787,18 +8370,6 @@ hybSL
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.042
-</td>
-<td style="text-align:right;">
-0.003
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.0931848383117534
 </td>
 </tr>
 <tr>
@@ -9819,14 +8390,6 @@ intrcpt
 <td style="text-align:right;">
 0.150
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9846,14 +8409,6 @@ lnRR.sv
 <td style="text-align:right;">
 -0.553
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9868,18 +8423,6 @@ midparent
 <td style="text-align:right;">
 </td>
 <td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-0.083
-</td>
-<td style="text-align:right;">
-0.030
-</td>
-<td style="text-align:right;">
-0
-</td>
-<td style="text-align:left;">
-0.155498870370917
 </td>
 </tr>
 <tr>
@@ -9900,14 +8443,6 @@ intrcpt
 <td style="text-align:right;">
 0.243
 </td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -9926,14 +8461,6 @@ lnRR.sv
 </td>
 <td style="text-align:right;">
 -0.889
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:right;">
-</td>
-<td style="text-align:left;">
 </td>
 </tr>
 </tbody>
