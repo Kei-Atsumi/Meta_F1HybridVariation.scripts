@@ -88,15 +88,15 @@ get_pred <- function(model, mod = " ") {
     # 'V[residual]' = 
     #   c(model$sigma2[4], rep("", length(model$beta))),
     'I2[total]' = 
-      c(round(I2s[1,1], 3), rep("", length(model$beta))),
+      c(round(I2s[1,1], 3), rep("", length(model$beta)-1)),
     '%I2[species with phylogeny]' = 
-      c(paste0(I2percentage["I2_spL.name",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_spL.name",1],"%"), rep("", length(model$beta)-1)),
     '%I2[study]' =
-      c(paste0(I2percentage["I2_Study.ID",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_Study.ID",1],"%"), rep("", length(model$beta)-1)),
     '%I2[crossed strain]' =
-      c(paste0(I2percentage["I2_Cross.ID",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_Cross.ID",1],"%"), rep("", length(model$beta)-1)),
     '%I2[residual]' = 
-      c(paste0(I2percentage["I2_ES.ID",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_ES.ID",1],"%"), rep("", length(model$beta)-1)),
     )  %>%
     as.data.frame() %>%
     mutate_at(vars('Estimate':'I2[total]'), as.numeric) %>%
@@ -256,20 +256,20 @@ for (j in c("withTS", "withoutTS")) {
         filter(data.type == j, insect == k)
     }
 
-    # Regress by lnRR of phenotypic difference between parentals
-    midparent.compare <- rma.mv(
-      yi = lnCVR.midparent.es, V = vi,
-      data = dat,
-      method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      R = list(spL.name = phylo_cor),
-      mods = ~ relevel(cross, ref = "midparent")
-      )
-    ### Save model ###
-    saveRDS(
-      midparent.compare,
-      file = paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = ".")
-      )
+    # # Regress by lnRR of phenotypic difference between parentals
+    # midparent.compare <- rma.mv(
+    #   yi = lnCVR.midparent.es, V = vi,
+    #   data = dat,
+    #   method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    #   R = list(spL.name = phylo_cor),
+    #   mods = ~ relevel(cross, ref = "midparent")
+    #   )
+    # ### Save model ###
+    # saveRDS(
+    #   midparent.compare,
+    #   file = paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = ".")
+    #   )
   
     ### Load model ###
     midparent.compare <- readRDS(paste("../Analysis/Variation.midparent.compare", j, k, "obj", sep = "."))
@@ -458,7 +458,7 @@ for (j in c("withTS", "withoutTS")) {
       scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
       # Delete legend for colors
       guides(fill = "none", colour = "none") +
-      ### Confidential interval ###
+      ## Confidential interval ###
       geom_errorbarh(
         aes(xmin = tanh(LowerCI), xmax = tanh(UpperCI)),
         height = 0, size = 1.2, alpha = 0.6
@@ -471,12 +471,6 @@ for (j in c("withTS", "withoutTS")) {
       geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) +
       ### Estimate ###
       geom_point(size = 3, shape = 21, fill = "black") +
-      # ### I^2 ###
-      # annotate(
-      #   "text", x = -0.93, y = c(1.35, 2.35, 3.35),
-      #   label = paste("italic(I^2)==", res.ma$I2),
-      #   parse = TRUE, hjust = "left", size = 5
-      # ) +
       ### N ###
       annotate(
         "text", x = -0.93, y = 3.85,
@@ -610,95 +604,94 @@ bind_rows(
 
 ```
 
-# Meta-regression for lnCVR in hybrids crosses
-Which hybrids hybrid more phenotypically vary? What are the affecting factor? Compare lnCVR between hybridLS-speciesS(less vary) vs hybridSL-speciesL(more vary)  
 
-```{r maternal vs paternal, results='asis'}
+```{r maternal vs paternal, results='asis', include = FALSE}
 
-for (l in c("normal", "sensitivity")) {
-  for (j in c("withTS", "withoutTS")) {
-    for (k in c("alltaxon", "insect")) {
-      
-      if (k == "alltaxon") {
-        dat <- with.without.TS %>% 
-          filter(data.type == j, cross != "spL")
-      } else {
-        dat <- with.without.TS %>% 
-          filter(data.type == j, insect == k, cross != "spL")
-      }
-      
-      # if (l == "normal") {
-      # # Regress by lnRR of phenotypic difference between parentals
-      # phyl.random <- rma.mv(
-      #   yi = yi, V = vi,
-      #   data = dat, method = "REML",
-      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      #   R = list(spL.name = phylo_cor),
-      #   mods = ~ cross*hetero.sex +
-      #     pheno.div.ratio + divergence.COI +
-      #     trait.type + distribution
-      #   )
-      # } else {
-      # # Regress by lnRR of phenotypic difference between parentals
-      # phyl.random <- rma.mv(
-      #   yi = yi, V = vi,
-      #   data = dat, method = "REML",
-      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      #   R = list(spL.name = phylo_cor),
-      #   mods = ~ cross*hetero.sex +
-      #     pheno.div.ratio + divergence.COI +
-      #     trait.type + distribution +
-      #     sqrt(vi)                       # add SE
-      #   )
-      # }
-      # saveRDS(
-      #   phyl.random,
-      #   file = paste("../Analysis/Variation.metareg", j, k, l, "obj", sep = ".")
-      #   )
-      
-      ### Load model ###
-      phyl.random <- readRDS(paste("../Analysis/Variation.metareg", j, k, l, "obj", sep = "."))
-      ### Output result ###
-      reg <- get_stats(phyl.random)
-      plot <- ggplot(reg, aes(y = estimate, x = name)) +
-        geom_errorbar(
-          aes(ymin = lowerCI, ymax = upperCI, colour=significance), 
-          width=.0001
-          ) +
-      # Color of plots and errorbars
-      scale_colour_manual(values = c("grey60", "black")) +
-      geom_point(size = 1.5, aes(colour = significance)) +
-      scale_fill_manual(values = c("grey60", "black")) +
-        scale_x_discrete(limits = rev(reg$name))+ # reverse x-axis
-        geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
-        coord_flip() +
-        ylab("") + xlab(paste(l, k, j)) +
-        theme_bw() +
-        theme(
-          panel.grid = element_blank(),
-          legend.position = "none",
-          panel.border=element_blank(),
-          axis.text.x = element_text(size = 11),
-          axis.text.y = element_text(size = 12),
-          axis.line=element_line(colour = "grey70")
-          )
-      print(plot)
-          
-      get_reg(phyl.random) %>%
-        mutate_if(is.numeric, round, 3) %>%
-        # Show dataset name
-        within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
-        kable("html", digits = 3, caption = paste(l,j,k)) %>% 
-        kable_styling("striped", position = "left") %>%
-        print()
-  
-    }
-  }
-}
+# # Meta-regression for lnCVR in hybrids crosses
+# Which hybrids hybrid more phenotypically vary? What are the affecting factor? Compare lnCVR between hybridLS-speciesS(less vary) vs hybridSL-speciesL(more vary)  
+
+# for (l in c("normal", "sensitivity")) {
+#   for (j in c("withTS", "withoutTS")) {
+#     for (k in c("alltaxon", "insect")) {
+#       
+#       if (k == "alltaxon") {
+#         dat <- with.without.TS %>% 
+#           filter(data.type == j, cross != "spL")
+#       } else {
+#         dat <- with.without.TS %>% 
+#           filter(data.type == j, insect == k, cross != "spL")
+#       }
+#       
+#       if (l == "normal") {
+#       # Regress by lnRR of phenotypic difference between parentals
+#       phyl.random <- rma.mv(
+#         yi = yi, V = vi,
+#         data = dat, method = "REML",
+#         random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+#         R = list(spL.name = phylo_cor),
+#         mods = ~ cross*hetero.sex +
+#           pheno.div.ratio + divergence.COI +
+#           trait.type + distribution
+#         )
+#       } else {
+#       # Regress by lnRR of phenotypic difference between parentals
+#       phyl.random <- rma.mv(
+#         yi = yi, V = vi,
+#         data = dat, method = "REML",
+#         random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+#         R = list(spL.name = phylo_cor),
+#         mods = ~ cross*hetero.sex +
+#           pheno.div.ratio + divergence.COI +
+#           trait.type + distribution +
+#           sqrt(vi)                       # add SE
+#         )
+#       }
+#       saveRDS(
+#         phyl.random,
+#         file = paste("../Analysis/Variation.metareg", j, k, l, "obj", sep = ".")
+#         )
+#       
+#       ### Load model ###
+#       phyl.random <- readRDS(paste("../Analysis/Variation.metareg", j, k, l, "obj", sep = "."))
+#       ### Output result ###
+#       reg <- get_stats(phyl.random)
+#       plot <- ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
+#         geom_errorbar(
+#           aes(ymin = LowerCI, ymax = UpperCI, colour=significance), 
+#           width=.0001
+#           ) +
+#         # Color of plots and errorbars
+#         scale_colour_manual(values = c("grey60", "black")) +
+#         geom_point(size = 1.5, aes(colour = significance)) +
+#         scale_fill_manual(values = c("grey60", "black")) +
+#         scale_x_discrete(limits = rev(reg$name))+ # reverse x-axis
+#         geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+#         coord_flip() +
+#         ylab("") + xlab(paste(l, k, j)) +
+#         theme_bw() +
+#         theme(
+#           panel.grid = element_blank(),
+#           legend.position = "none",
+#           panel.border=element_blank(),
+#           axis.text.x = element_text(size = 11),
+#           axis.text.y = element_text(size = 12),
+#           axis.line=element_line(colour = "grey70")
+#           )
+#       print(plot)
+#           
+#       get_reg(phyl.random) %>%
+#         mutate_if(is.numeric, round, 3) %>%
+#         # Show dataset name
+#         within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+#         kable("html", digits = 3, caption = paste(l,j,k)) %>% 
+#         kable_styling("striped", position = "left") %>%
+#         print()
+#   
+#     }
+#   }
+# }
 
 ```
-
-Significant effect was "both crosses of hybrid tend to become vary as parental species phenotypically diverges" only.
 
 
 # PET-PEESE
@@ -739,7 +732,7 @@ for (j in c("withTS", "withoutTS")) {
       as.data.frame() %>%
       mutate(
         N = length(midparent.dat$ES.ID),
-        I2 = I2(midparent.random)["I2_total"] %>% round(3),
+        # I2 = I2(midparent.random)["I2_total"] %>% round(3),
         cross = "midparent" # indicate cross (spL, hybLS, hybSL)
         )
 
@@ -775,7 +768,7 @@ for (j in c("withTS", "withoutTS")) {
           as.data.frame() %>%
           mutate(
             N = length(dat$ES.ID),
-            I2 = I2(phyl.random)["I2_total"] %>% round(3),
+            # I2 = I2(phyl.random)["I2_total"] %>% round(3),
             cross = h # indicate cross (spL, hybLS, hybSL)
             )
           )
@@ -840,7 +833,7 @@ bind_rows(
   res.ma.withTS.insect, res.ma.withoutTS.insect
   ) %>%
   as.data.frame() %>%
-  mutate_at(vars('Estimate':'V[crossed strain]'), as.numeric) %>%
+  mutate_at(vars('Estimate':'P'), as.numeric) %>%
   select(Dataset, cross, 'Fixed effects', Estimate, UpperCI, LowerCI, contains("PR"), contains("V")) %>%
   kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 

@@ -89,15 +89,15 @@ get_pred <- function(model, mod = " ") {
     # 'V[residual]' = 
     #   c(model$sigma2[4], rep("", length(model$beta))),
     'I2[total]' = 
-      c(round(I2s[1,1], 3), rep("", length(model$beta))),
+      c(round(I2s[1,1], 3), rep("", length(model$beta)-1)),
     '%I2[species with phylogeny]' = 
-      c(paste0(I2percentage["I2_spL.name",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_spL.name",1],"%"), rep("", length(model$beta)-1)),
     '%I2[study]' =
-      c(paste0(I2percentage["I2_Study.ID",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_Study.ID",1],"%"), rep("", length(model$beta)-1)),
     '%I2[crossed strain]' =
-      c(paste0(I2percentage["I2_Cross.ID",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_Cross.ID",1],"%"), rep("", length(model$beta)-1)),
     '%I2[residual]' = 
-      c(paste0(I2percentage["I2_ES.ID",1],"%"), rep("", length(model$beta))),
+      c(paste0(I2percentage["I2_ES.ID",1],"%"), rep("", length(model$beta)-1)),
     )  %>%
     as.data.frame() %>%
     mutate_at(vars('Estimate':'I2[total]'), as.numeric) %>%
@@ -614,7 +614,7 @@ for (l in c("normal", "sensitivity")) {
           filter(data.type == j, insect == k, cross != "spL")
       }
       
-      if (l == "normal") {
+      # if (l == "normal") {
       # # Regress by lnRR of phenotypic difference between parentals
       # phyl.random <- rma.mv(
       #   yi = lnRR.es, V = lnRR.sv,
@@ -625,7 +625,7 @@ for (l in c("normal", "sensitivity")) {
       #     pheno.div.ratio + divergence.COI +
       #     trait.type + distribution
       #   )
-      } else {
+      # } else {
       # # Regress by lnRR of phenotypic difference between parentals
       # phyl.random <- rma.mv(
       #   yi = lnRR.es, V = lnRR.sv,
@@ -788,21 +788,21 @@ for (j in c("withTS", "withoutTS")) {
       midparent.dat <- midparent %>%
         filter(data.type == j, insect == k)
     }
-    # Phylogenetic random meta-analysis for midparent
-    midparent.random <- rma.mv(
-      yi = lnRR.midparent.es,
-      V = lnRR.sv,
-      data = midparent.dat %>% filter(cross == "midparent"),
-      method = "REML",
-      mods = ~ lnRR.sv,
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      R = list(spL.name = phylo_cor)
-      )
-    ### Save model ###
-    saveRDS(
-      midparent.random,
-      file = paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = ".")
-      )
+    # # Phylogenetic random meta-analysis for midparent
+    # midparent.random <- rma.mv(
+    #   yi = lnRR.midparent.es,
+    #   V = lnRR.sv,
+    #   data = midparent.dat %>% filter(cross == "midparent"),
+    #   method = "REML",
+    #   mods = ~ lnRR.sv,
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    #   R = list(spL.name = phylo_cor)
+    #   )
+    # ### Save model ###
+    # saveRDS(
+    #   midparent.random,
+    #   file = paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = ".")
+    #   )
 
     ### Load model ###
     midparent.random <- readRDS(paste("../Analysis/Mean.PET-PEESE.midparent", j, k, "obj", sep = "."))
@@ -933,7 +933,7 @@ bind_rows(
   res.ma.withTS.insect, res.ma.withoutTS.insect
   ) %>%
   as.data.frame() %>%
-  mutate_at(vars('Estimate':'V[crossed strain]'), as.numeric) %>%
+  mutate_at(vars('Estimate':'P'), as.numeric) %>%
   select(Dataset, cross, 'Fixed effects', Estimate, UpperCI, LowerCI, contains("PR"), contains("V")) %>%
   kable("html", digits = 3) %>% kable_styling("striped", position = "left")
 
