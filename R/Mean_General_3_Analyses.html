@@ -1597,7 +1597,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">General pattern of phenotypic mean</h1>
 <h4 class="author">Keisuke Atsumi</h4>
-<h4 class="date">20/06/13 11:43</h4>
+<h4 class="date">20/06/14 15:43</h4>
 
 </div>
 
@@ -1614,9 +1614,12 @@ div.tocify {
 &gt; #&#39; @param model: rma.mv object 
 &gt; #&#39; @param mod: the name of a moderator 
 &gt; get_pred &lt;- function(model, mod = &quot; &quot;) {
-+   I2s &lt;- i2_ml(model) %&gt;%
-+     as.data.frame() 
-+   I2percentage &lt;- round(I2s/I2s[1,1]*100, 1) # I2s[1,1] = I2 total
++   I2 &lt;- i2_ml(model) %&gt;%
++     as.data.frame() %&gt;%
++     rownames_to_column(&quot;Partition&quot;) %&gt;%
++     rename(&quot;I2&quot; = &quot;.&quot;) %&gt;%
++     mutate(percentage = str_c(round(I2*100,1),&quot;%&quot;, sep = &quot;&quot;)) %&gt;%
++     column_to_rownames(&quot;Partition&quot;)
 + 
 +   name &lt;- as.factor(str_replace(row.names(model$beta), mod, &quot;&quot;))
 +   len &lt;- length(name)
@@ -1651,18 +1654,18 @@ div.tocify {
 +     # &#39;V[residual]&#39; = 
 +     #   c(model$sigma2[4], rep(&quot;&quot;, length(model$beta))),
 +     &#39;I2[total]&#39; = 
-+       c(round(I2s[1,1], 3), rep(&quot;&quot;, length(model$beta)-1)),
++       c(I2[&quot;I2_total&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta)-1)),
 +     &#39;%I2[species with phylogeny]&#39; = 
-+       c(paste0(I2percentage[&quot;I2_spL.name&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++       c(I2[&quot;I2_spL.name&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta)-1)),
 +     &#39;%I2[study]&#39; =
-+       c(paste0(I2percentage[&quot;I2_Study.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++       c(I2[&quot;I2_Study.ID&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta)-1)),
 +     &#39;%I2[crossed strain]&#39; =
-+       c(paste0(I2percentage[&quot;I2_Cross.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++       c(I2[&quot;I2_Cross.ID&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta)-1)),
 +     &#39;%I2[residual]&#39; = 
-+       c(paste0(I2percentage[&quot;I2_ES.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta)-1)),
++       c(I2[&quot;I2_ES.ID&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta)-1)),
 +     )  %&gt;%
 +     as.data.frame() %&gt;%
-+     mutate_at(vars(&#39;Estimate&#39;:&#39;I2[total]&#39;), as.numeric) %&gt;%
++     mutate_at(vars(&#39;Estimate&#39;:&#39;P&#39;), as.numeric) %&gt;%
 +     mutate(significance = ifelse(P &lt; 0.05, &quot;*&quot;, &quot;&quot;))
 + }
 &gt; 
@@ -1690,9 +1693,12 @@ div.tocify {
 &gt; #&#39; @param mod: the name of a moderator 
 &gt; get_reg &lt;- function(model, mod = &quot; &quot;) {
 +   
-+   I2s &lt;- i2_ml(model) %&gt;%
-+     as.data.frame() 
-+   I2percentage &lt;- round(I2s/I2s[1,1]*100, 1) # I2s[1,1] = I2 total
++   I2 &lt;- i2_ml(model) %&gt;%
++     as.data.frame() %&gt;%
++     rownames_to_column(&quot;Partition&quot;) %&gt;%
++     rename(&quot;I2&quot; = &quot;.&quot;) %&gt;%
++     mutate(percentage = str_c(round(I2*100,1),&quot;%&quot;, sep = &quot;&quot;)) %&gt;%
++     column_to_rownames(&quot;Partition&quot;)
 +   
 +   table &lt;- tibble(
 +     &#39;Dataset&#39; = &quot;&quot;,
@@ -1710,18 +1716,18 @@ div.tocify {
 +     # &#39;V[residual]&#39; = 
 +     #   c(model$sigma2[4], rep(&quot;&quot;, length(model$beta))),
 +     &#39;I2[total]&#39; = 
-+       c(round(I2s[1,1], 3), rep(&quot;&quot;, length(model$beta))),
++       c(I2[&quot;I2_total&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta))),
 +     &#39;%I2[species with phylogeny]&#39; = 
-+       c(paste0(I2percentage[&quot;I2_spL.name&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta))),
++       c(I2[&quot;I2_spL.name&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta))),
 +     &#39;%I2[study]&#39; =
-+       c(paste0(I2percentage[&quot;I2_Study.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta))),
++       c(I2[&quot;I2_Study.ID&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta))),
 +     &#39;%I2[crossed strain]&#39; =
-+       c(paste0(I2percentage[&quot;I2_Cross.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta))),
++       c(I2[&quot;I2_Cross.ID&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta))),
 +     &#39;%I2[residual]&#39; = 
-+       c(paste0(I2percentage[&quot;I2_ES.ID&quot;,1],&quot;%&quot;), rep(&quot;&quot;, length(model$beta))),
++       c(I2[&quot;I2_ES.ID&quot;,&quot;percentage&quot;], rep(&quot;&quot;, length(model$beta))),
 +     )  %&gt;%
 +     as.data.frame() %&gt;%
-+     mutate_at(vars(&#39;Estimate&#39;:&#39;I2[total]&#39;), as.numeric) %&gt;%
++     mutate_at(vars(&#39;Estimate&#39;:&#39;P&#39;), as.numeric) %&gt;%
 +     mutate(significance = ifelse(P &lt; 0.05, &quot;*&quot;, &quot;&quot;))
 + }</code></pre>
 </div>
@@ -1904,7 +1910,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -1942,20 +1948,20 @@ withTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.997
+<td style="text-align:left;">
+99.7%
 </td>
 <td style="text-align:left;">
-41.4%
-</td>
-<td style="text-align:left;">
-0%
+41.3%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-58.6%
+0%
+</td>
+<td style="text-align:left;">
+58.4%
 </td>
 <td style="text-align:left;">
 </td>
@@ -1980,7 +1986,7 @@ midparent (intrcpt)
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2014,7 +2020,7 @@ hybLS
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2049,7 +2055,7 @@ hybSL
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2080,20 +2086,20 @@ withoutTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
-39.1%
-</td>
-<td style="text-align:left;">
-0%
+39%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-60.9%
+0%
+</td>
+<td style="text-align:left;">
+60.8%
 </td>
 <td style="text-align:left;">
 </td>
@@ -2118,7 +2124,7 @@ midparent (intrcpt)
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2152,7 +2158,7 @@ hybLS
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2187,7 +2193,7 @@ hybSL
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2218,20 +2224,20 @@ withTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.997
+<td style="text-align:left;">
+99.7%
 </td>
 <td style="text-align:left;">
-41.4%
-</td>
-<td style="text-align:left;">
-0%
+41.3%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-58.6%
+0%
+</td>
+<td style="text-align:left;">
+58.4%
 </td>
 <td style="text-align:left;">
 </td>
@@ -2256,7 +2262,7 @@ midparent (intrcpt)
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2290,7 +2296,7 @@ hybLS
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2325,7 +2331,7 @@ hybSL
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2356,20 +2362,20 @@ withoutTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
-39.1%
-</td>
-<td style="text-align:left;">
-0%
+39%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-60.9%
+0%
+</td>
+<td style="text-align:left;">
+60.8%
 </td>
 <td style="text-align:left;">
 </td>
@@ -2394,7 +2400,7 @@ midparent (intrcpt)
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2428,7 +2434,7 @@ hybLS
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2463,7 +2469,7 @@ hybSL
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -2693,7 +2699,7 @@ upperPR
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -2745,8 +2751,8 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.999
+<td style="text-align:left;">
+99.9%
 </td>
 <td style="text-align:left;">
 31.6%
@@ -2794,11 +2800,11 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.997
+<td style="text-align:left;">
+99.7%
 </td>
 <td style="text-align:left;">
-18.6%
+18.5%
 </td>
 <td style="text-align:left;">
 1.6%
@@ -2807,7 +2813,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-79.8%
+79.6%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -2843,11 +2849,11 @@ intrcpt
 <td style="text-align:right;">
 0.001
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
-17.7%
+17.6%
 </td>
 <td style="text-align:left;">
 1.8%
@@ -2856,7 +2862,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-80.6%
+80.4%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -2893,8 +2899,8 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.999
+<td style="text-align:left;">
+99.9%
 </td>
 <td style="text-align:left;">
 31.7%
@@ -2906,7 +2912,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-60.9%
+60.8%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -2942,20 +2948,20 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.997
+<td style="text-align:left;">
+99.7%
 </td>
 <td style="text-align:left;">
-25.7%
-</td>
-<td style="text-align:left;">
-0%
+25.6%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-74.3%
+0%
+</td>
+<td style="text-align:left;">
+74.1%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -2991,11 +2997,11 @@ intrcpt
 <td style="text-align:right;">
 0.001
 </td>
-<td style="text-align:right;">
-0.996
+<td style="text-align:left;">
+99.6%
 </td>
 <td style="text-align:left;">
-31.6%
+31.5%
 </td>
 <td style="text-align:left;">
 1.1%
@@ -3004,7 +3010,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-67.3%
+67.1%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -3041,8 +3047,8 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.999
+<td style="text-align:left;">
+99.9%
 </td>
 <td style="text-align:left;">
 31.6%
@@ -3090,11 +3096,11 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.997
+<td style="text-align:left;">
+99.7%
 </td>
 <td style="text-align:left;">
-18.6%
+18.5%
 </td>
 <td style="text-align:left;">
 1.6%
@@ -3103,7 +3109,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-79.8%
+79.6%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -3139,11 +3145,11 @@ intrcpt
 <td style="text-align:right;">
 0.001
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
-17.7%
+17.6%
 </td>
 <td style="text-align:left;">
 1.8%
@@ -3152,7 +3158,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-80.6%
+80.4%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -3189,8 +3195,8 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.999
+<td style="text-align:left;">
+99.9%
 </td>
 <td style="text-align:left;">
 31.7%
@@ -3202,7 +3208,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-60.9%
+60.8%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -3238,20 +3244,20 @@ intrcpt
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
-0.997
+<td style="text-align:left;">
+99.7%
 </td>
 <td style="text-align:left;">
-25.7%
-</td>
-<td style="text-align:left;">
-0%
+25.6%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-74.3%
+0%
+</td>
+<td style="text-align:left;">
+74.1%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -3287,11 +3293,11 @@ intrcpt
 <td style="text-align:right;">
 0.001
 </td>
-<td style="text-align:right;">
-0.996
+<td style="text-align:left;">
+99.6%
 </td>
 <td style="text-align:left;">
-31.6%
+31.5%
 </td>
 <td style="text-align:left;">
 1.1%
@@ -3300,7 +3306,7 @@ intrcpt
 0%
 </td>
 <td style="text-align:left;">
-67.3%
+67.1%
 </td>
 <td style="text-align:left;">
 <ul>
@@ -3424,7 +3430,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -3462,8 +3468,8 @@ withTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
 42.1%
@@ -3475,7 +3481,7 @@ withTS alltaxon
 0%
 </td>
 <td style="text-align:left;">
-56.5%
+56.4%
 </td>
 <td style="text-align:left;">
 </td>
@@ -3500,7 +3506,7 @@ hybLS (intrcpt)
 <td style="text-align:right;">
 0.004
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3534,7 +3540,7 @@ hybSL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3569,7 +3575,7 @@ spLL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3599,20 +3605,20 @@ withoutTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.999
+<td style="text-align:left;">
+99.9%
 </td>
 <td style="text-align:left;">
-40.9%
-</td>
-<td style="text-align:left;">
-0%
+40.8%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-59.1%
+0%
+</td>
+<td style="text-align:left;">
+59%
 </td>
 <td style="text-align:left;">
 </td>
@@ -3637,7 +3643,7 @@ hybLS (intrcpt)
 <td style="text-align:right;">
 0.006
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3671,7 +3677,7 @@ hybSL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3706,7 +3712,7 @@ spLL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3736,8 +3742,8 @@ withTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
 42.1%
@@ -3749,7 +3755,7 @@ withTS insect
 0%
 </td>
 <td style="text-align:left;">
-56.5%
+56.4%
 </td>
 <td style="text-align:left;">
 </td>
@@ -3774,7 +3780,7 @@ hybLS (intrcpt)
 <td style="text-align:right;">
 0.004
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3808,7 +3814,7 @@ hybSL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3843,7 +3849,7 @@ spLL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3873,20 +3879,20 @@ withoutTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.999
+<td style="text-align:left;">
+99.9%
 </td>
 <td style="text-align:left;">
-40.9%
-</td>
-<td style="text-align:left;">
-0%
+40.8%
 </td>
 <td style="text-align:left;">
 0%
 </td>
 <td style="text-align:left;">
-59.1%
+0%
+</td>
+<td style="text-align:left;">
+59%
 </td>
 <td style="text-align:left;">
 </td>
@@ -3911,7 +3917,7 @@ hybLS (intrcpt)
 <td style="text-align:right;">
 0.006
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3945,7 +3951,7 @@ hybSL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -3980,7 +3986,7 @@ spLL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4125,7 +4131,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -4160,8 +4166,8 @@ withTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
 0%
@@ -4173,7 +4179,7 @@ withTS alltaxon
 0%
 </td>
 <td style="text-align:left;">
-100%
+99.8%
 </td>
 <td style="text-align:left;">
 </td>
@@ -4196,7 +4202,7 @@ intrcpt
 <td style="text-align:right;">
 0.136
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4227,7 +4233,7 @@ crosshybSL
 <td style="text-align:right;">
 0.454
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4258,7 +4264,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.536
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4289,7 +4295,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4321,7 +4327,7 @@ divergence.COI
 <td style="text-align:right;">
 0.628
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4352,7 +4358,7 @@ trait.typesound
 <td style="text-align:right;">
 0.876
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4383,7 +4389,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.967
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4414,7 +4420,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.094
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4454,7 +4460,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -4489,8 +4495,8 @@ withTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
 0%
@@ -4502,7 +4508,7 @@ withTS insect
 0%
 </td>
 <td style="text-align:left;">
-100%
+99.8%
 </td>
 <td style="text-align:left;">
 </td>
@@ -4525,7 +4531,7 @@ intrcpt
 <td style="text-align:right;">
 0.136
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4556,7 +4562,7 @@ crosshybSL
 <td style="text-align:right;">
 0.454
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4587,7 +4593,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.536
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4618,7 +4624,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4650,7 +4656,7 @@ divergence.COI
 <td style="text-align:right;">
 0.628
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4681,7 +4687,7 @@ trait.typesound
 <td style="text-align:right;">
 0.876
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4712,7 +4718,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.967
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4743,7 +4749,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.094
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4783,7 +4789,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -4818,8 +4824,8 @@ withoutTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.98
+<td style="text-align:left;">
+98%
 </td>
 <td style="text-align:left;">
 0%
@@ -4831,7 +4837,7 @@ withoutTS alltaxon
 0%
 </td>
 <td style="text-align:left;">
-100%
+98%
 </td>
 <td style="text-align:left;">
 </td>
@@ -4854,7 +4860,7 @@ intrcpt
 <td style="text-align:right;">
 0.190
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4885,7 +4891,7 @@ crosshybSL
 <td style="text-align:right;">
 0.459
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4916,7 +4922,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.668
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4947,7 +4953,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -4979,7 +4985,7 @@ divergence.COI
 <td style="text-align:right;">
 0.478
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5010,7 +5016,7 @@ trait.typesound
 <td style="text-align:right;">
 0.541
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5041,7 +5047,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.663
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5072,7 +5078,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.133
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5112,7 +5118,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -5147,8 +5153,8 @@ withoutTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.98
+<td style="text-align:left;">
+98%
 </td>
 <td style="text-align:left;">
 0%
@@ -5160,7 +5166,7 @@ withoutTS insect
 0%
 </td>
 <td style="text-align:left;">
-100%
+98%
 </td>
 <td style="text-align:left;">
 </td>
@@ -5183,7 +5189,7 @@ intrcpt
 <td style="text-align:right;">
 0.190
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5214,7 +5220,7 @@ crosshybSL
 <td style="text-align:right;">
 0.459
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5245,7 +5251,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.668
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5276,7 +5282,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5308,7 +5314,7 @@ divergence.COI
 <td style="text-align:right;">
 0.478
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5339,7 +5345,7 @@ trait.typesound
 <td style="text-align:right;">
 0.541
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5370,7 +5376,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.663
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5401,7 +5407,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.133
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5441,7 +5447,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -5476,8 +5482,8 @@ withTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
 0%
@@ -5489,7 +5495,7 @@ withTS alltaxon
 0%
 </td>
 <td style="text-align:left;">
-100%
+99.8%
 </td>
 <td style="text-align:left;">
 </td>
@@ -5512,7 +5518,7 @@ intrcpt
 <td style="text-align:right;">
 0.180
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5543,7 +5549,7 @@ crosshybSL
 <td style="text-align:right;">
 0.435
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5574,7 +5580,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.578
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5605,7 +5611,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5637,7 +5643,7 @@ divergence.COI
 <td style="text-align:right;">
 0.726
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5668,7 +5674,7 @@ trait.typesound
 <td style="text-align:right;">
 0.764
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5699,7 +5705,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.839
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5730,7 +5736,7 @@ sqrt(lnRR.sv)
 <td style="text-align:right;">
 0.548
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5761,7 +5767,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.088
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5801,7 +5807,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -5836,8 +5842,8 @@ withTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.998
+<td style="text-align:left;">
+99.8%
 </td>
 <td style="text-align:left;">
 0%
@@ -5849,7 +5855,7 @@ withTS insect
 0%
 </td>
 <td style="text-align:left;">
-100%
+99.8%
 </td>
 <td style="text-align:left;">
 </td>
@@ -5872,7 +5878,7 @@ intrcpt
 <td style="text-align:right;">
 0.180
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5903,7 +5909,7 @@ crosshybSL
 <td style="text-align:right;">
 0.435
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5934,7 +5940,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.578
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5965,7 +5971,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -5997,7 +6003,7 @@ divergence.COI
 <td style="text-align:right;">
 0.726
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6028,7 +6034,7 @@ trait.typesound
 <td style="text-align:right;">
 0.764
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6059,7 +6065,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.839
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6090,7 +6096,7 @@ sqrt(lnRR.sv)
 <td style="text-align:right;">
 0.548
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6121,7 +6127,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.088
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6161,7 +6167,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -6196,8 +6202,8 @@ withoutTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.98
+<td style="text-align:left;">
+98%
 </td>
 <td style="text-align:left;">
 0%
@@ -6209,7 +6215,7 @@ withoutTS alltaxon
 0%
 </td>
 <td style="text-align:left;">
-100%
+98%
 </td>
 <td style="text-align:left;">
 </td>
@@ -6232,7 +6238,7 @@ intrcpt
 <td style="text-align:right;">
 0.195
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6263,7 +6269,7 @@ crosshybSL
 <td style="text-align:right;">
 0.462
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6294,7 +6300,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.667
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6325,7 +6331,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6357,7 +6363,7 @@ divergence.COI
 <td style="text-align:right;">
 0.520
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6388,7 +6394,7 @@ trait.typesound
 <td style="text-align:right;">
 0.544
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6419,7 +6425,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.670
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6450,7 +6456,7 @@ sqrt(lnRR.sv)
 <td style="text-align:right;">
 0.930
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6481,7 +6487,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.135
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6521,7 +6527,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -6556,8 +6562,8 @@ withoutTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.98
+<td style="text-align:left;">
+98%
 </td>
 <td style="text-align:left;">
 0%
@@ -6569,7 +6575,7 @@ withoutTS insect
 0%
 </td>
 <td style="text-align:left;">
-100%
+98%
 </td>
 <td style="text-align:left;">
 </td>
@@ -6592,7 +6598,7 @@ intrcpt
 <td style="text-align:right;">
 0.195
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6623,7 +6629,7 @@ crosshybSL
 <td style="text-align:right;">
 0.462
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6654,7 +6660,7 @@ hetero.sexMale
 <td style="text-align:right;">
 0.667
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6685,7 +6691,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6717,7 +6723,7 @@ divergence.COI
 <td style="text-align:right;">
 0.520
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6748,7 +6754,7 @@ trait.typesound
 <td style="text-align:right;">
 0.544
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6779,7 +6785,7 @@ distributionOverlap
 <td style="text-align:right;">
 0.670
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6810,7 +6816,7 @@ sqrt(lnRR.sv)
 <td style="text-align:right;">
 0.930
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6841,7 +6847,7 @@ crosshybSL:hetero.sexMale
 <td style="text-align:right;">
 0.135
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -6968,7 +6974,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -7003,8 +7009,8 @@ withTS alltaxon
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.996
+<td style="text-align:left;">
+99.6%
 </td>
 <td style="text-align:left;">
 0%
@@ -7016,7 +7022,7 @@ withTS alltaxon
 0%
 </td>
 <td style="text-align:left;">
-100%
+99.6%
 </td>
 <td style="text-align:left;">
 </td>
@@ -7039,7 +7045,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7071,7 +7077,7 @@ cross.sexFemale_hybLS
 <td style="text-align:right;">
 0.073
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7102,7 +7108,7 @@ cross.sexFemale_hybSL
 <td style="text-align:right;">
 0.064
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7133,7 +7139,7 @@ cross.sexMale_hybLS
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7165,7 +7171,7 @@ cross.sexMale_hybSL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7206,7 +7212,7 @@ UpperCI
 <th style="text-align:right;">
 P
 </th>
-<th style="text-align:right;">
+<th style="text-align:left;">
 I2[total]
 </th>
 <th style="text-align:left;">
@@ -7241,8 +7247,8 @@ withTS insect
 </td>
 <td style="text-align:right;">
 </td>
-<td style="text-align:right;">
-0.996
+<td style="text-align:left;">
+99.6%
 </td>
 <td style="text-align:left;">
 0%
@@ -7254,7 +7260,7 @@ withTS insect
 0%
 </td>
 <td style="text-align:left;">
-100%
+99.6%
 </td>
 <td style="text-align:left;">
 </td>
@@ -7277,7 +7283,7 @@ pheno.div.ratio
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7309,7 +7315,7 @@ cross.sexFemale_hybLS
 <td style="text-align:right;">
 0.073
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7340,7 +7346,7 @@ cross.sexFemale_hybSL
 <td style="text-align:right;">
 0.064
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7371,7 +7377,7 @@ cross.sexMale_hybLS
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>
@@ -7403,7 +7409,7 @@ cross.sexMale_hybSL
 <td style="text-align:right;">
 0.000
 </td>
-<td style="text-align:right;">
+<td style="text-align:left;">
 </td>
 <td style="text-align:left;">
 </td>

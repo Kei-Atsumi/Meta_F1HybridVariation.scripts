@@ -183,8 +183,6 @@ plot
 
 ```
 
-# Phylogeny
-
 ```{r phylogeny}
 
 # # matching names from open tree taxonomy
@@ -208,7 +206,7 @@ plot
 # setdiff(levels(as.factor(bin.tree$tip.label)), levels(CV.dif$spL.name))
 # setdiff(levels(CV.dif$spL.name), levels(as.factor(bin.tree$tip.label)))
 
-write.tree(bin.tree, file= "../data/phylo.variation.general.tre")
+# write.tree(bin.tree, file= "../data/phylo.variation.general.tre")
 
 ```
 
