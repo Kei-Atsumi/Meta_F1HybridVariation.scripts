@@ -198,8 +198,10 @@ with.without.TS <- bind_rows(mean.dif, noTS) %>%
   drop_na(contains("Mn"), contains("SD")) %>%
   # Insect or no
   mutate(
-    insect = ifelse(taxa %in% c("Teleost", "Amphibian", "Bird", "Mammal"), "no", "insect"),
+    insect = ifelse(taxa %in% c("Cichliformes", "Anura", "Aves", "Rodentia"), "no", "insect"),
   )
+
+levels(with.without.TS$taxa)
 
 ### Phylogeny ###
 
@@ -259,9 +261,9 @@ for (j in c("withTS", "withoutTS")) {
         filter(data.type == j, insect == k)
     }
 
-    # #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-    # # Estimate meta-analytic mean of midparent of phenotypic variation
-    # #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+    # Estimate meta-analytic mean of midparent of phenotypic variation
+    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
     # midparent.compare <- rma.mv(
     #   yi = lnCVR.midparent.es, V = vi,
     #   data = dat,
@@ -645,19 +647,19 @@ for (l in c("normal", "sensitivity")) {
       #   )
       # }
       # else {
-      # # Regress by lnRR of phenotypic difference between parentals
+      # Regress by lnRR of phenotypic difference between parentals
       # phyl.random <- rma.mv(
       #   yi = yi, V = vi,
       #   data = dat, method = "REML",
       #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
       #   R = list(spL.name = phylo_cor),
-      #   mods = ~ 
+      #   mods = ~
       #     # cross*hetero.sex +
       #     pheno.div.ratio + divergence.COI +
       #     trait.type + distribution +
       #     sqrt(vi)                       # add SE
       #   )
-      # }
+      }
       # saveRDS(
       #   phyl.random,
       #   file = paste("../Analysis/Variation.metareg", j, k, l, "obj", sep = ".")
@@ -701,7 +703,7 @@ for (l in c("normal", "sensitivity")) {
 
     }
   }
-}
+# }
 
 ```
 

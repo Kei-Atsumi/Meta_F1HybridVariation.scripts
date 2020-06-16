@@ -200,7 +200,7 @@ with.without.TS <- bind_rows(mean.dif, noTS) %>%
   drop_na(contains("Mn"), contains("SD")) %>%
   # Insect or no
   mutate(
-    insect = ifelse(taxa %in% c("Teleost", "Amphibian", "Bird", "Mammal"), "no", "insect"),
+    insect = ifelse(taxa %in% c("Cichliformes", "Anura", "Aves", "Rodentia"), "no", "insect"),
   )
 
 
@@ -724,13 +724,13 @@ for (j in c("withTS")) {
     ################################################
     # phylogenetic random regresson (ANOVA)
     ################################################
-    phyl.random <- rma.mv(
-      yi = lnRR.es, V = lnRR.sv, 
-      data = dat, method = "REML",
-      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
-      R = list(spL.name = phylo_cor),
-      mods = ~ pheno.div.ratio + cross.sex -1
-      )
+    # phyl.random <- rma.mv(
+    #   yi = lnRR.es, V = lnRR.sv, 
+    #   data = dat, method = "REML",
+    #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+    #   R = list(spL.name = phylo_cor),
+    #   mods = ~ pheno.div.ratio + cross.sex -1
+    #   )
     
 
     ################################################
