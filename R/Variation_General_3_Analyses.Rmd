@@ -247,13 +247,10 @@ As the variance of *((spL+spS/2)/SS)*, we use the variance of *(LL/SS)* for simp
 
 ```{r assessing dominance}
 
-################################################
-# phylogenetic random regresson (ANOVA)
-################################################
-
 for (j in c("withTS", "withoutTS")) {
   for (k in c("alltaxon", "insect")) {
     
+    # Filtering taxon (all taxon or insects)
     if (k == "alltaxon") {
       dat <- midparent %>% 
         filter(data.type == j)
@@ -262,7 +259,9 @@ for (j in c("withTS", "withoutTS")) {
         filter(data.type == j, insect == k)
     }
 
-    # # Regress by lnRR of phenotypic difference between parentals
+    # #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+    # # Estimate meta-analytic mean of midparent of phenotypic variation
+    # #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
     # midparent.compare <- rma.mv(
     #   yi = lnCVR.midparent.es, V = vi,
     #   data = dat,
@@ -290,12 +289,17 @@ for (j in c("withTS", "withoutTS")) {
         # Difference with midparent in %
         mutate('Comparison with midparent' = c(
           rep("", 2),
+          # Difference hybLS - midparent
           paste(
             round(
             100*(exp(midparent.compare$beta[1]+midparent.compare$beta[2])            -exp(midparent.compare$beta[1])), # hybrid LS
             2),
             "% larger"
             ),
+              # beta[1] : midparent
+              # beta[2] : hybLS
+              # beta[3] : hybSL
+          # Difference hybSL - midparent
           paste(
             round(
             100*(exp(midparent.compare$beta[1]+midparent.compare$beta[3])-exp(midparent.compare$beta[1])), # hybrid SL
@@ -324,7 +328,6 @@ for (j in c("withTS", "withoutTS")) {
     #   midparent.random,
     #   file = paste("../Analysis/Variation.midparent", j, k, "obj", sep = ".")
     #   )
-  
     
     ### Load model ###
     midparent.random <- readRDS(paste("../Analysis/Variation.midparent", j, k, "obj", sep = "."))
