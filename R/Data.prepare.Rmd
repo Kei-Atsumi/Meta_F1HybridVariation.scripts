@@ -369,5 +369,74 @@ bind_rows(sp1sp2.var, sp2sp1.var) %>%
 
 ```
 
+# Another dataset to investigate relationship between novel phenotype and novel variability
+
+```{r}
+
+transgression <- bind_rows(
+  # hyb12
+  dat %>%
+    drop_na(Mn.hyb12, SD.hyb12) %>%
+    mutate(
+      cross = "1x2",
+      mean.TS = ifelse(
+        # Exceeding upper range: 1
+        Mn.hyb12 > Mn.sp1 & Mn.hyb12 > Mn.sp2,
+        1,
+        ifelse(
+          # Exceeding lower range: 1
+          Mn.hyb12 < Mn.sp1 & Mn.hyb12 < Mn.sp2,
+          -1,
+          0
+        )
+      ),
+      var.TS = ifelse(
+        # Exceeding upper range: 1
+        SD.hyb12/Mn.hyb12 > SD.sp1/Mn.sp1 & 
+          SD.hyb12/Mn.hyb12 > SD.sp2/Mn.sp2,
+        1,
+        ifelse(
+          # Exceeding lower range: 1
+          SD.hyb12/Mn.hyb12 < SD.sp1/Mn.sp1 & 
+            SD.hyb12/Mn.hyb12 < SD.sp2/Mn.sp2,
+          -1,
+          0
+        )
+      )    
+    ),
+  # hyb21
+  dat %>%
+    drop_na(Mn.hyb21, SD.hyb21) %>%
+    mutate(
+      cross = "2x1",
+      mean.TS = ifelse(
+        # Exceeding upper range: 1
+        Mn.hyb21 > Mn.sp1 & Mn.hyb21 > Mn.sp2,
+        1,
+        ifelse(
+          # Exceeding lower range: 1
+          Mn.hyb21 < Mn.sp1 & Mn.hyb21 < Mn.sp2,
+          -1,
+          0
+        )
+      ),
+      var.TS = ifelse(
+        # Exceeding upper range: 1
+        SD.hyb21/Mn.hyb21 > SD.sp1/Mn.sp1 & 
+          SD.hyb21/Mn.hyb21 > SD.sp2/Mn.sp2,
+        1,
+        ifelse(
+          # Exceeding lower range: 1
+          SD.hyb21/Mn.hyb21 < SD.sp1/Mn.sp1 & 
+            SD.hyb21/Mn.hyb21 < SD.sp2/Mn.sp2,
+          -1,
+          0
+        )
+      )    
+    ) 
+  ) %>%
+  mutate(mean.TS.occur = ifelse(mean.TS == 0, 0, 1)) %>%
+  write.csv("../data/dat.transgression.csv", quote=F,row.names = F)
 
 
+```

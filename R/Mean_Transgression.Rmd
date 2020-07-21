@@ -150,8 +150,6 @@ mean.dif.all <- bind_rows(
   drop_na(lnRR.sv) %>%
   left_join(., dat)
 
-write.csv(mean.dif.all, "../data/mean.ES.TS.csv", row.names = F)
-
 dat.full <- mean.dif.all %>%
   # Assign overdoinance to 1, no TS to 0 for each effect size
   mutate(TS = ifelse(lnRR.es < 0, 1, 0)) %>%
@@ -181,6 +179,8 @@ dat.full <- mean.dif.all %>%
   mutate(
     insect = ifelse(taxa %in% c("Aves", "Rodentia", "Anura", "Cichliformes"), "no", "insect"),
   )
+
+write.csv(dat.full, "../data/mean.ES.TS.csv", row.names = F)
 
 ```
 # Phylogeny

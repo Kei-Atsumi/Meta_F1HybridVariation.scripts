@@ -146,10 +146,6 @@ mean.dif.all <- bind_rows(
   drop_na(yi) %>%
   left_join(., dat)
 
-write.csv(
-  mean.dif.all, "../data/variation.ES.TS.csv", row.names = F
-  )
-
 dat.full <- mean.dif.all %>%
   # Assign transgressive segregation to 1, no TS to 0 for each effect size
   mutate(TS = ifelse(yi < 0, 1, 0)) %>%
@@ -178,6 +174,10 @@ dat.full <- mean.dif.all %>%
   # Insect or no
   mutate(
     insect = ifelse(taxa %in% c("Aves", "Rodentia", "Anura", "Cichliformes"), "no", "insect"),
+  )
+
+write.csv(
+  dat.full, "../data/variation.ES.TS.csv", row.names = F
   )
 
 ```
