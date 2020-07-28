@@ -121,38 +121,39 @@ dat %>%
 # Phylogenetic ordinal (probit) regression
 ```{r}
 
-prior1<-list(
-  B=list(
-    mu=c(0,0), 
-    V=gelman.prior(~mean.TS.occur, data=select(dat, -trait), scale=sqrt(1+1))
-    ),
-  R=list(V=1,fix=1),
-  G = list(
-    G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-    G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-    )
-  )
+# prior1<-list(
+#   B=list(
+#     mu=c(0,0), 
+#     V=gelman.prior(~mean.TS.occur, data=select(dat, -trait), scale=sqrt(1+1))
+#     ),
+#   R=list(V=1,fix=1),
+#   G = list(
+#     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
+#     )
+#   )
+# 
+# phylmix <-MCMCglmm(
+#   fixed = var.TS ~ mean.TS.occur,
+#   family = "ordinal",
+#   random = ~ Study.ID + Cross.ID + sp1.name + ES.ID,
+#   verbose = FALSE,
+#   prior = prior1,
+#   ginverse = list(sp1.name = phylo_MCMC),
+#   data = select(dat, -trait),
+#   nitt = 60000,  # Increase the number of iterations, default is 13000
+#   burnin = 5000  # Increase the number of burnin, default is 3000
+#   )
+# 
+# ### Save model ###
+# saveRDS(phylmix, file = "../Analysis/transgression.mean.var.obj")
 
-phylmix <-MCMCglmm(
-  fixed = var.TS ~ mean.TS.occur,
-  family = "ordinal",
-  random = ~ Study.ID + Cross.ID + sp1.name + ES.ID,
-  verbose = FALSE,
-  prior = prior1,
-  ginverse = list(sp1.name = phylo_MCMC),
-  data = select(dat, -trait)
-)
+### Load model ###
+phylmix <- readRDS("../Analysis/transgression.mean.var.obj")
 
 summary(phylmix)
-
-
-# ### Correcting estimate ###
-# phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-# ### Save model ###
-# saveRDS(phylmix, file = "../Analysis/transgression.obj")
-# 
 
 
 ```
