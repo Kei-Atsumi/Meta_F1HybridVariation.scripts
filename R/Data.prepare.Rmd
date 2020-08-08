@@ -10,12 +10,9 @@ output:
     toc_float: yes
 ---
 
-# Preparing environment
-
 ```{r setup, message = FALSE}
 
 rm(list=ls())  # reset workspace
-sessionInfo()  # show R version etc
 options(scipen=100)  # do not show numbers using exponential
 
 # install & load packages
@@ -40,6 +37,8 @@ library(ggtree)
 
 ```
 
+# Data shaping
+
 # Load data and pre-processing
 
 ```{r load unprocessed dat, results = 'asis'}
@@ -56,7 +55,6 @@ pheno <- read.xlsx(
   filter(Mn.sp1 > 0 & Mn.sp2 > 0 & homologous == "Yes") %>%   
   # calculate phenotypic difference between parental species
   mutate(
-    pheno.div.diff = abs(Mn.sp1 - Mn.sp2),
     pheno.div.ratio = abs(log(Mn.sp1/Mn.sp2))
     ) %>%
   mutate_at(vars(contains("pheno.div")), scale) %>%
@@ -73,10 +71,9 @@ pheno <- read.xlsx(
 meta <- read.xlsx(
     "../data/original.data.xlsx", sheet = "Metadata"
     ) %>%
-  mutate_at(vars(divergence.cytb:surv.relat.hyb21), as.numeric) %>%
+  mutate_at(vars(contains("divergence")), as.numeric) %>%
   # Logalize genetic divergence
-  mutate_at(vars(contains("divergence")), log10) %>%
-  mutate(sq.divergence.COI = (scale(divergence.COI))^2)
+  mutate_at(vars(contains("divergence")), log10)
   
 
 #+++++++++++++++++++++++++++++++++
@@ -120,8 +117,8 @@ order <- tnrs_match_names(
 
 # which names return more than 1 match?
 multimatch <- order$ott_id[order$number_matches != 1]
-inspect(order, ott_id = multimatch[1]) # Anura, confirmed adopted ott_id is correct
-inspect(order, ott_id = multimatch[2]) # Neuroptera, confirmed adopted ott_id is correct
+# inspect(order, ott_id = multimatch[1]) # Anura, confirmed adopted ott_id is correct
+# inspect(order, ott_id = multimatch[2]) # Neuroptera, confirmed adopted ott_id is correct
 
 # Create taxonomic tree
 tree <- tol_induced_subtree(ott_ids = order$ott_id)
@@ -215,10 +212,10 @@ plot.sum <- ggplot(
 #+++++++++++++++++#
 plot.all <- plot.phylo + plot.sum
 plot.all
-ggsave(
-  plot = plot.all, 
-  file = "../Analysis/data.svg", height = 5, width = 8.5
-  )
+# ggsave(
+#   plot = plot.all, 
+#   file = "../Analysis/data.svg", height = 5, width = 8.5
+#   )
 
 ```
 
@@ -440,3 +437,9 @@ transgression <- bind_rows(
 
 
 ```
+
+# Session information
+```{r}
+sessionInfo()  # show R version etc
+```
+
