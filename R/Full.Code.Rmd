@@ -1,22 +1,35 @@
 ---
-title: "Data Preparation"
-author: "Keisuke Atsumi"
+title: "Title"
+author: "Keisuke Atsumi, Losia Lagisz & Shinichi Nakagawa"
 date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
 output:
   html_document:
+    code_download: true
     code_folding: hide
-    theme: united
+    theme: united # “default”, “cerulean”, “journal”, “flatly”, “darkly”, “readable”, “spacelab”, “united”, “cosmo”, “lumen”, “paper”, “sandstone”, “simplex”, “yeti”
     toc: yes
     toc_float: yes
+subtitle: Electronic Supplementary Material
+
 ---
-# Setup
+## Setup
 
-## Load packages & custom functions
+### Load packages
 
-```{r setup, message = FALSE}
+```{r}
 
 rm(list=ls())  # reset workspace
 options(scipen=100)  # do not show numbers using exponential
+
+# Rmarkdown settings
+knitr::opts_chunk$set(
+  prompt=TRUE, 
+  message=FALSE, 
+  comment="", 
+  warning = FALSE,
+  tidy = TRUE
+  ) 
+options(knitr.kable.NA = '') # Hide NAs in kable table
 
 # install & load packages
 pacman::p_load(
@@ -40,9 +53,11 @@ pacman::p_load(
   # , R.rsp
 )
 
-# Rmarkdown settings
-opts_chunk$set(prompt=TRUE, message=FALSE, comment="", warning = FALSE) 
-options(knitr.kable.NA = '') # Hide NAs in kable table
+```
+
+We have custom functions named : `get_pred()`, `get_reg()` and `get_stats()`, all of which are used later (see below for their functionality) and the code are included here. 
+
+```{r}
 
 #' Title: the function to get prediction intervals (crediblity intervals) from rma objects (metafor)
 #'
@@ -190,7 +205,12 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 # Data description
 
-## Load data and pre-processing
+## Calculate meta-data
+`pheno.div.ratio`: Absolute value of log ratio of parents' phenotypic means <br>
+`reciprocal`: Viability of reciprocal hybrids, with two levels - `Viable` or `Inviable` <br>
+`divergence.COI`: Genetic distance at mtDNA COI region <br>
+`distribution`: Distribution overlap - `Allopatry` or `Overlap` <br>
+`hetero.sex`: Heterogametic sex - `Female` (ZW and Z0) or `Male` (XY and X0) <br>
 
 ```{r, results = 'asis'}
 
@@ -369,6 +389,8 @@ plot.all
 #   )
 
 ```
+**Figure 1a** 
+
 
 ## Metadata
 
@@ -409,7 +431,7 @@ for (i in metavars) {
     rename(!!paste0(levels(meta.unique[, i])[2], "%") := "%") %>%
     # Table output
     kable("html", digits = 3, caption = i) %>% 
-    kable_styling("striped", position = "left") %>% 
+    kable_styling("striped", position = "left") %>%
     print()
 
 }  
@@ -444,15 +466,14 @@ full_join(
 ```
 
 
+## Data processing
 
-## Allign parental species according to trait values
+### Allign parental species according to trait values
+
 Currently, dataset is composed of <br>   
-species 1, species 2, hybrid12 (sp1 mother & sp2 father), hybrid 21 (sp2 mother & sp1 father) <br>
+'species 1' and 'species 2', ordered alphabetically, and 'hybrid12' (sp1 mother & sp2 father) and 'hybrid 21' (sp2 mother & sp1 father)<br>
 <br>
-To investigate paternal effect in hybrids using difference in mean trait value between reciprocal cross, it's better to allign species with larger trait value (spL) and smaller value (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  <br>
-If   <br>
-ln(hybridLS/hybridSL) or (hybridLS - hybridSL) >0, that means hybridLS > hybrid SL<br> ...maternal effect  <br>
-ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid SL<br> ...paternal effect <br>
+To investigate paternal effect in hybrids using difference in mean trait value between reciprocal cross, it's better to allign species with larger trait value (<i>spLL<sub>M</sub></i>) and smaller value (<i>spSS<sub>M</sub></i>) in each traits. Name of hybrids will be changed according to change in names of parental species (<i>hybridLS<sub>M</sub></i> & <i>hybridSL<sub>M</sub></i>).  <br>
 
 ```{r}
 
@@ -484,15 +505,12 @@ bind_rows(sp1sp2.mean, sp2sp1.mean) %>%
   write.csv("../data/dat.mean.csv", quote=F,row.names = F)
 
 ```
+Data set created here, `dat.mean.csv`, is used in calculating effect sizes for  analyses investigating [phenotypic mean](#meta-analysis-for-phenotypic-mean) and [novel phenotype expression](#novel-phenotype-expression).
 
-## Allign parental species according to phenotypic variation (CV)
-Currently, dataset is composed of   
-species 1, species 2, hybrid12 (sp1 mother & sp2 father), hybrid 21 (sp2 mother & sp1 father)  
 
-To investigate paternal effect in hybrids using difference in coefficient of variation (CV) between reciprocal cross, it's better to allign species with larger CV (spL) and smaller CV (spS) in each traits. Name of hybrids will be changed according to change in names of parental species (hybridLS & hybridSL).  
-If   
-ln(hybridLS/hybridSL) or (hybridLS - hybridSL) >0, that means hybridLS > hybrid SL ...maternal effect  
-ln(hybridLS/hybridSL) or (hybridLS - hybridSL) <0, that means hybridLS < hybrid SL ...paternal effect
+### Allign parental species according to phenotypic variation (CV)
+
+To investigate paternal effect in hybrids using difference in coefficient of variation (CV) between reciprocal cross, it's better to allign species with larger CV (<i>spLL<sub>V</sub></i>) and smaller CV (<i>spSS<sub>V</sub></i>) in each traits. Name of hybrids will be changed according to change in names of parental species (<i>hybridLS<sub>V</sub></i> & <i>hybridSL<sub>V</sub></i>).  
 
 ```{r}
 
@@ -524,8 +542,11 @@ bind_rows(sp1sp2.var, sp2sp1.var) %>%
   write.csv("../data/dat.CV.csv", quote=F,row.names = F)
 
 ```
+Data set created here, `dat.CV.csv`, is used in calculating effect sizes for analyses investigating [phenotypic variation](#meta-analysis-for-phenotypic-variation) and [novel variability expression](#novel-variability-expression).
 
-## Simultaneously judge novel phenotype and variability expression
+
+### Simultaneously judge novel phenotype and variability expression
+We categorised phenotypic novelty (novel or non-novel) and relative phenotypic variability compared to parents (smaller, intermediate, larger) at each trait. 
 
 ```{r}
 
@@ -599,12 +620,17 @@ bind_rows(
   write.csv("../data/dat.novelty.csv", quote=F,row.names = F)
 
 ```
+Data set created here, `dat.novelty.csv`, is used in investigating [phenotypic variability of novel phenotypes](#phenotypic-variability-of-novel-phenotype).
+
+
 
 
 # Meta-analysis for phenotypic mean
 
 ## Calculating effect sizes
-Phenotypic difference from <i>spSS</i> to the other crosses
+
+To quantify phenotypic difference from <i>spSS<sub>M</sub></i> to the other crosses, we calculated log response ratio (lnRR) from phenotypic mean of <i>spSS<sub>M</sub></i> to those of the other crosses (<i>hybLS<sub>M</sub></i>, <i>hybSL<sub>M</sub></i> and <i>spLL<sub>M</sub></i>).<br>
+Effecct size was calculated by using `escalc` function in 'metafor' package 
 
 ```{r}
 
@@ -721,9 +747,11 @@ outliers <- mean.dif %>%
   mutate_if(is.numeric, round, 3)
 
 outliers %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 ```
+Because those outliers did not affect meta-analytic model convergence, we did not exclude those data.
 
 ### Judging novel phenotype expression 
 
@@ -957,11 +985,13 @@ midparent <- Novel.Nonnovel %>%
 
 ```
 
+
+
 ## Dominance
-Compare midparent and hybrids by comparing phenotypic difference from spS to midparent (spL+spS/2) and to hybrids. <br>    
-phenotypic difference from spS to midparent: *ln((spL+spS/2)/SS)* <br>  
-phenotypic difference from spS to hybrids: *ln(hyb/SS)* <br> 
-As the variance of *ln((spL+spS/2)/SS)*, we use the variance of *ln(LL/SS)* for simplicity
+Compare midparent and hybrids by comparing difference from <i>spSS<sub>M</sub></i> phenotypic mean to midparent-value $\frac{spLL_M+spSS_M}{2}$ and to hybrids' phenotypic mean.   
+-- lnRR of midparent to <i>spSS<sub>M</sub></i>: $\ln\frac{spLL_M+spSS_M}{2spSS_M}$ 
+-- lnRR of hybrids to <i>spSS<sub>M</sub></i>: $\ln\frac{hybrid}{spSS_M}$ <br> 
+As the variance of $\ln\frac{spLL_M+spSS_M}{2spSS_M}$, we use the variance of $\ln\frac{spLL_M}{spSS_M}$ for simplicity
 
 ```{r}
 
@@ -1003,7 +1033,7 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
         within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
         # Rename fixed effects
         within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "hybSL")) %>%
-        # Difference with midparent in %
+        # Difference of each cross from midparent in %
         mutate('Comparison with midparent' = c(
           rep("", 2),
           paste(
@@ -1057,19 +1087,25 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 ### Midparent meta-analysis result for plot below ###
 midparent.ma <- bind_rows(
   midparent.ma.Alltraits.alltaxon, midparent.ma.Nonnoveltraits.alltaxon,
   midparent.ma.Alltraits.insect, midparent.ma.Nonnoveltraits.insect
-)
-
+  )
 
 ```
 
 
-## Meta-analysis for each cross
+
+## Univarate meta-analysis for each cross
+Quantify and visualise overall trend of phenotypic mean of hybrids compared to parents <br>
+Meta-analysis was repeated for subset data - including only non-novel phenotypes, only insects, and non-novel phenotypes in insects <br>
+Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
+*Confidential interval : thick line  
+*Prediction interval : thin line
 
 ```{r}
 
@@ -1236,13 +1272,21 @@ bind_rows(
   as.data.frame() %>%
   # mutate_at(vars('Estimate':'%I2[residual]'), as.numeric) %>%
   # select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 ```
 
 
-## Comparing mean across all crosses
-Comparing the differences between parentals and hybrids
+
+## Crossing direction effect
+
+We statistically compared lnRR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
+
+Here we asked if lnRR of <i>hybSL<sub>M</sub></i> was smaller/larger than that of <i>hybLS<sub>M</sub></i> <br>
+
+If $\ln\frac{hybridLS_M}{spSS_M}>\ln\frac{hybridSL_M}{spSS_M}$, <i>hybridLS<sub>M</sub></i> has larger phenotypic mean than <i>hybridSL<sub>M</sub></i> ...maternal inheritance
+
 
 ```{r}
 
@@ -1296,7 +1340,7 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
       within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
       # Rename fixed effects
       within('Fixed effects' <- c("", "hybLS (intrcpt)", "hybSL", "spLL")) %>%
-      # Difference with midparent in %
+      # Difference of each cross from midparent in %
       mutate('Comparison with hybridLS' = c(
         rep("", 2),
         paste(
@@ -1318,7 +1362,8 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 ```
 
@@ -1328,7 +1373,10 @@ bind_rows(
 
 # Meta-analysis for phenotypic variation
 
-## Effect size calculation
+### Effect size calculation
+
+We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V</sub></i>) to the parent with small variability (<i>spSS<sub>V</sub></i>), by using [lnCVR](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309). We controlled mean-variance relationship by using Coefficient of Variation (CV) as the proxy of phenotypic variability. <br>
+Effecct size was calculated by using `escalc` function in 'metafor' package 
 
 ```{r}
 
@@ -1394,7 +1442,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
 
 ### Check data
 
-Checked data of extremely high/low standard error and confirmed that those data were correctly imported. *ES390* was the cause of huge heterogeneity in lnCVR between spSS and hybSL
+Checked data of extremely high/low standard error and confirmed that those data were correctly imported. 
 
 ```{r, results='asis'}
 
@@ -1408,7 +1456,8 @@ outliers <- CV.dif %>%
 
 outliers %>%
   kable("html", digits = 3) %>% 
-  kable_styling("striped", position = "left")
+  kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 print("remove observatons included the outliers")
 CV.dif.2 <- CV.dif %>%
@@ -1416,9 +1465,11 @@ CV.dif.2 <- CV.dif %>%
 write.csv(CV.dif.2, "../data/variation.ES.general.csv", row.names = F)
 
 ```
+Because they inhibit meta-analytic model convergence, we excluded these outliers from the formal meta-analysis dataset, but not from novel variability dataset.
+
 
 ### Funnel plots again
-
+Funnel plots after outliers excluded
 ```{r}
 
 res <- rma(yi = yi, vi = vi, data = CV.dif.2, method="FE")
@@ -1431,6 +1482,7 @@ funnel(res, yaxis="seinv", main="Inverse Standard Error", xlim = c(-5, 5))
 funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
 
 ```
+
 
 ### Jugding novel variability expression
 
@@ -1629,7 +1681,26 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
+```
+
+
+
+## Dominance in variance
+
+We compared midparent-value of phenotypic variability and hybrids' phenotypic variability by calculating log ratio of phenotypic variability (lnCVR) of midparent-value and hybrids to <i>spSS<sub>V</sub></i>. <br> 
+
+lnCVR of midparent-value to <i>spSS<sub>V</sub></i> was, following $lnCVR=\ln{\frac{CV_E}{CV_C}}+\frac{1}{2(N_E-1)}-\frac{1}{2(N_C-1)}$ 
+calculated as <br>
+$$\ln\frac{CV_{spLL_V}+CV_{spSS_V}}{2}-\ln{CV_{spSS_V}} +  \frac{1}{N_{spLL_V}+N_{spSS_V}-2}-\frac{1}{2(N_{spSS_V} - 1)}$$
+It's sampling variance was substitute by that of <i>spLL<sub>V</sub></i> <br>
+
+We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor`
+
+```{r}
+
+#+++++++++++++++++++++++++++++++++++++++++++#
 # Calculate midparent 
+#+++++++++++++++++++++++++++++++++++++++++++#
 midparent <- Novel.Nonnovel %>%
   # Divide mean by 2 in spL whereas hybrids are constant
    mutate(
@@ -1651,15 +1722,10 @@ midparent <- Novel.Nonnovel %>%
    mutate_at("cross", as.factor) %>%
    within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
 
-```
 
-## Dominance in variance
-Compare midparent and hybrids by comparing difference in CV from spS to midparent (spL+spS/2) and to hybrids.    
-phenotypic difference from spS to midparent: *((spL+spS/2)/SS)*   
-phenotypic difference from spS to hybrids: *(hyb/SS)*  
-As the variance of *((spL+spS/2)/SS)*, we use the variance of *(LL/SS)* for simplicity
-
-```{r}
+#+++++++++++++++++++++++++++++++++++++#
+# Meta-analysis
+#+++++++++++++++++++++++++++++++++++++#
 
 for (j in c("Alltraits", "Nonnoveltraits")) {
   for (k in c("alltaxon", "insect")) {
@@ -1700,7 +1766,7 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
         within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
         # Rename fixed effects
         within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "hybSL")) %>%
-        # Difference with midparent in %
+        # Difference of each cross from midparent in %
         mutate('Comparison with midparent' = c(
           rep("", 2),
           # Difference hybLS - midparent
@@ -1764,24 +1830,26 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 
 ### Midparent meta-analysis result for plot below ###
 midparent.ma <- bind_rows(
   midparent.ma.Alltraits.alltaxon, midparent.ma.Nonnoveltraits.alltaxon,
   midparent.ma.Alltraits.insect, midparent.ma.Nonnoveltraits.insect
-)
+  )
 
 ```
 
-Both reciprocal hybrids had smaller variance than midparent-of-variance
 
 
-## Meta-analysis for each cross
-Calculate meta-analytic mean of lnCVR between less varied parental and the other crosses (hybrids and more varied parental)  
-Confidential interval : thick line  
-Prediction interval : thin line
+## Univarate meta-analysis for each cross
+Quantify and visualise overall trend of phenotypic variability of hybrids compared to parents <br>
+Meta-analysis was repeated for subset data - including only non-novel phenotypes, only insects, and non-novel phenotypes in insects <br>
+Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
+*Confidential interval : thick line  
+*Prediction interval : thin line
 
 ```{r}
 
@@ -1941,13 +2009,17 @@ bind_rows(
   ) %>%
   as.data.frame() %>%
   select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 ```
 
 
-## Comparing variation (CV) across all crosses
-Comparing the differences between parentals and hybrids
+
+## Crossing direction effect in phenotypic variability
+
+We statistically compared lnCVR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
+Here we asked if lnCVR of <i>hybSL<sub>V</sub></i> was smaller/larger than that of <i>hybLS<sub>V</sub></i>. Smaller lnCVR of <i>hybSL<sub>V</sub></i> indicates maternal inheritance in phenotypic variability <br>
 
 ```{r}
 
@@ -2003,7 +2075,7 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
       within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
       # Rename fixed effects
       within('Fixed effects' <- c("", "hybLS (intrcpt)", "hybSL", "spLL")) %>%
-      # Difference with midparent in %
+      # Difference of each cross from midparent in %
       mutate('Comparison with hybridLS' = c(
         rep("", 2),
         paste(
@@ -2025,7 +2097,8 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
 
 ```
 
@@ -2627,6 +2700,68 @@ for (i in c("reciprocal", "trait.type")) {
 
 dat.full <- read.csv("../data/variation.ES.Novelty.csv", head = TRUE)
 
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Read create tree based on Open Tree of Life taxonomy
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+# # matching names from open tree taxonomy
+# taxa <- tnrs_match_names(
+#   names = levels(dat.full$spL.name) %>%
+#     str_replace_all("_", " "),
+#   context_name = "Animals"
+#   )
+# 
+# # fixing names with more than 1 match after checking duplicated matches
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
+# taxa[taxa$number_matches != 1, ][1,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
+# taxa[taxa$number_matches != 1, ][2,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
+# taxa[taxa$number_matches != 1, ][3,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
+# taxa[taxa$number_matches != 1, ][4,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
+# 
+# # Create tree
+# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
+# tree$tip.label %<>%
+#   strip_ott_ids # remove OTT IDs from tip labels
+# # randomly solve non-binary phylogeny
+# set.seed(6)
+# bin.tree <- multi2di(tree, random = T)
+# 
+# # Indicate mismatch between tip labels & dataset species names
+# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
+# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
+# # Fix names of tip labels
+# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
+# 
+# write.tree(bin.tree, file= "../data/phylo.variation.Novelty.tre")
+
+#++++++++++++++++++++++++++++++++++#
+# Phylogenetic tree for mcmcglmm 
+#++++++++++++++++++++++++++++++++++#
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.variation.Novelty.tre") %>%
+  compute.brlen(method = "Grafen", power = 1)
+print("Randomly solved phylogeny")
+plot(phylo_branch)
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# generating inverse phylogenetic matrix for MCMCglmm
+phylo_branch$node.label <- NULL
+phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+```
+
+```{r}
+
 ### N of TS in each taxa and each direction ###
 summary <- bind_rows(
   # All observations
@@ -2727,66 +2862,6 @@ summary %>%
 ## Factors affect phenotypic novelty
 
 ```{r}
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-# Read create tree based on Open Tree of Life taxonomy
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-
-# # matching names from open tree taxonomy
-# taxa <- tnrs_match_names(
-#   names = levels(dat.full$spL.name) %>%
-#     str_replace_all("_", " "),
-#   context_name = "Animals"
-#   )
-# 
-# # fixing names with more than 1 match after checking duplicated matches
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
-# taxa[taxa$number_matches != 1, ][1,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
-# taxa[taxa$number_matches != 1, ][2,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
-# taxa[taxa$number_matches != 1, ][3,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
-# taxa[taxa$number_matches != 1, ][4,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
-# 
-# # Create tree
-# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-# tree$tip.label %<>%
-#   strip_ott_ids # remove OTT IDs from tip labels
-# # randomly solve non-binary phylogeny
-# set.seed(6)
-# bin.tree <- multi2di(tree, random = T)
-# 
-# # Indicate mismatch between tip labels & dataset species names
-# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
-# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
-# # Fix names of tip labels
-# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
-# 
-# write.tree(bin.tree, file= "../data/phylo.variation.Novelty.tre")
-
-#++++++++++++++++++++++++++++++++++#
-# Phylogenetic tree for mcmcglmm 
-#++++++++++++++++++++++++++++++++++#
-
-# compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.variation.Novelty.tre") %>%
-  compute.brlen(method = "Grafen", power = 1)
-print("Randomly solved phylogeny")
-plot(phylo_branch)
-
-# saving phylogeneic matrix
-phylo_cor <- vcv(phylo_branch, cor = T)
-
-# generating inverse phylogenetic matrix for MCMCglmm
-phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
-
-
 
 #+++++++++++++++++++++++++++++++++++++#
 # Phylogenetic comparative analysis
