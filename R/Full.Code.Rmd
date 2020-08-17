@@ -234,6 +234,8 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 ```
 
+<div style="margin-bottom:180px;">
+</div>
 
 # Data description
 
@@ -276,15 +278,20 @@ kable(pheno, "html") %>% kable_styling("striped", position = "left") %>%
 
 ```
 
-__Study.ID__: ID of studies
+__Study.ID__
+ID of studies
 
-__Study.name__: Including author name(s) and published year
+__Study.name__
+Including author name(s) and published year
 
-__Source__: Source of phenotypc data in the primary studes
+__Source__
+Source of phenotypc data in the primary studes
 
-__Cross.ID__: Parental species used in the crossing expreiments. Distinguishes intraspecific populations.
+__Cross.ID__
+Parental species used in the crossing expreiments. Distinguishes intraspecific populations.
 
-__Gennus__: Studied genus
+__Gennus__
+Studied genus
 
 __sp1.name__ and __sp2.name__: Crossed species. Ordered alphabetically.
 
@@ -360,6 +367,8 @@ __Distribution__: Distribution overlap - *Allopatry* or *Overlap*
 __Hetero.sex__: Heterogametic sex - *Female* (ZW and Z0) or *Male* (XY and X0)
 
 
+<div style="margin-bottom:70px;">
+</div>
 ## Species composition
 ```{r, results = 'asis'}
 
@@ -404,7 +413,7 @@ plot.phylo <- ggtree(tree) +
   geom_tiplab(
     geom = "text",  
     label = tree$tip.label, 
-    align = 1, size = 5
+    align = 1, size = 3
     ) +
   xlim(NA, 7)
 
@@ -481,6 +490,8 @@ plot.all
 ```
 **Figure 1a** 
 
+<div style="margin-bottom:70px;">
+</div>
 
 ## Metadata
 
@@ -528,6 +539,8 @@ for (i in metavars) {
 
 ```
 
+<div style="margin-bottom:70px;">
+</div>
 
 ## Data used in meta-regression (all metadata available)
 
@@ -554,6 +567,8 @@ full_join(
 
 ```
 
+<div style="margin-bottom:70px;">
+</div>
 
 ## Data processing
 
@@ -713,7 +728,8 @@ Data set created here, `dat.novelty.csv`, is used in investigating [phenotypic v
 
 
 
-
+<div style="margin-bottom:180px;">
+</div>
 # Meta-analysis for phenotypic mean
 
 ## Calculating effect sizes
@@ -823,7 +839,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-2, 4))
 ```
 
 ### Check data
-Checked data of extremely high/low standard error and confirmed that those data were correctly imported. 
+Checked data of extremely high/low standard error (SE > 1.2 | 1/SE > 140) and confirmed that those data were correctly imported. 
 
 ```{r, results='asis'}
 
@@ -974,7 +990,7 @@ bind_rows(
 
 ### Reload data & Prepare phylogenetic tree
 
-```{r}
+```{r, fig.height = 6.5}
 
 # Load effect sizes
 mean.dif <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
@@ -1055,6 +1071,35 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
+# Plot tree
+plot.phylo(phylo_branch, cex = 0.7)
+
+```
+<br>
+Phylogenetic tree used. Tree was created for <i>spLL<sub>M</sub></i> based on taxonomic tree on [Open Tree of Life](https://tree.opentreeoflife.org/opentree/argus/opentree12.3@ott93302). Non-binary tree was randomly solved. We used packages `rotl`, `ape` and `phytools` on R.
+
+<div style="margin-bottom:70px;">
+</div>
+
+## Dominance
+Compare midparent and hybrids by comparing difference from <i>spSS<sub>M</sub></i> phenotypic mean to midparent-value $\frac{spLL_M+spSS_M}{2}$ and to hybrids' phenotypic mean.  
+
+* lnRR of midparent to <i>spSS<sub>M</sub></i>: $\ln\frac{spLL_M+spSS_M}{2spSS_M}$ 
+* lnRR of hybrids to <i>spSS<sub>M</sub></i>: $\ln\frac{hybrid}{spSS_M}$ 
+
+As the variance of $\ln\frac{spLL_M+spSS_M}{2spSS_M}$, we use the variance of $\ln\frac{spLL_M}{spSS_M}$ for simplicity <br>
+
+We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor` <br>
+
+All meta-analytic models included following random effects:
+
+* `Study.ID`: Primary studies. Denoted as **Study**
+
+* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations. Denoted as **crossed strain**
+
+* `spL.name`: Phylogeny of parental species (<i>spLL<sub>M</sub></i>). Denoted as **species with phylogeny**
+
+```{r}
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Calculate midparent 
@@ -1072,21 +1117,10 @@ midparent <- Novel.Nonnovel %>%
   mutate_at("cross", as.factor) %>%
   within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
 
-```
 
-
-
-## Dominance
-Compare midparent and hybrids by comparing difference from <i>spSS<sub>M</sub></i> phenotypic mean to midparent-value $\frac{spLL_M+spSS_M}{2}$ and to hybrids' phenotypic mean.  
-
-* lnRR of midparent to <i>spSS<sub>M</sub></i>: $\ln\frac{spLL_M+spSS_M}{2spSS_M}$ 
-* lnRR of hybrids to <i>spSS<sub>M</sub></i>: $\ln\frac{hybrid}{spSS_M}$ 
-
-As the variance of $\ln\frac{spLL_M+spSS_M}{2spSS_M}$, we use the variance of $\ln\frac{spLL_M}{spSS_M}$ for simplicity
-
-```{r}
-
-
+#+++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Compare midparent and hybrids by meta-regresson
+#+++++++++++++++++++++++++++++++++++++++++++++++++++#
 for (j in c("Alltraits", "Nonnoveltraits")) {
   for (k in c("alltaxon", "insect")) {
     
@@ -1190,15 +1224,19 @@ midparent.ma <- bind_rows(
 ```
 
 
+<div style="margin-bottom:70px;">
+</div>
 
 ## Univarate meta-analysis for each cross
 Quantify and visualise overall trend of phenotypic mean of hybrids compared to parents <br>
 Meta-analysis was repeated for subset data - including only non-novel phenotypes, only insects, and non-novel phenotypes in insects <br>
 Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
+
 *Confidential interval : thick line  
+
 *Prediction interval : thin line
 
-```{r}
+```{r, fig.height = 4, fig.width = 6}
 
 for (j in c("Alltraits", "Nonnoveltraits")) {
   for (k in c("alltaxon", "insect")) {
@@ -1358,6 +1396,8 @@ bind_rows(
 ```
 
 
+<div style="margin-bottom:70px;">
+</div>
 
 ## Crossing direction effect
 
@@ -1450,7 +1490,8 @@ bind_rows(
 
 
 
-
+<div style="margin-bottom:180px;">
+</div>
 # Meta-analysis for phenotypic variation
 
 ### Effect size calculation
@@ -1522,7 +1563,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
 
 ### Check data
 
-Checked data of extremely high/low standard error and confirmed that those data were correctly imported. 
+Checked data of extremely high/low standard error (SE > 1.2 | 1/SE > 8.5) and confirmed that those data were correctly imported. 
 
 ```{r, results='asis'}
 
@@ -1539,7 +1580,6 @@ outliers %>%
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
-print("remove observatons included the outliers")
 CV.dif.2 <- CV.dif %>%
   filter(!ES.ID %in% unique(outliers$ES.ID)) 
 write.csv(CV.dif.2, "../data/variation.ES.general.csv", row.names = F)
@@ -1695,7 +1735,7 @@ bind_rows(
 
 ### Reload data & Prepare phylogenetic tree
 
-```{r}
+```{r, fig.height = 6.5}
 
 # Load effect sizes
 CV.dif <- read.csv("../data/variation.ES.general.csv", head = TRUE)%>%
@@ -1761,9 +1801,15 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
+# Plot tree
+plot.phylo(phylo_branch, cex = 0.7)
+
 ```
+<br>
+Phylogenetic tree used. Tree was created for <i>spLL<sub>V</sub></i>
 
-
+<div style="margin-bottom:70px;">
+</div>
 
 ## Dominance in variance
 
@@ -1774,7 +1820,15 @@ lnCVR of midparent-value to <i>spSS<sub>V</sub></i> was, following $lnCVR=\ln{\f
 $$\ln\frac{CV_{spLL_V}+CV_{spSS_V}}{2}-\ln{CV_{spSS_V}} +  \frac{1}{N_{spLL_V}+N_{spSS_V}-2}-\frac{1}{2(N_{spSS_V} - 1)}$$
 It's sampling variance was substitute by that of <i>spLL<sub>V</sub></i> <br>
 
-We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor`
+We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor` <br>
+
+All meta-analytic models included following random effects:
+
+* `Study.ID`: Primary studies. Denoted as **Study**
+
+* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations. Denoted as **crossed strain**
+
+* `spL.name`: Phylogeny of parental species (<i>spLL<sub>M</sub></i>). Denoted as **species with phylogeny**
 
 ```{r}
 
@@ -1803,9 +1857,9 @@ midparent <- Novel.Nonnovel %>%
    within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
 
 
-#+++++++++++++++++++++++++++++++++++++#
-# Meta-analysis
-#+++++++++++++++++++++++++++++++++++++#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Compare midparent and hybrids by meta-regresson
+#+++++++++++++++++++++++++++++++++++++++++++++++++++#
 
 for (j in c("Alltraits", "Nonnoveltraits")) {
   for (k in c("alltaxon", "insect")) {
@@ -1923,15 +1977,19 @@ midparent.ma <- bind_rows(
 ```
 
 
+<div style="margin-bottom:70px;">
+</div>
 
 ## Univarate meta-analysis for each cross
 Quantify and visualise overall trend of phenotypic variability of hybrids compared to parents <br>
 Meta-analysis was repeated for subset data - including only non-novel phenotypes, only insects, and non-novel phenotypes in insects <br>
 Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
-*Confidential interval : thick line  
-*Prediction interval : thin line
 
-```{r}
+* Confidential interval : thick line  
+
+* Prediction interval : thin line
+
+```{r, fig.height = 4, fig.width = 6}
 
 for (j in c("Alltraits", "Nonnoveltraits")) {
   for (k in c("alltaxon", "insect")) {
@@ -2085,6 +2143,9 @@ bind_rows(
 
 
 
+<div style="margin-bottom:70px;">
+</div>
+
 ## Crossing direction effect in phenotypic variability
 
 We statistically compared lnCVR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
@@ -2173,9 +2234,8 @@ bind_rows(
 
 
 
-
-
-
+<div style="margin-bottom:180px;">
+</div>
 # Novel phenotype expression
 
 ## Frequency
@@ -2272,17 +2332,11 @@ summary %>%
 
 ```
 
+<div style="margin-bottom:70px;">
+</div>
 
-## Factors affect phenotypic novelty
-We checked robustness of results by conducting identical analysis for `insect` data (removing vertebrate data). <br>
-
-Model included following random effects:
-* `Study.ID`: Primary studies
-* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations
-* `spL.name`: Phylogeny of parental species (<i>spLL</i>)
-* `SE.units`: Sampling variance of effect size
-
-```{r, results = 'asis'}
+### Phylogeny
+```{r, fig.height = 6.5}
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Create tree based on Open Tree of Life taxonomy
@@ -2329,7 +2383,6 @@ Model included following random effects:
 # compute branch lengths of tree
 phylo_branch <- read.tree(file = "../data/phylo.mean.Novelty.tre") %>%
   compute.brlen(method = "Grafen", power = 1)
-plot(phylo_branch)
 
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
@@ -2337,6 +2390,31 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 # generating inverse phylogenetic matrix for MCMCglmm
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+# Plot tree
+plot.phylo(phylo_branch, cex = 0.7)
+
+```
+<br>
+Phylogenetic tree used. Tree was created for <i>spLL<sub>M</sub></i>
+
+<div style="margin-bottom:70px;">
+</div>
+
+## Factors affect phenotypic novelty
+We checked robustness of results by conducting identical analysis for `insect` data (removing vertebrate data). <br>
+
+Model included following random effects:
+
+* `Study.ID`: Primary studies
+
+* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations
+
+* `spL.name`: Phylogeny of parental species (<i>spLL<sub>M</sub></i>)
+
+* `SE.units`: Sampling variance of effect size
+
+```{r, results = 'asis'}
 
 # Correcting estimate of binomial regression
 c2 <- (16 * sqrt(3)/(15 * pi))^2
@@ -2504,9 +2582,13 @@ print(metaplot)
 ```
 While one of significant moderators (`Reciprocal hybrids`) become no longer significant in `insect` data, effects are qualitatively the same in sign. 
 
-### Effect of significant moderators 
 
-```{r}
+<div style="margin-bottom:70px;">
+</div>
+
+### Effects of significant moderators 
+
+```{r, fig.height = 3.5, fig.width = 3.3}
 
 # +++++++++++++++++++++++++++++++++++++++++++#
 # To set raw metadata in X axis, reload raw metadata and combine to novelty dataset
@@ -2640,7 +2722,7 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
 
 ```
 
-```{r, results='asis'}
+```{r, results='asis', fig.height = 3, fig.width = 6}
 
 for (i in c("Reciprocal", "trait.type")) {
 
@@ -2758,7 +2840,8 @@ for (i in c("Reciprocal", "trait.type")) {
 
 
 
-
+<div style="margin-bottom:180px;">
+</div>
 # Novel variability expression
 
 ## Frequency
@@ -2766,68 +2849,6 @@ for (i in c("Reciprocal", "trait.type")) {
 ```{r}
 
 dat.full <- read.csv("../data/variation.ES.Novelty.csv", head = TRUE)
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-# Read create tree based on Open Tree of Life taxonomy
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-
-# # matching names from open tree taxonomy
-# taxa <- tnrs_match_names(
-#   names = levels(dat.full$spL.name) %>%
-#     str_replace_all("_", " "),
-#   context_name = "Animals"
-#   )
-# 
-# # fixing names with more than 1 match after checking duplicated matches
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
-# taxa[taxa$number_matches != 1, ][1,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
-# taxa[taxa$number_matches != 1, ][2,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
-# taxa[taxa$number_matches != 1, ][3,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
-# taxa[taxa$number_matches != 1, ][4,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
-# 
-# # Create tree
-# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-# tree$tip.label %<>%
-#   strip_ott_ids # remove OTT IDs from tip labels
-# # randomly solve non-binary phylogeny
-# set.seed(6)
-# bin.tree <- multi2di(tree, random = T)
-# 
-# # Indicate mismatch between tip labels & dataset species names
-# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
-# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
-# # Fix names of tip labels
-# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
-# 
-# write.tree(bin.tree, file= "../data/phylo.variation.Novelty.tre")
-
-#++++++++++++++++++++++++++++++++++#
-# Phylogenetic tree for mcmcglmm 
-#++++++++++++++++++++++++++++++++++#
-
-# compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.variation.Novelty.tre") %>%
-  compute.brlen(method = "Grafen", power = 1)
-print("Randomly solved phylogeny")
-plot(phylo_branch)
-
-# saving phylogeneic matrix
-phylo_cor <- vcv(phylo_branch, cor = T)
-
-# generating inverse phylogenetic matrix for MCMCglmm
-phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
-
-```
-
-```{r}
 
 ### N of TS in each taxa and each direction ###
 summary <- bind_rows(
@@ -2917,14 +2938,90 @@ summary %>%
 
 ```
 
+<div style="margin-bottom:70px;">
+</div>
+
+### Phylogeny
+
+```{r, fig.height = 6.5}
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Read create tree based on Open Tree of Life taxonomy
+#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+# # matching names from open tree taxonomy
+# taxa <- tnrs_match_names(
+#   names = levels(dat.full$spL.name) %>%
+#     str_replace_all("_", " "),
+#   context_name = "Animals"
+#   )
+# 
+# # fixing names with more than 1 match after checking duplicated matches
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
+# taxa[taxa$number_matches != 1, ][1,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
+# taxa[taxa$number_matches != 1, ][2,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
+# taxa[taxa$number_matches != 1, ][3,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
+# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
+# taxa[taxa$number_matches != 1, ][4,] <-
+#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
+# 
+# # Create tree
+# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
+# tree$tip.label %<>%
+#   strip_ott_ids # remove OTT IDs from tip labels
+# # randomly solve non-binary phylogeny
+# set.seed(6)
+# bin.tree <- multi2di(tree, random = T)
+# 
+# # Indicate mismatch between tip labels & dataset species names
+# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
+# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
+# # Fix names of tip labels
+# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
+# 
+# write.tree(bin.tree, file= "../data/phylo.variation.Novelty.tre")
+
+#++++++++++++++++++++++++++++++++++#
+# Phylogenetic tree for mcmcglmm 
+#++++++++++++++++++++++++++++++++++#
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.variation.Novelty.tre") %>%
+  compute.brlen(method = "Grafen", power = 1)
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# generating inverse phylogenetic matrix for MCMCglmm
+phylo_branch$node.label <- NULL
+phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+# Plot tree
+plot.phylo(phylo_branch, cex = 0.7)
+
+```
+<br>
+Phylogetic tree used in the analyses. Tree was created for <i>spLL<sub>V</sub></i>.
+
+<div style="margin-bottom:70px;">
+</div>
 
 ## Factors affect novel variability
 We checked robustness of results by conducting identical analysis for `insect` data (removing vertebrate data). <br>
 
 Model included following random effects:
+
 * `Study.ID`: Primary studies
+
 * `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations
-* `spL.name`: Phylogeny of parental species (<i>spLL</i>)
+
+* `spL.name`: Phylogeny of parental species (<i>spLL<sub>V</sub></i>)
+
 * `SE.units`: Sampling variance of effect size
 
 ```{r, results='asis'}
@@ -3098,10 +3195,12 @@ for (k in c("alltaxon", "insect")) {
 ```
 While significant moderators become no longer significant in `insect` data, effects are qualitatively the same in sign.  
 
+<div style="margin-bottom:70px;">
+</div>
 
-### Effect of significant moderators 
+### Effects of significant moderators 
 
-```{r}
+```{r, fig.height = 3.5, fig.width = 3.3}
 
 # +++++++++++++++++++++++++++++++++++++++++++#
 # To set raw metadata in X axis, reload raw metadata and combine to transgression dataset
@@ -3238,7 +3337,7 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
 
 ```
 
-```{r, results='asis'}
+```{r, results='asis', fig.height = 3, fig.width = 6}
 
 for (i in c("Reciprocal", "trait.type")) {
 
@@ -3354,13 +3453,14 @@ for (i in c("Reciprocal", "trait.type")) {
 
 ```
 
-
-
-
+<div style="margin-bottom:180px;">
+</div>
 
 # Phenotypic variability of novel phenotype
 
-```{r}
+### Dataset summary
+
+```{r, results='asis'}
 
 dat <- read.csv("../data/dat.novelty.csv", head = TRUE) %>% 
   mutate_at(vars("mean.novelty", "relative.var"), as.factor) %>% 
@@ -3370,6 +3470,31 @@ dat <- read.csv("../data/dat.novelty.csv", head = TRUE) %>%
     mean.novelty <- 
       ordered(mean.novelty, levels = c("Nonnovel", "Novel"))
   )
+
+dat %>% 
+  group_by(mean.novelty, relative.var) %>% 
+  summarise('N (Trait observation)' = length(ES.ID)) %>% 
+  spread(key = mean.novelty, value = 'N (Trait observation)') %>%
+  as.data.frame() %>%
+  rename(
+    'Relative variability' = 'relative.var'
+    ) %>%
+  mutate(
+    "Non-novel phenotype (% trait obs)" = 
+      Nonnovel/sum(Nonnovel)*100, 
+    "Novel phenotype (% trait obs)" = 
+      Novel/sum(Novel)*100
+  ) %>%
+  kable("html", digits = 1) %>% kable_styling("striped", position = "left")
+
+```
+
+<div style="margin-bottom:70px;">
+</div>
+
+### Phylogeny
+
+```{r, fig.height = 6.5}
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Read create tree based on Open Tree of Life taxonomy
@@ -3406,7 +3531,8 @@ dat <- read.csv("../data/dat.novelty.csv", head = TRUE) %>%
 # compute branch lengths of tree
 phylo_branch <- read.tree(file = "../data/phylo.novelty.tre") %>%
   compute.brlen(method = "Grafen", power = 1)
-plot(phylo_branch)
+plot.phylo(phylo_branch, cex = 0.7)
+
 
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
@@ -3415,24 +3541,13 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
-
-dat %>% 
-  group_by(mean.novelty, relative.var) %>% 
-  summarise('N (Trait observation)' = length(ES.ID)) %>% 
-  spread(key = mean.novelty, value = 'N (Trait observation)') %>%
-  as.data.frame() %>%
-  rename(
-    'Relative variability' = 'relative.var'
-    ) %>%
-  mutate(
-    "Non-novel phenotype (% trait obs)" = 
-      Nonnovel/sum(Nonnovel)*100, 
-    "Novel phenotype (% trait obs)" = 
-      Novel/sum(Novel)*100
-  ) %>%
-  kable("html", digits = 1) %>% kable_styling("striped", position = "left")
-
 ```
+<br>
+Phylogenetic tree used. Tree was created for <i>sp1</i>, irrespective of the relative trait size and variability compared to the other parent species.
+
+<div style="margin-bottom:70px;">
+</div>
+
 
 ## Phylogenetic ordinal (probit) regression
 ```{r}
@@ -3497,7 +3612,8 @@ summary(phylmix$VCV/(1+c2))$statistics %>%
 ```
 
 
-
+<div style="margin-bottom:180px;">
+</div>
 # Session information
 ```{r}
 sessionInfo()  # show R version etc
