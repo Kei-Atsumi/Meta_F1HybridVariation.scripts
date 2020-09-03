@@ -3533,7 +3533,6 @@ phylo_branch <- read.tree(file = "../data/phylo.novelty.tre") %>%
   compute.brlen(method = "Grafen", power = 1)
 plot.phylo(phylo_branch, cex = 0.7)
 
-
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
 
@@ -3610,6 +3609,132 @@ summary(phylmix$VCV/(1+c2))$statistics %>%
   kable_styling("striped", position = "left")
 
 ```
+
+<div style="margin-bottom:180px;">
+</div>
+# Mismatch dominance
+
+```{r}
+
+dat <- original.dat %>%
+  select(Study.ID, Cross.ID, taxa, Genus, contains("Mn")) %>%
+  # Gather reciprocal hybrid data
+  gather(
+    key = Hybrid, value = Mn.hybrid, 
+    -c(Study.ID, Cross.ID, taxa, Genus), -contains("Mn.sp")
+    ) %>%
+  drop_na(Mn.hybrid) %>%
+  # Calculate standardized hybrid phenotype mean
+  mutate(
+    Dominance = ifelse(
+      Mn.sp1 > Mn.sp2, 
+      (Mn.hybrid - Mn.sp2)/abs(Mn.sp1 - Mn.sp2),
+      (Mn.hybrid - Mn.sp1)/abs(Mn.sp1 - Mn.sp2)
+    )
+  ) %>%
+  mutate_at("Cross.ID", as.factor) %>%
+  arrange(taxa, Genus, Cross.ID, Hybrid) %>%
+  # only get crosses with > 2 traits
+  # Reciprocal hybrids are separated
+  group_by(Cross.ID, Hybrid, taxa, Genus, Study.ID) %>%
+  filter(n() > 2) %>%
+  # Create all combinations of standardized hybrid phenotype mean
+  do(data.frame(t(combn(.$Dominance, 2)))) %>%
+  # Calculate dominance mismatch
+  mutate(
+    Mismatch = sqrt(2) * sqrt( X1^2 + X2^2 - ( (X1 + X2) / sqrt(2) )^2 ),
+    Mismatch.log = log(Mismatch)
+  ) %>%
+  left_join(meta) %>%
+  mutate_if(is.character, as.factor) %>%
+  within(taxa <- ordered(taxa, levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes"))) %>%
+  as.data.frame
+
+dat %>% 
+  summarise(
+    'Trait combination' = length(X1),
+    'Species pair' = length(unique(species.pair)),
+    'Crossing' = length(unique(Cross.ID))
+    ) %>% 
+  kable("html") %>% kable_styling("striped", position = "left")
+
+ggplot(data = dat, aes(x = Cross.ID, y = Mismatch)) +
+  geom_point(alpha = 0.4, aes(color = Hybrid)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~taxa, scales = "free")
+
+ggplot(
+  data = dat %>%
+    filter(!grepl("musculus", Cross.ID)), 
+  aes(x = Cross.ID, y = Mismatch)) +
+  geom_point(alpha = 0.4, aes(color = Hybrid)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~taxa, scales = "free")
+
+ggplot(data = dat, aes(x = Cross.ID, y = Mismatch.log)) +
+  geom_point(alpha = 0.4, aes(color = Hybrid)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid(~taxa, scales = "free")
+
+#++++++++++++++++++++++++++++++++++#
+# Phylogenetic tree for mcmcglmm 
+#++++++++++++++++++++++++++++++++++#
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.novelty.tre") %>%
+  compute.brlen(method = "Grafen", power = 1)
+plot.phylo(phylo_branch, cex = 0.7)
+
+# # saving phylogeneic matrix
+# phylo_cor <- vcv(phylo_branch, cor = T)
+# 
+# # generating inverse phylogenetic matrix for MCMCglmm
+# phylo_branch$node.label <- NULL
+# phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+dat2 <- drop_na(dat, Mismatch.log)
+
+#++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# MCMCglmm for phylogenetic comparative analysis
+#++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+# ### Log mismatch data ###
+# phylmix <-MCMCglmm(
+#   fixed = Mismatch.log ~  1,
+#   # idh(SE):units | weight by SE of effect size
+#   random = ~ Study.ID + sp1.name + Cross.ID + Hybrid,
+#   verbose = FALSE,
+#   ginverse = list(sp1.name = phylo_MCMC),
+#   data = dat2
+# )
+# saveRDS(phylmix, file = "../Analysis/mismatch.log.obj")
+
+# ### Log mismatch data ###
+# phylmix <-MCMCglmm(
+#   fixed = Mismatch ~  1,
+#   # idh(SE):units | weight by SE of effect size
+#   random = ~ Study.ID + sp1.name + Cross.ID + Hybrid,
+#   verbose = FALSE,
+#   ginverse = list(sp1.name = phylo_MCMC),
+#   data = dat
+# )
+# saveRDS(phylmix, file = "../Analysis/mismatch.obj")
+
+### Load model ###
+phylmix <- readRDS("../Analysis/mismatch.obj")
+
+### Fixed effects output ###
+print("Mean mismatch domminance considering heterogeneity through study, phylogeny, crossed strain and cross direction")
+summary(phylmix)$solutions
+
+### Random effects output ###  
+summary(phylmix$VCV)$statistics %>%
+  as.data.frame %>%
+  kable("html", digits = 3, caption = "Random effects") %>% 
+  kable_styling("striped", position = "left")
+
+```
+
 
 
 <div style="margin-bottom:180px;">
