@@ -52,7 +52,6 @@ knitr::opts_chunk$set(
   tidy    = TRUE
   ) 
 options(knitr.kable.NA = '') # Hide NAs in kable table
-
 ```
 
 
@@ -241,7 +240,6 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 ## Table of the dataset
 
-**Extended Data Table 3:** 
 The phenotypic dataset of this study.
 
 ```{r, results = 'asis'}
@@ -312,18 +310,16 @@ kable(pheno, "html") %>% kable_styling("striped", position = "left") %>%
 
 **Pheno.divergence**: Phenotypic divergence between parents in the focal trait, which is calculated as absolute value of log response ratio (lnRR) of phenotypic means. Used in regressions bellow as a moderator.
 
+<div style="margin-bottom:70px;">
+</div>
 
 
-**Extended Data Table 3:** 
 The species-level moderator dataset of this study.
 
 ```{r, results = 'asis'}
 
-#+++++++++++++++++++++++++#
-# Metadata
-#+++++++++++++++++++++++++#
 meta <- read.xlsx(
-    "../data/original.data.xlsx", sheet = "Metadata"
+    "../data/original.data.xlsx", sheet = "Species.level.data"
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   # Logalize genetic divergence
@@ -334,9 +330,9 @@ kable(meta, "html") %>% kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px")
   
 
-#+++++++++++++++++++++++++++++++++
-# Combine phenotypic and metadata
-#+++++++++++++++++++++++++++++++++
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Combine phenotypic data and moderators data
+#++++++++++++++++++++++++++++++++++++++++++++++
 original.dat <- left_join(pheno, meta)
 # add unique ID for each effect size (row)
 original.dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(original.dat)[1])), sep="")
@@ -488,8 +484,8 @@ plot.all
 <div style="margin-bottom:70px;">
 </div>
 
-## Metadata
-
+## Taxonomic distribution of species-level moderator status
+Summarised distributions of categorical species-level moderators in each taxon (order).
 ```{r, results='asis'}
 
 metavars <- c("Reciprocal", "Distribution", "Hetero.sex")
@@ -538,7 +534,6 @@ for (i in metavars) {
 </div>
 
 ## Data used in meta-regression (all metadata available)
-
 ```{r}
 
 full_join(
@@ -557,7 +552,8 @@ full_join(
     summarise('Metadata available' = length(species.pair))
   ) %>%
   mutate_all(~replace(., is.na(.), 0)) %>% # replace NA by 0
-  kable("html") %>% 
+  kable("html", caption = "Numbers of all species pairs, and species pairs used in meta-regression
+") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -834,7 +830,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-2, 4))
 ```
 
 ### Check data
-Checked data of extremely high/low standard error (SE > 1.2 | 1/SE > 140) and confirmed that those data were correctly imported. 
+Checked effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 140) and confirmed that those data were correctly imported. 
 
 ```{r, results='asis'}
 
@@ -847,11 +843,15 @@ outliers <- mean.dif %>%
   mutate_if(is.numeric, round, 3)
 
 outliers %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 140)") %>% 
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ```
+
 Because those outliers did not affect meta-analytic model convergence, we did not exclude those data.
+<div style="margin-bottom:70px;">
+</div>
 
 ### Judging novel phenotype expression 
 
@@ -958,7 +958,7 @@ bind_rows(
   mutate(Novelty = ifelse(lnRR.es < 0, 1, 0)) %>%
   ### Join with metadata ###
   left_join(
-    ., read.xlsx("../data/original.data.xlsx", sheet = "Metadata")
+    ., read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data")
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   mutate_at(vars(contains("divergence")), scale) %>%
@@ -1086,7 +1086,7 @@ As the variance of $\ln\frac{spLL_M+spSS_M}{2spSS_M}$, we use the variance of $\
 
 We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor` <br>
 
-All meta-analytic models included following random effects:
+All meta-analytic models included following Random effects estimates: 
 
 * `Study.ID`: Primary studies. Denoted as **Study**
 
@@ -1207,7 +1207,8 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ### Midparent meta-analysis result for plot below ###
@@ -1232,6 +1233,18 @@ Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
 *Prediction interval : thin line
 
 ```{r, fig.height = 4, fig.width = 6}
+
+cap <- data.frame(
+  Description = c(
+    "Orchard plot for full data \n(Alltraits alltaxon)", 
+    "Orchard plot for subset data:\n Excluding vertebrates \n(Alltraits insect)",
+    "Orchard plot for subset data:\n Including all taxon but excluding novel phenotype \n(Nonnoveltraits alltaxon)",
+    "Orchard plot for subset data:\n Excluding vertebrates and novel phenotype\n (Nonnoveltraits insect)"
+    )
+  ) %>%
+  mutate_all(as.character)
+row.names(cap) <- c("Alltraits.alltaxon", "Alltraits.insect", 
+             "Nonnoveltraits.alltaxon", "Nonnoveltraits.insect")
 
 for (j in c("Alltraits", "Nonnoveltraits")) {
   for (k in c("alltaxon", "insect")) {
@@ -1365,6 +1378,7 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
         paste("hyperbolic tangent of lnRR from ", italic("spSS")), 
         parse = TRUE
         )) +
+      ggtitle(cap[paste(j,k,sep="."),]) +
       orchardtheme 
 
     print(plot.metamean)
@@ -1385,7 +1399,8 @@ bind_rows(
   as.data.frame() %>%
   # mutate_at(vars('Estimate':'%I2[residual]'), as.numeric) %>%
   # select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ```
@@ -1477,7 +1492,8 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ```
@@ -1558,7 +1574,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
 
 ### Check data
 
-Checked data of extremely high/low standard error (SE > 1.2 | 1/SE > 8.5) and confirmed that those data were correctly imported. 
+Checked effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 8.5) and confirmed that those data were correctly imported. 
 
 ```{r, results='asis'}
 
@@ -1571,7 +1587,7 @@ outliers <- CV.dif %>%
   mutate_if(is.numeric, round, 3)
 
 outliers %>%
-  kable("html", digits = 3) %>% 
+  kable("html", digits = 3, caption = "Effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 140)") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -1703,7 +1719,7 @@ bind_rows(
   left_join(
     .,
     read.xlsx(
-      "../data/original.data.xlsx", sheet = "Metadata"
+      "../data/original.data.xlsx", sheet = "Species.level.data"
       )
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
@@ -1817,7 +1833,7 @@ It's sampling variance was substitute by that of <i>spLL<sub>V</sub></i> <br>
 
 We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor` <br>
 
-All meta-analytic models included following random effects:
+All meta-analytic models included following Random effects estimates: 
 
 * `Study.ID`: Primary studies. Denoted as **Study**
 
@@ -1959,7 +1975,8 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>%
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 
@@ -2112,6 +2129,7 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
         paste("hyperbolic tangent of lnCVR from ", italic("spSS")),
         parse = TRUE
         )) +
+      ggtitle(cap[paste(j,k,sep="."),]) +
       orchardtheme 
     
     print(plot.metamean)
@@ -2131,7 +2149,8 @@ bind_rows(
   ) %>%
   as.data.frame() %>%
   select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ```
@@ -2222,7 +2241,8 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ```
@@ -2303,7 +2323,8 @@ plot <- ggplot(
     ) +
   xlab("") + ylab("") +
   stackedbartheme
-plot
+plot +
+  ggtitle("Taxonomic distribution of novel phenotype expression")
 
 # ggsave(
 #   plot = plot, 
@@ -2323,7 +2344,8 @@ summary %>%
     'Observaton %' = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3, caption = "Summary of the novel phenotype expression frequency") %>% 
+  kable_styling("striped", position = "left")
 
 ```
 
@@ -2397,9 +2419,9 @@ Phylogenetic tree used. Tree was created for <i>spLL<sub>M</sub></i>
 </div>
 
 ## Factors affect phenotypic novelty
-We checked robustness of results by conducting identical analysis for `insect` data (removing vertebrate data). <br>
+We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
 
-Model included following random effects:
+Model, which was ran using `MCMCglmm` function, included following Random effects estimates: 
 
 * `Study.ID`: Primary studies
 
@@ -2408,6 +2430,8 @@ Model included following random effects:
 * `spL.name`: Phylogeny of parental species (<i>spLL<sub>M</sub></i>)
 
 * `SE.units`: Sampling variance of effect size
+
+The moderators were categorised into 3 subsets: main effects (labelled as `novel phenotype expression`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
 
 ```{r, results = 'asis'}
 
@@ -2533,7 +2557,7 @@ sum <- left_join(
     geom_point(size = 1, aes(colour = significance)) +
     scale_fill_manual(values = c("grey60", "black")) +
     # Title
-    ggtitle(k) +
+    ggtitle(paste("Fixed effects estimates using", k, "data")) +
     ylab("") + xlab("Estimate with 95% CI") +
     # Combine different plots for main factors and interactions
     facet_grid(
@@ -2544,18 +2568,18 @@ sum <- left_join(
     foresttheme
 print(metaplot)
 
-  ggsave(
-      plot = metaplot,
-      file = paste("../Analysis/mean.novelty.result", k, "svg", sep = "."),
-      height = 4.7, width = 4.0
-      )
+  # ggsave(
+  #     plot = metaplot,
+  #     file = paste("../Analysis/mean.novelty.result", k, "svg", sep = "."),
+  #     height = 4.7, width = 4.0
+  #     )
 
   ### Output result ###
   sum %>% 
     select(group, factors, Mean, SD, pMCMC, significance) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
     kable("html", digits = 3, 
-          caption = paste("Fixed effects:", k, "data", " ")
+          caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
@@ -2567,7 +2591,7 @@ print(metaplot)
   summary(phylmix$VCV/(1+c2))$statistics %>%
     as.data.frame %>%
     kable("html", digits = 3,
-          caption = paste("Random effects:", k, "data", " ")
+          caption = paste("Random effects estimates: ", k, "data", " ")
           ) %>% 
     kable_styling("striped", position = "left") %>%
     print()
@@ -2575,13 +2599,14 @@ print(metaplot)
 }
 
 ```
-While one of significant moderators (`Reciprocal hybrids`) become no longer significant in `insect` data, effects are qualitatively the same in sign. 
+While one of significant moderators (`Reciprocal hybrids`) become no longer significant in `insect` subset data, effects are qualitatively the same in sign. 
 
 
 <div style="margin-bottom:70px;">
 </div>
 
 ### Effects of significant moderators 
+To visually interpret the impacts of significant moderators, we additionally conducted simpler models for each significant factor. As moderators, we included the focal factors, the compared parental species – spLL or spSS, and the interaction between them. Response variables and random effects of simper models were identical to full models. 
 
 ```{r, fig.height = 3.5, fig.width = 3.3}
 
@@ -2594,7 +2619,7 @@ rawdat <- dat.full %>%
   mutate(Pheno.divergence = log(Mn.spL/Mn.spS)) %>%
   left_join(
     .,
-    read.xlsx("../data/original.data.xlsx", sheet = "Metadata") %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data") %>%
       select(Cross.ID, Genet.divergence)
     ) %>%
   # Natural log of genetic distance
@@ -2909,7 +2934,8 @@ plot <- ggplot(
     ) +
   xlab("") + ylab("") +
   stackedbartheme
-plot
+plot +
+  ggtitle("Taxonomic distribution of novel variability expression")
 
 # ggsave(
 #   plot = plot,
@@ -2929,7 +2955,8 @@ summary %>%
     'Observaton %' = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3, caption = "Summary of the novel variability expression frequency") %>% 
+  kable_styling("striped", position = "left")
 
 ```
 
@@ -3007,9 +3034,9 @@ Phylogetic tree used in the analyses. Tree was created for <i>spLL<sub>V</sub></
 </div>
 
 ## Factors affect novel variability
-We checked robustness of results by conducting identical analysis for `insect` data (removing vertebrate data). <br>
+We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
 
-Model included following random effects:
+Model, which was ran using `MCMCglmm` function, included following Random effects estimates: 
 
 * `Study.ID`: Primary studies
 
@@ -3018,6 +3045,8 @@ Model included following random effects:
 * `spL.name`: Phylogeny of parental species (<i>spLL<sub>V</sub></i>)
 
 * `SE.units`: Sampling variance of effect size
+
+The moderators were categorised into 3 subsets: main effects (labelled as `novel variability expression`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
 
 ```{r, results='asis'}
 
@@ -3146,7 +3175,7 @@ for (k in c("alltaxon", "insect")) {
     geom_point(size = 1, aes(colour = significance)) +
     scale_fill_manual(values = c("grey60", "black")) +
     # Title
-    ggtitle(k) +
+    ggtitle(paste("Fixed effects estimates using", k, "data")) +
     ylab("") + xlab("Estimate with 95% CI") +
     # Combine different plots for main factors and interactions
     facet_grid(
@@ -3180,7 +3209,7 @@ for (k in c("alltaxon", "insect")) {
   summary(phylmix$VCV/(1+c2))$statistics %>%
     as.data.frame %>%
     kable("html", digits = 3,
-          caption = paste("Random effects:", k, "data", " ")
+          caption = paste("Random effects estimates: ", k, "data", " ")
           ) %>% 
     kable_styling("striped", position = "left") %>%
     print()
@@ -3188,12 +3217,13 @@ for (k in c("alltaxon", "insect")) {
 }
 
 ```
-While significant moderators become no longer significant in `insect` data, effects are qualitatively the same in sign.  
+While significant moderators become no longer significant in `insect` subset data, effects are qualitatively the same in sign.  
 
 <div style="margin-bottom:70px;">
 </div>
 
 ### Effects of significant moderators 
+To visually interpret the impacts of significant moderators, we additionally conducted simpler models for each significant factor. As moderators, we included the focal factors, the compared parental species – spLL or spSS, and the interaction between them. Response variables and random effects of simper models were identical to full models. 
 
 ```{r, fig.height = 3.5, fig.width = 3.3}
 
@@ -3206,7 +3236,7 @@ rawdat <- dat.full %>%
   mutate(Pheno.divergence = abs(log(Mn.spL/Mn.spS))) %>%
   left_join(
     .,
-    read.xlsx("../data/original.data.xlsx", sheet = "Metadata") %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data") %>%
       select(Cross.ID, Genet.divergence)
     ) %>%
   # Natural log of genetic distance
@@ -3455,6 +3485,13 @@ for (i in c("Reciprocal", "trait.type")) {
 
 ### Dataset summary
 
+Relative variability indicates F1 hybrids' phenotypic variability size (CV) compared to those of parents. <br>
+* Smaller: smaller variability than of both parents
+
+* Intermediate: intermediate between parents' variability 
+
+* Larger: larger variability than of both parents
+
 ```{r, results='asis'}
 
 dat <- read.csv("../data/dat.novelty.csv", head = TRUE) %>% 
@@ -3466,21 +3503,55 @@ dat <- read.csv("../data/dat.novelty.csv", head = TRUE) %>%
       ordered(mean.novelty, levels = c("Nonnovel", "Novel"))
   )
 
-dat %>% 
+dat.relat.var <- dat %>% 
   group_by(mean.novelty, relative.var) %>% 
   summarise('N (Trait observation)' = length(ES.ID)) %>% 
   spread(key = mean.novelty, value = 'N (Trait observation)') %>%
   as.data.frame() %>%
-  rename(
-    'Relative variability' = 'relative.var'
-    ) %>%
   mutate(
-    "Non-novel phenotype (% trait obs)" = 
+    "Nonnovel phenotype (% trait obs)" = 
       Nonnovel/sum(Nonnovel)*100, 
     "Novel phenotype (% trait obs)" = 
-      Novel/sum(Novel)*100
+      Novel/sum(Novel)*100,
+    Trait.count = Nonnovel + Novel # N of traits at each variability levels
   ) %>%
-  kable("html", digits = 1) %>% kable_styling("striped", position = "left")
+  rename('Relative.variability' = 'relative.var')
+
+ggplot(
+  dat.relat.var %>%
+    dplyr::select(-contains("trait obs"), -Trait.count) %>%
+    pivot_longer(
+      col = -Relative.variability,
+      names_to = "Phenotypic.novelty",
+      values_to = "Count"
+      ) %>%
+    left_join(dat.relat.var) %>%
+    as.data.frame %>%
+    mutate_at("Phenotypic.novelty", as.factor),
+  aes(
+    y = Count, 
+    x = Trait.count/2,  # ensure each pie chart is "left-aligned"
+    width = Trait.count, # sample size (N of traits at each variability levels)
+    fill = Phenotypic.novelty
+    )
+  ) +
+  geom_bar(position="fill", stat = "identity") +
+  facet_grid(~ Relative.variability) +
+  # Pie chart
+  coord_polar("y") +
+  ggtitle("Novel and non-novel phenotypes occupancies at
+          each relative variability levels") +
+  xlab("Trait counts") + ylab("Relative variability levels") +
+  theme(axis.text.x = element_blank())
+
+
+dat.relat.var %>%
+  rename(
+  'Nonnovel.phenotype (N)' = 'Nonnovel',
+  'Novel.phenotype (N)' = 'Novel'
+  ) %>%
+  kable("html", digits = 1, caption = "Dataset summary") %>%
+  kable_styling("striped", position = "left")
 
 ```
 
@@ -3544,6 +3615,19 @@ Phylogenetic tree used. Tree was created for <i>sp1</i>, irrespective of the rel
 
 
 ## Phylogenetic ordinal (probit) regression
+Here we ask if phenotypic novelty associate with relative variability levels. We conducted ordinal regression, employing categorical ordered variability levels (smaller < intermediate < larger, see above) as response variable, and categorical trait mean novelty levels (fixed effect `mean.novelty` with 2 levels: `Novel` vs `Nonnovel`) as moderator variable, using `MCMCglmm` function. 
+The model included following Random effects estimates: 
+
+* `Study.ID`: Primary studies
+
+* `sp1.name`: Phylogeny of parental species
+
+* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations
+
+* `cross`: Crossing direction
+
+* `SE.units`: Sampling variance of effect size
+
 ```{r}
 
 # prior1<-list(
@@ -3556,6 +3640,7 @@ Phylogenetic tree used. Tree was created for <i>sp1</i>, irrespective of the rel
 #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
 #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
 #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
+#     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
 #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
 #     )
 #   )
@@ -3563,7 +3648,7 @@ Phylogenetic tree used. Tree was created for <i>sp1</i>, irrespective of the rel
 # phylmix <-MCMCglmm(
 #   fixed = relative.var ~ mean.novelty,
 #   family = "ordinal",
-#   random = ~ Study.ID + Cross.ID + sp1.name + ES.ID,
+#   random = ~ Study.ID + Cross.ID + sp1.name + cross + ES.ID,
 #   verbose = FALSE,
 #   prior = prior1,
 #   ginverse = list(sp1.name = phylo_MCMC),
@@ -3571,7 +3656,7 @@ Phylogenetic tree used. Tree was created for <i>sp1</i>, irrespective of the rel
 #   nitt = 60000,  # Increase the number of iterations, default is 13000
 #   burnin = 5000  # Increase the number of burnin, default is 3000
 #   )
-
+# 
 # ### Save model ###
 # saveRDS(phylmix, file = "../Analysis/novelty.mean.var.obj")
 
@@ -3591,7 +3676,7 @@ left_join(
   by = "factors"
   ) %>%
   mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
-  kable("html", digits = 3, caption = "Fixed effects") %>% 
+  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
   kable_styling("striped", position = "left")
 
 ### Random effects output ###  
@@ -3600,10 +3685,13 @@ left_join(
 # transformation for varaince
 summary(phylmix$VCV/(1+c2))$statistics %>%
   as.data.frame %>%
-  kable("html", digits = 3, caption = "Random effects") %>% 
+  kable("html", digits = 3, caption = "Random effects estimates") %>% 
   kable_styling("striped", position = "left")
 
 ```
+
+The phenotypic novelty (`mean.noveltyNovel`) influenced positively. This indicates that, compared to non-novel phenotypes, novel phenotypes have greater chances to be more variable than parents' phenotypes. 
+
 
 <div style="margin-bottom:180px;">
 </div>
@@ -3662,7 +3750,7 @@ dat <- original.dat %>%
 <div style="margin-bottom:70px;">
 </div>
 
-## Plot d<sub>mismatch</sub> 
+## Distribution of d<sub>mismatch</sub> 
 
 ```{r}
 
@@ -3672,14 +3760,15 @@ dat %>%
     'Species pair' = length(unique(species.pair)),
     'Crossing' = length(unique(Cross.ID))
     ) %>% 
-  kable("html", caption = "Dataset") %>% kable_styling("striped", position = "left")
+  kable("html", caption = "Dataset summary") %>% 
+  kable_styling("striped", position = "left")
 
 ggplot(data = dat, aes(x = Cross.ID, y = Mismatch)) +
   geom_point(alpha = 0.4, aes(color = Hybrid)) +
   xlab("Cross ID") + ylab("dmismatch") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   facet_grid(~taxa, scales = "free") +
-  ggtitle("All dmismatch values")
+  ggtitle("All dmismatch values across orders")
 
 ggplot(
   data = dat %>%
@@ -3689,7 +3778,7 @@ ggplot(
   geom_point(alpha = 0.4, aes(color = Hybrid)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   facet_grid(~taxa, scales = "free") +
-  ggtitle("dmismatch excluding Rodentia")
+  ggtitle("dmismatch across orders excluding Rodentia")
 
 ```
 d<sub>mismatch</sub> is quite large in crossing involving mices (Rodentia), due to large trait value.
@@ -3701,7 +3790,7 @@ d<sub>mismatch</sub> is quite large in crossing involving mices (Rodentia), due 
 
 Estimated mean d<sub>mismatch</sub> across all studies by phylogenetic random model (using `MCMCglmm` function).<br>
 
-The model included following random effects:
+The model included following Random effects estimates: 
 
 * `Study.ID`: Primary studies
 
@@ -3746,14 +3835,14 @@ plot.phylo(phylo_branch, cex = 0.7)
 phylmix <- readRDS("../Analysis/mismatch.obj")
 
 ### Fixed effects output ###
-print("Mean dmismatch value")
 summary(phylmix)$solutions %>% 
-  kable("html") %>% kable_styling("striped", position = "left")
+  kable("html", caption = "Mean dmismatch value (Fixed effects estimates)") %>% 
+  kable_styling("striped", position = "left")
 
 ### Random effects output ###  
 summary(phylmix$VCV)$statistics %>%
   as.data.frame %>%
-  kable("html", digits = 3, caption = "Random effects") %>% 
+  kable("html", digits = 3, caption = "Random effects estimates") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -3764,7 +3853,7 @@ Even data included quite large d<sub>mismatch</sub>, overall it did not differ f
 
 ## Regression for raw d<sub>mismatch</sub>
 
-
+We asked if any species-level moderators (Genetic divergence between parents, `Genet.divergence`; Viability of reciprocal cross, `Reciprocal`; Heterogametic sex, `Hetero.sex`; Parents' distribution overlap, `Distribution`) influence d<sub>mismatch</sub> values by phylogenetic random model. Random effects were identical as [above] (## General pattern of mismatch d<sub>mismatch</sub>).
 ```{r}
 
 dat3 <- dat %>%
@@ -3786,12 +3875,13 @@ phylmix <- readRDS("../Analysis/mismatch.reg.obj")
 
 ### Fixed effects output ###
 summary(phylmix)$solutions %>% 
-  kable("html", digits = 3) %>% kable_styling("striped", position = "left")
+  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
+  kable_styling("striped", position = "left")
 
 ### Random effects output ###  
 summary(phylmix$VCV)$statistics %>%
   as.data.frame %>%
-  kable("html", digits = 3, caption = "Random effects") %>% 
+  kable("html", digits = 3, caption = "Random effects estimates") %>% 
   kable_styling("striped", position = "left")
 
 ```
