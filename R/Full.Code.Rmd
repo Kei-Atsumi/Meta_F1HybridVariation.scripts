@@ -1,5 +1,5 @@
 ---
-title: "Title"
+title: "Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids"
 author: "Keisuke Atsumi, Losia Lagisz & Shinichi Nakagawa"
 date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
 output:
@@ -319,7 +319,7 @@ The species-level moderator dataset of this study.
 ```{r, results = 'asis'}
 
 meta <- read.xlsx(
-    "../data/original.data.xlsx", sheet = "Species.level.data"
+    "../data/original.data.xlsx", sheet = "Species.level.moderators"
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   # Logalize genetic divergence
@@ -958,7 +958,7 @@ bind_rows(
   mutate(Novelty = ifelse(lnRR.es < 0, 1, 0)) %>%
   ### Join with metadata ###
   left_join(
-    ., read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data")
+    ., read.xlsx("../data/original.data.xlsx", sheet = "Species.level.moderators")
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   mutate_at(vars(contains("divergence")), scale) %>%
@@ -1719,7 +1719,7 @@ bind_rows(
   left_join(
     .,
     read.xlsx(
-      "../data/original.data.xlsx", sheet = "Species.level.data"
+      "../data/original.data.xlsx", sheet = "Species.level.moderators"
       )
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
@@ -2576,8 +2576,14 @@ print(metaplot)
 
   ### Output result ###
   sum %>% 
-    select(group, factors, Mean, SD, pMCMC, significance) %>%
+    mutate(
+      '95% credible interval' = str_c(
+        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+        sep = "\u2013" # en-dash
+        )
+      ) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
+    select(group, factors, Mean, '95% credible interval', pMCMC, significance) %>%
     kable("html", digits = 3, 
           caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
@@ -2619,7 +2625,7 @@ rawdat <- dat.full %>%
   mutate(Pheno.divergence = log(Mn.spL/Mn.spS)) %>%
   left_join(
     .,
-    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data") %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.moderators") %>%
       select(Cross.ID, Genet.divergence)
     ) %>%
   # Natural log of genetic distance
@@ -3194,10 +3200,16 @@ for (k in c("alltaxon", "insect")) {
   
   ### Output result ###
   sum %>% 
-    select(group, factors, Mean, SD, pMCMC, significance) %>%
+    mutate(
+      '95% credible interval' = str_c(
+        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+        sep = "\u2013" # en-dash
+        )
+      ) %>%
     mutate_at(c("Mean", "SD"), round, 2) %>%
+    select(group, factors, Mean, '95% credible interval', pMCMC, significance) %>%
     kable("html", digits = 3, 
-          caption = paste("Fixed effects:", k, "data", " ")
+          caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
@@ -3236,7 +3248,7 @@ rawdat <- dat.full %>%
   mutate(Pheno.divergence = abs(log(Mn.spL/Mn.spS))) %>%
   left_join(
     .,
-    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data") %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.moderators") %>%
       select(Cross.ID, Genet.divergence)
     ) %>%
   # Natural log of genetic distance
