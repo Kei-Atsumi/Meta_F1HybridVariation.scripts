@@ -2623,12 +2623,20 @@ print(metaplot)
     mutate(
       '95% credible interval' = str_c(
         round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+<<<<<<< HEAD
         sep = "--" # en-dash
         )
       ) %>%
     rename("Estimates" = "post.mean") %>%
     mutate_at("Estimates", round, 2) %>%
     select(group, Factors, Estimates, '95% credible interval', pMCMC, significance) %>%
+=======
+        sep = "\u2013" # en-dash
+        )
+      ) %>%
+    mutate_at(c("Mean", "SD"), round, 2) %>%
+    select(group, factors, Mean, '95% credible interval', pMCMC, significance) %>%
+>>>>>>> 42222c66d49d042a8e3c2a76d3b4a8c6c19346d1
     kable("html", digits = 3, 
           caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
@@ -3233,12 +3241,20 @@ for (k in c("alltaxon", "insect")) {
     mutate(
       '95% credible interval' = str_c(
         round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+<<<<<<< HEAD
         sep = "--" # en-dash
         )
       ) %>%
     rename("Estimates" = "post.mean") %>%
     mutate_at("Estimates", round, 2) %>%
     select(group, Factors, Estimates, '95% credible interval', pMCMC, significance) %>%
+=======
+        sep = "\u2013" # en-dash
+        )
+      ) %>%
+    mutate_at(c("Mean", "SD"), round, 2) %>%
+    select(group, factors, Mean, '95% credible interval', pMCMC, significance) %>%
+>>>>>>> 42222c66d49d042a8e3c2a76d3b4a8c6c19346d1
     kable("html", digits = 3, 
           caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
