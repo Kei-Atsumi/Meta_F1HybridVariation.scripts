@@ -204,14 +204,18 @@ get_fixed.MCMCglmm <- function(x) {
       '95% credible interval' = str_c(
         round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
         sep = "--" # en-dash
-        )
+        ),
+      Estimates = round(post.mean, 2),
+      P = round(pMCMC, 2)
       ) %>%
-    rename("Estimates" = "post.mean", "P" = "pMCMC") %>%
-    mutate_at("Estimates", round, 2) %>%
     mutate(significance = ifelse(P < 0.05, "*", "")) %>%
-    dplyr::select("Factors", "Estimates", "95% credible interval", "P") %>%
-    kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
-    kable_styling("striped", position = "left")
+    mutate(
+      "Description" = 
+        str_c("$\\beta$ = ", Estimates,
+              ", CI = ", .[, "95% credible interval"],
+              ", P = ", round(P, 3),
+              "")
+      )
 
 }
   
@@ -2543,10 +2547,7 @@ for (k in c("alltaxon", "insect")) {
   # Load model
   phylmix <- readRDS(paste("../Analysis/Mean.novelty.allfactors", k, "obj", sep = "."))
   
-  sum <- summary(phylmix)$solutions %>%
-    as.data.frame() %>%
-    rownames_to_column(var = "Factors") %>%
-    mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
+  sum <- get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
       ### Grouping Factors ###
       mutate(
         group = 
@@ -2620,18 +2621,8 @@ print(metaplot)
   # Fixed effects output
   #+++++++++++++++++++++++++#
   sum %>% 
-    mutate(
-      '95% credible interval' = str_c(
-        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
-        sep = "--" # en-dash
-        )
-      ) %>%
-    rename("Estimates" = "post.mean") %>%
-    mutate_at("Estimates", round, 2) %>%
-    select(group, Factors, Estimates, '95% credible interval', pMCMC, significance) %>%
-    kable("html", digits = 3, 
-          caption = paste("Fixed effects estimates:", k, "data", " ")
-            ) %>% 
+    select(group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
+    kable("html", caption = paste("Fixed effects estimates:", k, "data", " ")) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
     print()
@@ -3153,10 +3144,7 @@ for (k in c("alltaxon", "insect")) {
   ### Load model ###
   phylmix <- readRDS(file = paste("../Analysis/Variation.novelty.allfactors", k, "obj", sep = "."))
   
-  sum <- summary(phylmix)$solutions %>%
-    as.data.frame() %>%
-    rownames_to_column(var = "Factors") %>%
-    mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
+  sum <- get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
     ### Grouping Factors ###
     mutate(
       group = 
@@ -3230,18 +3218,8 @@ for (k in c("alltaxon", "insect")) {
   # Fixed effects output
   #+++++++++++++++++++++++++#
   sum %>% 
-    mutate(
-      '95% credible interval' = str_c(
-        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
-        sep = "--" # en-dash
-        )
-      ) %>%
-    rename("Estimates" = "post.mean") %>%
-    mutate_at("Estimates", round, 2) %>%
-    select(group, Factors, Estimates, '95% credible interval', pMCMC, significance) %>%
-    kable("html", digits = 3, 
-          caption = paste("Fixed effects estimates:", k, "data", " ")
-            ) %>% 
+    select(group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
+    kable("html", caption = paste("Fixed effects estimates:", k, "data", " ")) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
     print()
@@ -3700,16 +3678,17 @@ phylmix <- readRDS("../Analysis/novelty.mean.var.obj")
 #+++++++++++++++++++++++++++#
 # Fixed effects output 
 #+++++++++++++++++++++++++++#
-get_fixed.MCMCglmm(summary(phylmix)$solutions)
+get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
+  dplyr::select("Factors", "Estimates", "95% credible interval", "P", "Description") %>%
+  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
+  kable_styling("striped", position = "left")
 
 #+++++++++++++++++++++++++++#
 # Random effects output 
 #+++++++++++++++++++++++++++#
 # transformation for varaince
 get_random.MCMCglmm(summary(phylmix$VCV/(1+c2))) %>%
-  kable("html", digits = 2,
-        caption = "Random effects estimates"
-        ) %>% 
+  kable("html", digits = 2, caption = "Random effects estimates") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -3861,16 +3840,17 @@ phylmix <- readRDS("../Analysis/mismatch.obj")
 #+++++++++++++++++++++++++++#
 # Fixed effects output 
 #+++++++++++++++++++++++++++#
-get_fixed.MCMCglmm(summary(phylmix)$solutions)
+get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
+  dplyr::select("Factors", "Estimates", "95% credible interval", "P", "Description") %>%
+  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
+  kable_styling("striped", position = "left")
 
 #+++++++++++++++++++++++++++#
 # Random effects output 
 #+++++++++++++++++++++++++++#
 # transformation for varaince
 get_random.MCMCglmm(summary(phylmix$VCV)) %>%
-  kable("html", digits = 2,
-        caption = "Random effects estimates"
-        ) %>% 
+  kable("html", digits = 2, caption = "Random effects estimates") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -3904,16 +3884,17 @@ phylmix <- readRDS("../Analysis/mismatch.reg.obj")
 #+++++++++++++++++++++++++++#
 # Fixed effects output 
 #+++++++++++++++++++++++++++#
-get_fixed.MCMCglmm(summary(phylmix)$solutions)
+get_fixed.MCMCglmm(summary(phylmix)$solutions)  %>%
+  dplyr::select("Factors", "Estimates", "95% credible interval", "P", "Description") %>%
+  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
+  kable_styling("striped", position = "left")
 
 #+++++++++++++++++++++++++++#
 # Random effects output 
 #+++++++++++++++++++++++++++#
 # transformation for varaince
 get_random.MCMCglmm(summary(phylmix$VCV)) %>%
-    kable("html", digits = 2,
-          caption = "Random effects estimates"
-          ) %>% 
+    kable("html", digits = 2, caption = "Random effects estimates") %>% 
     kable_styling("striped", position = "left")
 
 ```
