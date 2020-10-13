@@ -203,10 +203,17 @@ get_fixed.MCMCglmm <- function(x) {
     mutate(
       '95% credible interval' = str_c(
         round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+<<<<<<< HEAD
         sep = " -- " # en-dash
         ),
       Estimates = round(post.mean, 2),
       P = round(pMCMC, 3)
+=======
+        sep = "--" # en-dash
+        ),
+      Estimates = round(post.mean, 2),
+      P = round(pMCMC, 2)
+>>>>>>> 2db00948b2a260691c3d76fd5dea7d9c878cf780
       ) %>%
     mutate(significance = ifelse(P < 0.05, "*", "")) %>%
     mutate(
