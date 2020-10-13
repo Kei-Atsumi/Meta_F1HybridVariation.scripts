@@ -1,5 +1,5 @@
 ---
-title: "Title"
+title: "Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids"
 author: "Keisuke Atsumi, Losia Lagisz & Shinichi Nakagawa"
 date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
 output:
@@ -56,11 +56,12 @@ options(knitr.kable.NA = '') # Hide NAs in kable table
 
 
 ### Custom function
-We have custom functions named : `get_pred()` and `get_reg()`, all of which are used later (see below for their functionality) and the code are included here. 
+We have custom functions named : `get_pred()`, `get_reg()`, `get_fixed.MCMCglmm()` and  `get_random.MCMCglmm()`, all of which are used later (see below for their functionality) and the code are included here. 
 
 ```{r}
 
-#' Title: the function to get prediction intervals (crediblity intervals) from rma objects (metafor)
+#' Title: get_pred
+#' function to get prediction intervals (crediblity intervals) from rma objects (metafor)
 #'
 #' @param model: rma.mv object 
 #' @param mod: the name of a moderator 
@@ -122,8 +123,8 @@ get_pred <- function(model, mod = " ") {
 
 
 
-#' Title: the function to get summary stats from rma objects (metafor)
-#'
+#' Title: get_reg
+#' function to get summary stats from rma objects (metafor)
 #' @param model: rma.mv object 
 #' @param mod: the name of a moderator 
 get_reg <- function(model, mod = " ") {
@@ -167,6 +168,53 @@ get_reg <- function(model, mod = " ") {
 }
 
 
+#' Title: get_random.MCMCglmm
+#' 
+#' @param x: VCV of MCMCglmm products (i.e. summary('MCMCglmm object'$VCV)), which was transformed if apprecable. 
+get_random.MCMCglmm <- function(x) {
+  
+  bind_cols(
+    x$statistics %>%
+    as.data.frame,
+    x$quantiles %>%
+    as.data.frame
+    )  %>% 
+    rownames_to_column("Random effects")  %>% 
+    rename("Estimates" = "Mean") %>%
+    as.data.frame %>%
+    mutate(
+      '95% credible interval' = str_c(
+        round(.[,"2.5%"],2), round(.[,"97.5%"],2),
+        sep = "--" # en-dash
+        )
+      ) %>%
+    dplyr::select("Random effects", "Estimates", "95% credible interval") 
+  
+}
+
+#' Title: get_fixed.MCMCglmm
+#' 
+#' @param x: Solution of MCMCglmm products (i.e. summary('MCMCglmm object'$solutions)), which was transformed if apprecable. 
+get_fixed.MCMCglmm <- function(x) {
+  
+  x %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Factors") %>%
+    mutate(
+      '95% credible interval' = str_c(
+        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+        sep = "--" # en-dash
+        )
+      ) %>%
+    rename("Estimates" = "post.mean", "P" = "pMCMC") %>%
+    mutate_at("Estimates", round, 2) %>%
+    mutate(significance = ifelse(P < 0.05, "*", "")) %>%
+    dplyr::select("Factors", "Estimates", "95% credible interval", "P") %>%
+    kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
+    kable_styling("striped", position = "left")
+
+}
+  
 #++++++++++++++++++++++++++++++++++++++++++++++#
 # Setting plot theme for forest plots
 #++++++++++++++++++++++++++++++++++++++++++++++#
@@ -319,7 +367,7 @@ The species-level moderator dataset of this study.
 ```{r, results = 'asis'}
 
 meta <- read.xlsx(
-    "../data/original.data.xlsx", sheet = "Species.level.data"
+    "../data/original.data.xlsx", sheet = "Species.level.moderators"
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   # Logalize genetic divergence
@@ -958,7 +1006,7 @@ bind_rows(
   mutate(Novelty = ifelse(lnRR.es < 0, 1, 0)) %>%
   ### Join with metadata ###
   left_join(
-    ., read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data")
+    ., read.xlsx("../data/original.data.xlsx", sheet = "Species.level.moderators")
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   mutate_at(vars(contains("divergence")), scale) %>%
@@ -1719,7 +1767,7 @@ bind_rows(
   left_join(
     .,
     read.xlsx(
-      "../data/original.data.xlsx", sheet = "Species.level.data"
+      "../data/original.data.xlsx", sheet = "Species.level.moderators"
       )
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
@@ -2489,56 +2537,50 @@ for (k in c("alltaxon", "insect")) {
   # ### Save model ###
   # saveRDS(phylmix, file = paste("../Analysis/Mean.novelty.allfactors", k, "obj", sep = "."))
 
-
-### Load model ###
-phylmix <- readRDS(paste("../Analysis/Mean.novelty.allfactors", k, "obj", sep = "."))
-
-sum <- left_join(
-  # corrected estimates & SD
-  summary(phylmix$Sol)$statistics %>%
+  #+++++++++++++++++++++++#
+  # Grouping variables
+  #+++++++++++++++++++++++#
+  # Load model
+  phylmix <- readRDS(paste("../Analysis/Mean.novelty.allfactors", k, "obj", sep = "."))
+  
+  sum <- summary(phylmix)$solutions %>%
     as.data.frame() %>%
-    rownames_to_column(var = "factors"),
-  # P
-  summary(phylmix)$solutions %>%
-  as.data.frame() %>%
-    rownames_to_column(var = "factors"),
-  by = "factors"
-  ) %>%
-  mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
-    ### Grouping factors ###
-    mutate(
-      group = 
-        ifelse(str_detect(factors, "direction.:"), 
-               "Exceed upper range",
-               ifelse(str_detect(factors, "parentalMother:"),
-                      "Exceed mother",
-                      ifelse(factors == "Hetero.sexMale:direction+",
-                             "Exceed upper range",
-                             "Novelty expression"
-                             )
-                      )
-               )
-    ) %>%
-    mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("Novelty expression", "Exceed upper range", "Exceed mother"))) %>%
-    ### Change factor names ###
-    within(
-      factors <- str_remove_all(
-        factors, "direction.:"
-        ) %>%
-        str_remove_all(., "parentalMother:") %>%
-        str_remove_all(., ":direction.")
+    rownames_to_column(var = "Factors") %>%
+    mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
+      ### Grouping Factors ###
+      mutate(
+        group = 
+          ifelse(str_detect(Factors, "direction.:"), 
+                 "Exceed upper range",
+                 ifelse(str_detect(Factors, "parentalMother:"),
+                        "Exceed mother",
+                        ifelse(Factors == "Hetero.sexMale:direction+",
+                               "Exceed upper range",
+                               "Novelty expression"
+                               )
+                        )
+                 )
       ) %>%
-    within(
-      factors <- factor(
-        factors, ordered = TRUE, 
-        levels = c("parentalMother", "direction+", "trait.typesound", "Hetero.sexMale", "ReciprocalViable", "DistributionOverlap", "Pheno.divergence",  "Genet.divergence",  "(Intercept)")
+      mutate_at("group", as.factor) %>%
+      within(group <- ordered(group, c("Novelty expression", "Exceed upper range", "Exceed mother"))) %>%
+      ### Change factor names ###
+      within(
+        Factors <- str_remove_all(
+          Factors, "direction.:"
+          ) %>%
+          str_remove_all(., "parentalMother:") %>%
+          str_remove_all(., ":direction.")
+        ) %>%
+      within(
+        Factors <- factor(
+          Factors, ordered = TRUE, 
+          levels = c("parentalMother", "direction+", "trait.typesound", "Hetero.sexMale", "ReciprocalViable", "DistributionOverlap", "Pheno.divergence",  "Genet.divergence",  "(Intercept)")
+          )
         )
-      )
-  levels(sum$factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
+  levels(sum$Factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
 
   ### Plot ###
-  metaplot <- ggplot(sum, aes(x = post.mean, y = factors)) +
+  metaplot <- ggplot(sum, aes(x = post.mean, y = Factors)) +
     # Vertical line
     geom_vline(
       xintercept = 0, size = 0.2, 
@@ -2559,7 +2601,7 @@ sum <- left_join(
     # Title
     ggtitle(paste("Fixed effects estimates using", k, "data")) +
     ylab("") + xlab("Estimate with 95% CI") +
-    # Combine different plots for main factors and interactions
+    # Combine different plots for main Factors and interactions
     facet_grid(
       group~., scales = "free", space = "free",
       labeller = label_wrap_gen(width = 20)
@@ -2574,10 +2616,19 @@ print(metaplot)
   #     height = 4.7, width = 4.0
   #     )
 
-  ### Output result ###
+  #+++++++++++++++++++++++++#
+  # Fixed effects output
+  #+++++++++++++++++++++++++#
   sum %>% 
-    select(group, factors, Mean, SD, pMCMC, significance) %>%
-    mutate_at(c("Mean", "SD"), round, 2) %>%
+    mutate(
+      '95% credible interval' = str_c(
+        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+        sep = "--" # en-dash
+        )
+      ) %>%
+    rename("Estimates" = "post.mean") %>%
+    mutate_at("Estimates", round, 2) %>%
+    select(group, Factors, Estimates, '95% credible interval', pMCMC, significance) %>%
     kable("html", digits = 3, 
           caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
@@ -2585,12 +2636,12 @@ print(metaplot)
     scroll_box(width = "100%", height = "500px") %>%
     print()
   
-  # transformation for estimate
-  # summary(phylmix$Sol/sqrt(1+c2))
+  #+++++++++++++++++++++++++++#
+  # Random effects output 
+  #+++++++++++++++++++++++++++#
   # transformation for varaince
-  summary(phylmix$VCV/(1+c2))$statistics %>%
-    as.data.frame %>%
-    kable("html", digits = 3,
+  get_random.MCMCglmm(summary(phylmix$VCV/(1+c2))) %>%
+    kable("html", digits = 2,
           caption = paste("Random effects estimates: ", k, "data", " ")
           ) %>% 
     kable_styling("striped", position = "left") %>%
@@ -2619,7 +2670,7 @@ rawdat <- dat.full %>%
   mutate(Pheno.divergence = log(Mn.spL/Mn.spS)) %>%
   left_join(
     .,
-    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data") %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.moderators") %>%
       select(Cross.ID, Genet.divergence)
     ) %>%
   # Natural log of genetic distance
@@ -2787,39 +2838,30 @@ for (i in c("Reciprocal", "trait.type")) {
     #     paste("../Analysis/Mean.novelty", i, "alltaxon.obj", sep = ".")
     #     )
 
-    ### Load model ###
-    phylmix <- readRDS(
-      paste("../Analysis/Mean.novelty", i, "alltaxon.obj", sep = ".")
-      )
-
-    #++++++++++++++++++++++++++++++++++++++#  
-    # Grouping interaction terms
-    #++++++++++++++++++++++++++++++++++++++#
-    sum <- left_join(
-      # corrected estimates & SD
-      summary(phylmix$Sol)$statistics %>%
-        as.data.frame() %>%
-        rownames_to_column(var = "factors"),
-      # P
-      summary(phylmix)$solutions %>%
-      as.data.frame() %>%
-      rownames_to_column(var = "factors"),
-      by = "factors"
+  #++++++++++++++++++++++++++++++++++++++#  
+  # Grouping interaction terms
+  #++++++++++++++++++++++++++++++++++++++#
+  phylmix <- readRDS(
+    paste("../Analysis/Mean.novelty", i, "alltaxon.obj", sep = ".")
+    )
+  
+  sum <- summary(phylmix)$solutions %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "factors") %>%
+    mutate(
+      # Impact on exceeding upper or lower range
+      direction =
+        ifelse(str_detect(factors, "interaction\\+"), 
+               "Exceed upper range",
+               "Exceed lower range"
+               ) %>%
+        as.factor
       ) %>%
-      mutate(
-        significance = ifelse(pMCMC < 0.05, "*", ""),
-        ### Impact on exceeding upper or lower range ###
-        direction =
-          ifelse(str_detect(factors, "interaction\\+"), "Exceed upper range",
-                 "Exceed lower range"
-                 ) %>%
-          as.factor
-        ) %>%
-      within(direction <- ordered(direction, c("Exceed upper range", "Exceed lower range"))) %>%
-      ### Change factor names ###
-      within(
-        factors <- str_remove_all(factors, "interaction._")
-        )       
+    within(direction <- ordered(direction, c("Exceed upper range", "Exceed lower range"))) %>%
+    ### Change factor names ###
+    within(
+      factors <- str_remove_all(factors, "interaction._")
+      )       
   
     #++++++++++++++++++++++++++++++++++++++#  
     # Plot
@@ -3111,26 +3153,18 @@ for (k in c("alltaxon", "insect")) {
   ### Load model ###
   phylmix <- readRDS(file = paste("../Analysis/Variation.novelty.allfactors", k, "obj", sep = "."))
   
-  sum <- left_join(
-    # corrected estimates & SD
-    summary(phylmix$Sol)$statistics %>%
-      as.data.frame() %>%
-      rownames_to_column(var = "factors"),
-    # P
-    summary(phylmix)$solutions %>%
+  sum <- summary(phylmix)$solutions %>%
     as.data.frame() %>%
-    rownames_to_column(var = "factors"),
-    by = "factors"
-    ) %>%
+    rownames_to_column(var = "Factors") %>%
     mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
-    ### Grouping factors ###
+    ### Grouping Factors ###
     mutate(
       group = 
-        ifelse(str_detect(factors, "direction.:"), 
+        ifelse(str_detect(Factors, "direction.:"), 
                "Exceed upper range",
-               ifelse(str_detect(factors, "parentalMother:"),
+               ifelse(str_detect(Factors, "parentalMother:"),
                       "Exceed mother",
-                      ifelse(factors == "Hetero.sexMale:direction+",
+                      ifelse(Factors == "Hetero.sexMale:direction+",
                              "Exceed upper range",
                              "Novel variability expression"
                              )
@@ -3141,22 +3175,22 @@ for (k in c("alltaxon", "insect")) {
     within(group <- ordered(group, c("Novel variability expression", "Exceed upper range", "Exceed mother"))) %>%
     ### Change factor names ###
     within(
-      factors <- str_remove_all(
-        factors, "direction.:"
+      Factors <- str_remove_all(
+        Factors, "direction.:"
         ) %>%
         str_remove_all(., "parentalMother:") %>%
         str_remove_all(., ":direction.")
       ) %>%
     within(
-      factors <- factor(
-        factors, ordered = TRUE, 
+      Factors <- factor(
+        Factors, ordered = TRUE, 
         levels = c("parentalMother", "direction+", "trait.typesound", "Hetero.sexMale", "ReciprocalViable", "DistributionOverlap", "Pheno.divergence",  "Genet.divergence",  "(Intercept)")
         )
       )
-  levels(sum$factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
+  levels(sum$Factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
   
   ### Plot ###
-  metaplot <- ggplot(sum, aes(x = post.mean, y = factors)) +
+  metaplot <- ggplot(sum, aes(x = post.mean, y = Factors)) +
     # Vertical line
     geom_vline(
       xintercept = 0, size = 0.2, 
@@ -3177,7 +3211,7 @@ for (k in c("alltaxon", "insect")) {
     # Title
     ggtitle(paste("Fixed effects estimates using", k, "data")) +
     ylab("") + xlab("Estimate with 95% CI") +
-    # Combine different plots for main factors and interactions
+    # Combine different plots for main Factors and interactions
     facet_grid(
       group~., scales = "free", space = "free",
       labeller = label_wrap_gen(width = 20)
@@ -3192,28 +3226,37 @@ for (k in c("alltaxon", "insect")) {
   #     height = 4.7, width = 4.0
   #     )
   
-  ### Output result ###
+  #+++++++++++++++++++++++++#
+  # Fixed effects output
+  #+++++++++++++++++++++++++#
   sum %>% 
-    select(group, factors, Mean, SD, pMCMC, significance) %>%
-    mutate_at(c("Mean", "SD"), round, 2) %>%
+    mutate(
+      '95% credible interval' = str_c(
+        round(.[,"l-95% CI"],2), round(.[,"u-95% CI"],2),
+        sep = "--" # en-dash
+        )
+      ) %>%
+    rename("Estimates" = "post.mean") %>%
+    mutate_at("Estimates", round, 2) %>%
+    select(group, Factors, Estimates, '95% credible interval', pMCMC, significance) %>%
     kable("html", digits = 3, 
-          caption = paste("Fixed effects:", k, "data", " ")
+          caption = paste("Fixed effects estimates:", k, "data", " ")
             ) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
     print()
   
-  # transformation for estimate
-  # summary(phylmix$Sol/sqrt(1+c2))
+  #+++++++++++++++++++++++++++#
+  # Random effects output 
+  #+++++++++++++++++++++++++++#
   # transformation for varaince
-  summary(phylmix$VCV/(1+c2))$statistics %>%
-    as.data.frame %>%
-    kable("html", digits = 3,
+  get_random.MCMCglmm(summary(phylmix$VCV/(1+c2))) %>%
+    kable("html", digits = 2,
           caption = paste("Random effects estimates: ", k, "data", " ")
           ) %>% 
     kable_styling("striped", position = "left") %>%
     print()
-
+  
 }
 
 ```
@@ -3236,12 +3279,11 @@ rawdat <- dat.full %>%
   mutate(Pheno.divergence = abs(log(Mn.spL/Mn.spS))) %>%
   left_join(
     .,
-    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.data") %>%
+    read.xlsx("../data/original.data.xlsx", sheet = "Species.level.moderators") %>%
       select(Cross.ID, Genet.divergence)
     ) %>%
   # Natural log of genetic distance
   mutate_at("Genet.divergence", log)
-
 
 # # +++++++++++++++++++++++++++++++++++++++++++#
 # # Regression: Genetic distance
@@ -3406,39 +3448,30 @@ for (i in c("Reciprocal", "trait.type")) {
   #     paste("../Analysis/Variation.novelty", i, "alltaxon.obj", sep = ".")
   #     )
   
-  ### Load model ###
+  #++++++++++++++++++++++++++++++++++++++#  
+  # Grouping interaction terms
+  #++++++++++++++++++++++++++++++++++++++#
   phylmix <- readRDS(
     paste("../Analysis/Variation.novelty", i, "alltaxon.obj", sep = ".")
     )
-
-    #++++++++++++++++++++++++++++++++++++++#  
-    # Grouping interaction terms
-    #++++++++++++++++++++++++++++++++++++++#
-    sum <- left_join(
-      # corrected estimates & SD
-      summary(phylmix$Sol)$statistics %>%
-        as.data.frame() %>%
-        rownames_to_column(var = "factors"),
-      # P
-      summary(phylmix)$solutions %>%
-      as.data.frame() %>%
-      rownames_to_column(var = "factors"),
-      by = "factors"
+  
+  sum <- summary(phylmix)$solutions %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "factors") %>%
+    mutate(
+      # Impact on exceeding upper or lower range
+      direction =
+        ifelse(str_detect(factors, "interaction\\+"), 
+               "Exceed upper range",
+               "Exceed lower range"
+               ) %>%
+        as.factor
       ) %>%
-      mutate(
-        significance = ifelse(pMCMC < 0.05, "*", ""),
-        ### Impact on exceeding upper or lower range ###
-        direction =
-          ifelse(str_detect(factors, "interaction\\+"), "Exceed upper range",
-                 "Exceed lower range"
-                 ) %>%
-          as.factor
-        ) %>%
-      within(direction <- ordered(direction, c("Exceed upper range", "Exceed lower range"))) %>%
-      ### Change factor names ###
-      within(
-        factors <- str_remove_all(factors, "interaction._")
-        )       
+    within(direction <- ordered(direction, c("Exceed upper range", "Exceed lower range"))) %>%
+    ### Change factor names ###
+    within(
+      factors <- str_remove_all(factors, "interaction._")
+      )       
   
     #++++++++++++++++++++++++++++++++++++++#  
     # Plot
@@ -3486,6 +3519,7 @@ for (i in c("Reciprocal", "trait.type")) {
 ### Dataset summary
 
 Relative variability indicates F1 hybrids' phenotypic variability size (CV) compared to those of parents. <br>
+
 * Smaller: smaller variability than of both parents
 
 * Intermediate: intermediate between parents' variability 
@@ -3663,29 +3697,19 @@ The model included following Random effects estimates:
 ### Load model ###
 phylmix <- readRDS("../Analysis/novelty.mean.var.obj")
 
-### Fixed effects output ###
-left_join(
-  # corrected estimates & SD
-  summary(phylmix$Sol)$statistics %>%
-    as.data.frame() %>%
-    rownames_to_column(var = "factors"),
-  # P
-  summary(phylmix)$solutions %>%
-  as.data.frame() %>%
-    rownames_to_column(var = "factors"),
-  by = "factors"
-  ) %>%
-  mutate(significance = ifelse(pMCMC < 0.05, "*", "")) %>%
-  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
-  kable_styling("striped", position = "left")
+#+++++++++++++++++++++++++++#
+# Fixed effects output 
+#+++++++++++++++++++++++++++#
+get_fixed.MCMCglmm(summary(phylmix)$solutions)
 
-### Random effects output ###  
-# transformation for estimate
-# summary(phylmix$Sol/sqrt(1+c2))
+#+++++++++++++++++++++++++++#
+# Random effects output 
+#+++++++++++++++++++++++++++#
 # transformation for varaince
-summary(phylmix$VCV/(1+c2))$statistics %>%
-  as.data.frame %>%
-  kable("html", digits = 3, caption = "Random effects estimates") %>% 
+get_random.MCMCglmm(summary(phylmix$VCV/(1+c2))) %>%
+  kable("html", digits = 2,
+        caption = "Random effects estimates"
+        ) %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -3786,7 +3810,7 @@ d<sub>mismatch</sub> is quite large in crossing involving mices (Rodentia), due 
 <div style="margin-bottom:70px;">
 </div>
 
-## General pattern of mismatch d<sub>mismatch</sub> 
+## General strength of d<sub>mismatch</sub> 
 
 Estimated mean d<sub>mismatch</sub> across all studies by phylogenetic random model (using `MCMCglmm` function).<br>
 
@@ -3834,15 +3858,19 @@ plot.phylo(phylo_branch, cex = 0.7)
 
 phylmix <- readRDS("../Analysis/mismatch.obj")
 
-### Fixed effects output ###
-summary(phylmix)$solutions %>% 
-  kable("html", caption = "Mean dmismatch value (Fixed effects estimates)") %>% 
-  kable_styling("striped", position = "left")
+#+++++++++++++++++++++++++++#
+# Fixed effects output 
+#+++++++++++++++++++++++++++#
+get_fixed.MCMCglmm(summary(phylmix)$solutions)
 
-### Random effects output ###  
-summary(phylmix$VCV)$statistics %>%
-  as.data.frame %>%
-  kable("html", digits = 3, caption = "Random effects estimates") %>% 
+#+++++++++++++++++++++++++++#
+# Random effects output 
+#+++++++++++++++++++++++++++#
+# transformation for varaince
+get_random.MCMCglmm(summary(phylmix$VCV)) %>%
+  kable("html", digits = 2,
+        caption = "Random effects estimates"
+        ) %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -3851,7 +3879,7 @@ Even data included quite large d<sub>mismatch</sub>, overall it did not differ f
 <div style="margin-bottom:70px;">
 </div>
 
-## Regression for raw d<sub>mismatch</sub>
+## Factors affect d<sub>mismatch</sub>
 
 We asked if any species-level moderators (Genetic divergence between parents, `Genet.divergence`; Viability of reciprocal cross, `Reciprocal`; Heterogametic sex, `Hetero.sex`; Parents' distribution overlap, `Distribution`) influence d<sub>mismatch</sub> values by phylogenetic random model. Random effects were identical as [above] (## General pattern of mismatch d<sub>mismatch</sub>).
 ```{r}
@@ -3873,16 +3901,20 @@ dat3 <- dat %>%
 
 phylmix <- readRDS("../Analysis/mismatch.reg.obj")
 
-### Fixed effects output ###
-summary(phylmix)$solutions %>% 
-  kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
-  kable_styling("striped", position = "left")
+#+++++++++++++++++++++++++++#
+# Fixed effects output 
+#+++++++++++++++++++++++++++#
+get_fixed.MCMCglmm(summary(phylmix)$solutions)
 
-### Random effects output ###  
-summary(phylmix$VCV)$statistics %>%
-  as.data.frame %>%
-  kable("html", digits = 3, caption = "Random effects estimates") %>% 
-  kable_styling("striped", position = "left")
+#+++++++++++++++++++++++++++#
+# Random effects output 
+#+++++++++++++++++++++++++++#
+# transformation for varaince
+get_random.MCMCglmm(summary(phylmix$VCV)) %>%
+    kable("html", digits = 2,
+          caption = "Random effects estimates"
+          ) %>% 
+    kable_styling("striped", position = "left")
 
 ```
 None of species level moderators do not influence d<sub>mismatch</sub> 
