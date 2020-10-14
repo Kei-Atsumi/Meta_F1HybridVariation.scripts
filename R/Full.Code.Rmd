@@ -9,7 +9,7 @@ output:
     theme: united # “default”, “cerulean”, “journal”, “flatly”, “darkly”, “readable”, “spacelab”, “united”, “cosmo”, “lumen”, “paper”, “sandstone”, “simplex”, “yeti”
     toc: yes
     toc_float: yes
-subtitle: Electronic Supplementary Material
+subtitle: Supplementary Information
 
 ---
 ## Setup
@@ -321,6 +321,9 @@ pheno <- read.xlsx(
       "Inviable", "Viable"
       )
     )
+
+pheno %>%
+  distinct(Study.name)
 
 # making a scrollable table
 kable(pheno, "html") %>% kable_styling("striped", position = "left") %>% 
