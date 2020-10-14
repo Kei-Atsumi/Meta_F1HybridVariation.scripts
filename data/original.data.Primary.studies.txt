@@ -1,0 +1,26 @@
+Study.name	First.author	Year	Title	Journal
+Blankers.et.al_2015	"Blankers, T."	2015	Phenotypic variation and covariation indicate high evolvability of acoustic communication in crickets	Journal of Evolutionary Biology
+Butlin&Hewitt_1988	"Butlin, R. K."	1988	Genetics of behavioural and morphological differences between parapatric subspecies of *Chorthippus parallelus* (Orthoptera: Acrididae)	Biological Journal of the Linnean Society
+Carson.et.al_1994	"Carson, H. L."	1994	Change in male secondary sexual characters in artificial interspecific hybrid populations	Proceedings of the National Academy of Sciences of the United States of America
+Coyne_1983	"Coyne, J.A."	1983	Genetic basis of differences in genital morphology among three sibling species of *Drosophila*	Evolution
+Coyne_1985	"Coyne, J.A."	1985	Genetic studies of three sibling species of *Drosophila* with relationship to theories of speciation	Genetical Research
+Coyne_1986	"Coyne, J.A."	1986	Meiotic segregation and male recombination in interspecific hybrids of *Drosophila*	Genetics
+Coyne.et.al_1991	"Coyne, J.A."	1991	Genetics of morphological differences and hybrid sterility between *Drosophila sechellia* and its relatives	Genetical Research
+Crapon&Fritzsch_1984	"Crapon de caprona, MD."	1984	Interspecific fertile hybrids of haplochromine cichlidae (Teleostei) and their possible importance for speciation	Netherlands Journal of Zoology
+Deregnaucourt_2010	"Der?gnaucourt, S."	2010	Interspecific hybridization as a tool to understand vocal divergence: The example of crowing in quail (Genus *Coturnix*)	PLoS ONE
+Doherty & Gerhardt 1984	"Doherty, J. A."	1984	Acoustic communication in hybrid treefrogs: sound production by males and selective phonotaxis by females	Journal of Comparative Physiology A
+Ewing_1969	"Ewing, A.W."	1969	The genetic basis of sound production in *Drosophila pseudoobscura* and *D. persimilis*	Animal Behaviour
+van der Sluijs et al_2008	"Van Der Sluijs, I."	2008	Female mating preference functions predict sexual selection against hybrids between sibling species of cichlid fish	Philosophical Transactions of the Royal Society B: Biological Sciences
+Gadenne et al_1997	"Gadenne, C."	1997	Development and pheromone communication systems in hybrids of *Agrotis ipsilon* and *Agrotis segetum* (Lepidoptera: Noctuidae)	Journal of Chemical Ecology
+Gottsberger&Mayer_2007	"Gottsberger, B."	2007	"Behavioral sterility of hybrid males in acoustically communicating grasshoppers (Acrididae, Gomphocerinae)"	"Journal of Comparative Physiology A: Neuroethology, Sensory, Neural, and Behavioral Physiology"
+Bentrey&Hoy_1972	"Bentley, D. R."	1972	Genetic control of the neuronal network generating cricket (*Teleogryllus gryllus*) song patterns	Animal Behaviour
+Magalhaes&Seehausen_2010	"Magalhaes, I. S."	2010	Genetics of male nuptial colour divergence between sympatric sister species of a Lake Victoria cichlid fish	Journal of Evolutionary Biology
+Monti et al_2001	"Monti, L"	2001	Elliptic fourier analysis of the form of genitalia in two *Spodoptera* species and their hybrids (Lepidoptera: Noctuidae)	Biological Journal of the Linnean Society
+Musolf et al_2015	"Musolf, K"	2015	Ultrasonic vocalizations of male mice differ among species and females show assortative preferences for male calls	PLoS ONE
+Paallysaho et al_2003	"P??llysaho, S."	2003	Role of X chromosomal song genes in the evolution of species-specific courtship songs in *Drosophila virilis* group species	Behavior Genetics
+Shaw_1996	"Shaw, K. L."	1996	Polygenic inheritance of a behavioral phenotype: Interspecific genetics of song in the Hawaiian cricket genus *Laupala*	Evolution
+Suvanto et al_1994	"Suvanto, L."	1994	Secondary courtship songs and inhibitory songs of *Drosophila virilis*-group males	Behavior Genetics
+Tomaru&Oguma_1994	"Tomaru, M."	1994	Differences in courtship song in the species of the *Drosophila auraria* complex	Animal Behaviour
+Wells_1994	"Wells, M. M."	1994	Behavioral responses of hybrid lacewings (Neuroptera: Chrysopidae) to courtship songs	Journal of Insect Behavior
+Shaw_2000	"Shaw, K. L."	2000	Interspecific genetics of mate recognition: Inheritance of female acoustic preference in Hawaiian crickets	Evolution
+Sasabe_et.al_2007	"Sasabe, M."	2007	The genetic basis of interspecific differences in genital morphology of closely related carabid beetles	Heredity

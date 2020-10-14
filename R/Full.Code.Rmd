@@ -289,6 +289,27 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 </div>
 
 # Data description
+<div style="margin-bottom:70px;">
+</div>
+
+List of primary studies included
+
+```{r, results = 'asis'}
+
+read.xlsx(
+  "../data/original.data.xlsx", sheet = "Primary.studies"
+  # Same data is also saved as "../data/original.data.Primary.studies.txt"
+  ) %>%
+  arrange(First.author, Year) %>%
+  kable("html") %>% kable_styling("striped", position = "left") %>% 
+  scroll_box(width = "100%", height = "500px")
+  
+```
+
+**Study.name**: Including author name(s) and published year
+
+<div style="margin-bottom:70px;">
+</div>
 
 ## Table of the dataset
 
@@ -299,6 +320,7 @@ The phenotypic dataset of this study.
 ## Phenotype data ##
 pheno <- read.xlsx(
     "../data/original.data.xlsx", sheet = "Phenotype"
+    # Same data is also saved as "../data/original.data.Phenotype.txt"
     ) %>%
   # Excluding data without any parent data
   drop_na(contains("SD.sp")) %>%
@@ -321,9 +343,6 @@ pheno <- read.xlsx(
       "Inviable", "Viable"
       )
     )
-
-pheno %>%
-  distinct(Study.name)
 
 # making a scrollable table
 kable(pheno, "html") %>% kable_styling("striped", position = "left") %>% 
@@ -375,6 +394,7 @@ The species-level moderator dataset of this study.
 
 meta <- read.xlsx(
     "../data/original.data.xlsx", sheet = "Species.level.moderators"
+    # Same data is also saved as "../data/original.data.Species.level.moderators.txt"
     ) %>%
   mutate_at(vars(contains("divergence")), as.numeric) %>%
   # Logalize genetic divergence
@@ -770,7 +790,7 @@ bind_rows(
   write.csv("../data/dat.novelty.csv", quote=F,row.names = F)
 
 ```
-Data set created here, `dat.novelty.csv`, is used in investigating [phenotypic variability of novel phenotypes](#phenotypic-variability-of-novel-phenotype).
+Data set created here, `dat.novelty.csv`, is used in investigating [phenotypic variability of novel phenotype](#phenotypic-variability-of-novel-phenotype).
 
 
 
@@ -1107,19 +1127,17 @@ Novel.Nonnovel <- bind_rows(mean.dif, Nonovel) %>%
 # levels(bin.tree$tip.label) <- levels(mean.dif$spL.name) # making sure names match
 # bin.tree$tip.label <- as.character(bin.tree$tip.label) # converting names back to character
 # 
-# write.tree(bin.tree, file= "../data/phylo.mean.general.tre")
+# write.tree(bin.tree, file= "../data/phylo.mean.tre")
 
 # compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.mean.general.tre") %>%
+phylo_branch <- read.tree(file = "../data/phylo.mean.tre") %>%
   compute.brlen(bin.tree, method = "Grafen", power = 1)
 
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
 
-# generating inverse phylogenetic matrix for MCMCglmm
 # Note one of the tips is called "Lates calcarifer (estimated)"
 phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 # Plot tree
 plot.phylo(phylo_branch, cex = 0.7)
@@ -1853,19 +1871,17 @@ Novel.Nonnovel <- bind_rows(CV.dif, Nonovel) %>%
 # setdiff(levels(as.factor(bin.tree$tip.label)), levels(CV.dif$spL.name))
 # setdiff(levels(CV.dif$spL.name), levels(as.factor(bin.tree$tip.label)))
 
-# write.tree(bin.tree, file= "../data/phylo.variation.general.tre")
+# write.tree(bin.tree, file= "../data/phylo.variation.tre")
 
 # compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.variation.general.tre") %>%
+phylo_branch <- read.tree(file = "../data/phylo.variation.tre") %>%
   compute.brlen(bin.tree, method = "Grafen", power = 1)
 
 # saving phylogeneic matrix
 phylo_cor <- vcv(phylo_branch, cor = T)
 
-# generating inverse phylogenetic matrix for MCMCglmm
 # Note one of the tips is called "Lates calcarifer (estimated)"
 phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 # Plot tree
 plot.phylo(phylo_branch, cex = 0.7)
@@ -2189,11 +2205,11 @@ for (j in c("Alltraits", "Nonnoveltraits")) {
     
     print(plot.metamean)
 
-    ggsave(
-      plot = plot.metamean,
-      file = paste("../Analysis/variation.general.metamean", j, k, "svg", sep = "."),
-      height = 4, width = 5
-    )
+    # ggsave(
+    #   plot = plot.metamean,
+    #   file = paste("../Analysis/variation.general.metamean", j, k, "svg", sep = "."),
+    #   height = 4, width = 5
+    # )
 
   }
 }
@@ -2407,71 +2423,6 @@ summary %>%
 <div style="margin-bottom:70px;">
 </div>
 
-### Phylogeny
-```{r, fig.height = 6.5}
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-# Create tree based on Open Tree of Life taxonomy
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-
-# # matching names from open tree taxonomy
-# taxa <- tnrs_match_names(
-#   names = levels(dat.full$spL.name) %>%
-#     str_replace_all("_", " "),
-#   context_name = "Animals"
-#   )
-# 
-# # fixing names with more than 1 match after checking duplicated matches
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
-# taxa[taxa$number_matches != 1, ][1,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
-# taxa[taxa$number_matches != 1, ][2,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
-# taxa[taxa$number_matches != 1, ][3,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
-# taxa[taxa$number_matches != 1, ][4,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
-# 
-# # Create tree
-# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-# tree$tip.label %<>%
-#   strip_ott_ids # remove OTT IDs from tip labels
-# # randomly solve non-binary phylogeny
-# set.seed(6)
-# bin.tree <- multi2di(tree, random = T)
-# print("Randomly solved phylogeny")
-# 
-# # Indicate mismatch between tip labels & dataset species names
-# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
-# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
-# # Fix names of tip labels
-# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
-# 
-# write.tree(bin.tree, file= "../data/phylo.mean.novelty.tre")
-
-# compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.mean.Novelty.tre") %>%
-  compute.brlen(method = "Grafen", power = 1)
-
-# saving phylogeneic matrix
-phylo_cor <- vcv(phylo_branch, cor = T)
-
-# generating inverse phylogenetic matrix for MCMCglmm
-phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
-
-# Plot tree
-plot.phylo(phylo_branch, cex = 0.7)
-
-```
-<br>
-Phylogenetic tree used. Tree was created for <i>spLL<sub>M</sub></i>
-
-<div style="margin-bottom:70px;">
-</div>
 
 ## Factors affect phenotypic novelty
 We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
@@ -2492,6 +2443,20 @@ The moderators were categorised into 3 subsets: main effects (labelled as `novel
 
 # Correcting estimate of binomial regression
 c2 <- (16 * sqrt(3)/(15 * pi))^2
+
+#++++++++++++++++++++++++++++++++++#
+# Phylogenetic tree for mcmcglmm 
+#++++++++++++++++++++++++++++++++++#
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.mean.tre") %>%
+  compute.brlen(method = "Grafen", power = 1)
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# generating inverse phylogenetic matrix for MCMCglmm
+phylo_branch$node.label <- NULL
+phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 for (k in c("alltaxon", "insect")) {
   
@@ -2999,76 +2964,6 @@ summary %>%
 <div style="margin-bottom:70px;">
 </div>
 
-### Phylogeny
-
-```{r, fig.height = 6.5}
-
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-# Read create tree based on Open Tree of Life taxonomy
-#++++++++++++++++++++++++++++++++++++++++++++++++++++++#
-
-# # matching names from open tree taxonomy
-# taxa <- tnrs_match_names(
-#   names = levels(dat.full$spL.name) %>%
-#     str_replace_all("_", " "),
-#   context_name = "Animals"
-#   )
-# 
-# # fixing names with more than 1 match after checking duplicated matches
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])
-# taxa[taxa$number_matches != 1, ][1,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][1])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])
-# taxa[taxa$number_matches != 1, ][2,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][2])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])
-# taxa[taxa$number_matches != 1, ][3,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][3])[1,]
-# inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])
-# taxa[taxa$number_matches != 1, ][4,] <-
-#   inspect(taxa, ott_id = taxa$ott_id[taxa$number_matches != 1][4])[1,]
-# 
-# # Create tree
-# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
-# tree$tip.label %<>%
-#   strip_ott_ids # remove OTT IDs from tip labels
-# # randomly solve non-binary phylogeny
-# set.seed(6)
-# bin.tree <- multi2di(tree, random = T)
-# 
-# # Indicate mismatch between tip labels & dataset species names
-# setdiff(levels(as.factor(bin.tree$tip.label)), levels(mean.dif.all$spL.name))
-# setdiff(levels(mean.dif.all$spL.name), levels(as.factor(bin.tree$tip.label)))
-# # Fix names of tip labels
-# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
-# 
-# write.tree(bin.tree, file= "../data/phylo.variation.Novelty.tre")
-
-#++++++++++++++++++++++++++++++++++#
-# Phylogenetic tree for mcmcglmm 
-#++++++++++++++++++++++++++++++++++#
-
-# compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.variation.Novelty.tre") %>%
-  compute.brlen(method = "Grafen", power = 1)
-
-# saving phylogeneic matrix
-phylo_cor <- vcv(phylo_branch, cor = T)
-
-# generating inverse phylogenetic matrix for MCMCglmm
-phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
-
-# Plot tree
-plot.phylo(phylo_branch, cex = 0.7)
-
-```
-<br>
-Phylogetic tree used in the analyses. Tree was created for <i>spLL<sub>V</sub></i>.
-
-<div style="margin-bottom:70px;">
-</div>
-
 ## Factors affect novel variability
 We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
 
@@ -3085,6 +2980,22 @@ Model, which was ran using `MCMCglmm` function, included following Random effect
 The moderators were categorised into 3 subsets: main effects (labelled as `novel variability expression`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
 
 ```{r, results='asis'}
+
+#++++++++++++++++++++++++++++++++++#
+# Phylogenetic tree for mcmcglmm 
+#++++++++++++++++++++++++++++++++++#
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.variation.tre") %>%
+  compute.brlen(method = "Grafen", power = 1)
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# generating inverse phylogenetic matrix for MCMCglmm
+phylo_branch$node.label <- NULL
+phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
 
 #+++++++++++++++++++++++++++++++++++++#
 # Phylogenetic comparative analysis
@@ -3497,7 +3408,7 @@ for (i in c("Reciprocal", "trait.type")) {
 
 # Phenotypic variability of novel phenotype
 
-### Dataset summary
+## Dataset summary
 
 Relative variability indicates F1 hybrids' phenotypic variability size (CV) compared to those of parents. <br>
 
@@ -3573,7 +3484,7 @@ dat.relat.var %>%
 <div style="margin-bottom:70px;">
 </div>
 
-### Phylogeny
+## Phylogeny
 
 ```{r, fig.height = 6.5}
 
@@ -3623,7 +3534,7 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 ```
 <br>
-Phylogenetic tree used. Tree was created for <i>sp1</i>, irrespective of the relative trait size and variability compared to the other parent species.
+Phylogenetic tree used. Tree was created for <i>sp1</i>, which was ordered alphabetically (*sp1* comes earlier than *sp2*) irrespective of the trait size and variability.
 
 <div style="margin-bottom:70px;">
 </div>
@@ -3701,20 +3612,24 @@ The phenotypic novelty (`mean.noveltyNovel`) influenced positively. This indicat
 
 <div style="margin-bottom:180px;">
 </div>
-# Mismatch dominance
+
+# Trait mosaicism
+
+F1 hybrids can be seen as “a mosaic of both parental and intermediate morphological characters rather than just intermediate ones" [Rieseberg and Ellstrand 1993](https://doi.org/10.1080/07352689309701902). That is, F1 hybrid individuals often consist of trats closely resemble one parent, intermediate, and resemble the other parent. Mosaicism indicates trait integration of parents are often collapse in F1 hybrids. Here we investigate the strength of trait mosaicism in male mating traits.
+
 <div style="margin-bottom:70px;">
 </div>
 
 ## d<sub>mismatch</sub> calculation
 
-In quantifying dominance mismatch, we calculated d<sub>mismatch</sub> following [Thompson 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). d<sub>mismatch</sub> was calculated as follows:
+To quantify trait mosaicism in each crossing, we calculated d<sub>mismatch</sub>  following [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). d<sub>mismatch</sub> was calculated as follows:
 
 $d_{mismatch} = \sqrt{2} * \sqrt{ Z_i^2 + Z_j^2 - \frac{Z_i + Z_j}{\sqrt{2}}^2 }$
 <br>
 Where $Z_i$, standardized hybrid trait value in trait $i$, is <br>
 $Z_i = \frac{hyb_i - spSS_i}{spLL_i - spSS_i}$ <br>
 
-$Z_i$ is 0-1 if not transgressed. But, $Z_i$ is sensitive to absolute trait size: when trait size is large and parental phenotypic divergence is small, transgressive hybrid phenotype will result in quite large $Z_i$. This seems occurred in mice (see bellow) <br>
+$Z_i$ is 0-1 if F1 phenotypic mean lies within the range of parents. We note, however, novel phenotype expression (transgressive segregation) can result in quite large $Z_i$: when trait size is large and parental phenotypic divergence is small, novel hybrid phenotype will result in quite large $Z_i$. This seems occurred in mice (see bellow) <br>
 
 ```{r}
 
@@ -3857,7 +3772,7 @@ get_random.MCMCglmm(summary(phylmix$VCV)) %>%
   kable_styling("striped", position = "left")
 
 ```
-Even data included quite large d<sub>mismatch</sub>, overall it did not differ from 0. But the estimate (ca. 4) is still much larger than Thompson et al reporting mean d<sub>mismatch</sub> is 0.6. This is presumably because transgression (novel phenotype expression), which should increase d<sub>mismatch</sub>, is much more frequent in our data compared to Thompson et al.
+Even data included quite large d<sub>mismatch</sub>, overall it did not differ from 0. Yet, the estimate (β  = 4.41, CI = -3.05 – 10.29) is still much larger than  previously reported mean d<sub>mismatch</sub> 0.6 [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). This is presumably because novel phenotype expression, which should increase d<sub>mismatch</sub>, is much more frequent in our data compared to [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1).
 
 <div style="margin-bottom:70px;">
 </div>
@@ -3901,7 +3816,7 @@ get_random.MCMCglmm(summary(phylmix$VCV)) %>%
     kable_styling("striped", position = "left")
 
 ```
-None of species level moderators do not influence d<sub>mismatch</sub> 
+None of species level moderators did not influence d<sub>mismatch</sub>, as [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1) showed. 
 
 
 <div style="margin-bottom:180px;">
