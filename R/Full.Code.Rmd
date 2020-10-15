@@ -1,6 +1,6 @@
 ---
 title: "Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids"
-author: "Keisuke Atsumi, Losia Lagisz & Shinichi Nakagawa"
+author: "Keisuke Atsumi, Malgorzata Lagisz & Shinichi Nakagawa"
 date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
 output:
   html_document:
@@ -2424,7 +2424,7 @@ summary %>%
 </div>
 
 
-## Factors affect phenotypic novelty
+## Factors affecting  phenotypic novelty
 We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
 
 Model, which was ran using `MCMCglmm` function, included following Random effects estimates: 
@@ -2964,7 +2964,7 @@ summary %>%
 <div style="margin-bottom:70px;">
 </div>
 
-## Factors affect novel variability
+## Factors affecting  novel variability
 We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
 
 Model, which was ran using `MCMCglmm` function, included following Random effects estimates: 
@@ -3777,7 +3777,7 @@ Even data included quite large d<sub>mismatch</sub>, overall it did not differ f
 <div style="margin-bottom:70px;">
 </div>
 
-## Factors affect d<sub>mismatch</sub>
+## Factors affecting  d<sub>mismatch</sub>
 
 We asked if any species-level moderators (Genetic divergence between parents, `Genet.divergence`; Viability of reciprocal cross, `Reciprocal`; Heterogametic sex, `Hetero.sex`; Parents' distribution overlap, `Distribution`) influence d<sub>mismatch</sub> values by phylogenetic random model. Random effects were identical as [above] (## General pattern of mismatch d<sub>mismatch</sub>).
 ```{r}
