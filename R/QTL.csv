@@ -1,0 +1,41 @@
+w,Study.name,Source,Cross.ID,Genus,sp1.name,sp2.name,species.pair,trait.type,trait,QTL.study,N.QTL
+s001,Blankers.et.al_2015,table1,Gryllus_rubens_Gryllus_texensis,Gryllus,Gryllus_rubens,Gryllus_texensis,Gryllus_rubens_Gryllus_texensis,sound,Carrier frequency,Blankers.2019.Evolution,3
+s001,Blankers.et.al_2015,table1,Gryllus_rubens_Gryllus_texensis,Gryllus,Gryllus_rubens,Gryllus_texensis,Gryllus_rubens_Gryllus_texensis,sound,Pulse rate,Blankers.2019.Evolution,5
+s001,Blankers.et.al_2015,table1,Gryllus_rubens_Gryllus_texensis,Gryllus,Gryllus_rubens,Gryllus_texensis,Gryllus_rubens_Gryllus_texensis,sound,Pulse duty cycle,Blankers.2019.Evolution,NA
+s001,Blankers.et.al_2015,table1,Gryllus_rubens_Gryllus_texensis,Gryllus,Gryllus_rubens,Gryllus_texensis,Gryllus_rubens_Gryllus_texensis,sound,Trill rate,Blankers.2019.Evolution,NA
+s001,Blankers.et.al_2015,table1,Gryllus_rubens_Gryllus_texensis,Gryllus,Gryllus_rubens,Gryllus_texensis,Gryllus_rubens_Gryllus_texensis,sound,Trill duty cycle,Blankers.2019.Evolution,NA
+s004,Coyne_1983,table3,BGxMutant,Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,GA,LeVasseur-Viens.2014.IntJEvolBiol,NA
+s004,Coyne_1983,table3,BGxMutant,Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,WL,LeVasseur-Viens.2014.IntJEvolBiol,NA
+s004,Coyne_1983,table3,BGxMutant,Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,GA/WL,LeVasseur-Viens.2014.IntJEvolBiol,NA
+s004,Coyne_1983,table3,BGxSPD(wildtype),Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,GA,LeVasseur-Viens.2014.IntJEvolBiol,NA
+s004,Coyne_1983,table3,BGxSPD(wildtype),Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,WL,LeVasseur-Viens.2014.IntJEvolBiol,NA
+s004,Coyne_1983,table3,BGxSPD(wildtype),Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,GA/WL,LeVasseur-Viens.2014.IntJEvolBiol,NA
+s005,Coyne_1985,table1&2,BGxOxnard,Drosophila,Drosophila_mauritiana,Drosophila_simulans,Drosophila_mauritiana_Drosophila_simulans,morphology,Sex comb tooth number,Graze.2007.Genetics; True.1997.Evolution,1
+s008,Coyne.et.al_1991,table4,pn_j_irX85,Drosophila,Drosophila_mauritiana,Drosophila_sechellia,Drosophila_mauritiana_Drosophila_sechellia,morphology,Genital area,Tanaka.2015.Genetics,3
+s008,Coyne.et.al_1991,table4,pn_j_irX85,Drosophila,Drosophila_mauritiana,Drosophila_sechellia,Drosophila_mauritiana_Drosophila_sechellia,morphology,Tibia length,Tanaka.2015.Genetics,NA
+s12,Ewing_1969,table2,Drosophila_persimilis_Drosophila_pseudoobscura,Drosophila,Drosophila_persimilis,Drosophila_pseudoobscura,Drosophila_persimilis_Drosophila_pseudoobscura,sound,Mean HRR song pulse intervals in msec,Williams.2001.Heredity,3
+s17,Magalhaes&Seehausen_2010,Fig2,Pundamilia_nyererei_Pundamilia_pundamilia,Pundamilia,Pundamilia_nyererei,Pundamilia_pundamilia,Pundamilia_nyererei_Pundamilia_pundamilia,morphology,% red cover of body,Feller.2020.ProcB,4
+s22,Shaw_1996,table4,KW L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse period,Shaw.2007.MolEcol,NA
+s22,Shaw_1996,table4,KW L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse rate,Shaw.2007.MolEcol,7
+s22,Shaw_1996,table4,KW L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Carrier frequency,Shaw.2007.MolEcol,NA
+s22,Shaw_1996,table4,KW L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse duration,Shaw.2007.MolEcol,NA
+s22,Shaw_1996,table4,OF L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse period,Shaw.2007.MolEcol,NA
+s22,Shaw_1996,table4,OF L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse rate,Shaw.2007.MolEcol,7
+s22,Shaw_1996,table4,OF L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Carrier frequency,Shaw.2007.MolEcol,NA
+s22,Shaw_1996,table4,OF L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse duration,Shaw.2007.MolEcol,NA
+s26,Tomaru&Oguma_1994,table1,A541.auraria_B16.biauraria,Drosophila,Drosophila_auraria,Drosophila_biauraria,Drosophila_auraria_Drosophila_biauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,A541.auraria_B18.biauraria,Drosophila,Drosophila_auraria,Drosophila_biauraria,Drosophila_auraria_Drosophila_biauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,A662.auraria_B18.biauraria,Drosophila,Drosophila_auraria,Drosophila_biauraria,Drosophila_auraria_Drosophila_biauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,sn.cn.ba2.auraria_B16.biauraria,Drosophila,Drosophila_auraria,Drosophila_biauraria,Drosophila_auraria_Drosophila_biauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,A541.auraria_T544_triauraria,Drosophila,Drosophila_auraria,Drosophila_triauraria,Drosophila_auraria_Drosophila_triauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,A541.auraria_quadraria,Drosophila,Drosophila_auraria,Drosophila_quadraria,Drosophila_auraria_Drosophila_quadraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,A541.auraria_subauraria,Drosophila,Drosophila_auraria,Drosophila_subauraria,Drosophila_auraria_Drosophila_subauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,Drosophila_triauraria_Drosophila_quadraria,Drosophila,Drosophila_triauraria,Drosophila_quadraria,Drosophila_triauraria_Drosophila_quadraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,Drosophila_triauraria_Drosophila_biauraria,Drosophila,Drosophila_triauraria,Drosophila_biauraria,Drosophila_triauraria_Drosophila_biauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,Drosophila_quadraria_Drosophila_biauraria,Drosophila,Drosophila_quadraria,Drosophila_biauraria,Drosophila_quadraria_Drosophila_biauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,Drosophila_quadraria_Drosophila_subauraria,Drosophila,Drosophila_quadraria,Drosophila_subauraria,Drosophila_quadraria_Drosophila_subauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s26,Tomaru&Oguma_1994,table1,Drosophila_biauraria_Drosophila_subauraria,Drosophila,Drosophila_biauraria,Drosophila_subauraria,Drosophila_biauraria_Drosophila_subauraria,sound,IPI,Gleason.2005.BehavGen,NA
+s28,Shaw_2000,table1,KW L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse duration,Shaw.2007.MolEcol,NA
+s28,Shaw_2000,table1,SB L. paranigra,Laupala,Laupala_kohalensis,Laupala_paranigra,Laupala_kohalensis_Laupala_paranigra,sound,Pulse duration,Shaw.2007.MolEcol,NA
+s29,Sasabe_et.al_2007,fig2+text,Carabus_iwawakianus_Carabus_maiyasanus,Carabus,Carabus_iwawakianus,Carabus_maiyasanus,Carabus_iwawakianus_Carabus_maiyasanus,morphology,CPL,Sasabe.2010.MolEcol,3
+s29,Sasabe_et.al_2007,fig2+text,Carabus_iwawakianus_Carabus_maiyasanus,Carabus,Carabus_iwawakianus,Carabus_maiyasanus,Carabus_iwawakianus_Carabus_maiyasanus,morphology,CPW,Sasabe.2010.MolEcol,2

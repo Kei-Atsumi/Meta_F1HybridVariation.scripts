@@ -26,6 +26,7 @@ pacman::p_load(
   openxlsx   # open excel
   , tidyverse
   , magrittr   # extended pipe
+  , foreach    # Parallel processing
   , metafor    # meta-analysis
   , MCMCglmm   # comparative analysis
   , orchaRd    # Orchard plot - meta-analysis
@@ -52,6 +53,7 @@ knitr::opts_chunk$set(
   tidy    = TRUE
   ) 
 options(knitr.kable.NA = '') # Hide NAs in kable table
+
 ```
 
 
@@ -313,7 +315,7 @@ read.xlsx(
 
 ## Table of the dataset
 
-The phenotypic dataset of this study.
+Data of phenotype used in this study.
 
 ```{r, results = 'asis'}
 
@@ -410,7 +412,7 @@ kable(meta, "html") %>% kable_styling("striped", position = "left") %>%
 #++++++++++++++++++++++++++++++++++++++++++++++
 original.dat <- left_join(pheno, meta)
 # add unique ID for each effect size (row)
-original.dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(original.dat)[1])), sep="")
+original.dat$ES.ID <- paste("ES",sprintf("%03d",c(1:dim(original.dat)[1])), sep="")
 
 # #+++++++++++++++++++++++++++++++++
 # print("Scaling")
@@ -530,7 +532,7 @@ plot.sum <- ggplot(
     ), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
-  scale_fill_brewer(palette = "YlGn") +
+  scale_fill_brewer(palette = "Paired") +
   facet_wrap(
     scale = "free", "metrics",
     # strip text into two lines
@@ -546,9 +548,9 @@ plot.sum <- ggplot(
 #+++++++++++++++++#
 # Combine figures
 #+++++++++++++++++#
-plot.all <- plot.phylo + plot.sum
-plot.all
-# ggsave(
+# plot.all <- plot.phylo + plot.sum
+plot.sum
+# save(
 #   plot = plot.all, 
 #   file = "../Analysis/data.svg", height = 5, width = 8.5
 #   )
@@ -675,7 +677,7 @@ bind_rows(sp1sp2.mean, sp2sp1.mean) %>%
   write.csv("../data/dat.mean.csv", quote=F,row.names = F)
 
 ```
-Data set created here, `dat.mean.csv`, is used in calculating effect sizes for  analyses investigating [phenotypic mean](#meta-analysis-for-phenotypic-mean) and [novel phenotype expression](#novel-phenotype-expression).
+Data set created here, `dat.mean.csv`, is used in calculating effect sizes for  analyses investigating [phenotypic mean](#meta-analysis-for-phenotypic-mean) and [novelty in phenotypic means](#novel-phenotype-expression).
 
 
 ### Allign parental species according to phenotypic variation (CV)
@@ -712,11 +714,11 @@ bind_rows(sp1sp2.var, sp2sp1.var) %>%
   write.csv("../data/dat.CV.csv", quote=F,row.names = F)
 
 ```
-Data set created here, `dat.CV.csv`, is used in calculating effect sizes for analyses investigating [phenotypic variation](#meta-analysis-for-phenotypic-variation) and [novel variability expression](#novel-variability-expression).
+Data set created here, `dat.CV.csv`, is used in calculating effect sizes for analyses investigating [phenotypic variation](#meta-analysis-for-phenotypic-variation) and [novelty in phenotypic variabilities](#novel-variability-expression).
 
 
 ### Simultaneously judge novel phenotype and variability expression
-We categorised phenotypic novelty (novel or non-novel) and relative phenotypic variability compared to parents (smaller, intermediate, larger) at each trait. 
+We categorised phenotypic novelty (novel or non-novel) and relative phenotypic variability (CV) compared to parents (smaller, intermediate, larger) at each trait. 
 
 ```{r}
 
@@ -815,65 +817,55 @@ dat$taxa <- ordered(
   )
 
 ### Difference between hybrids and smaller species (spS) ###
-
-for (i in c("hybLS", "hybSL", "spL")) { # identify type of hybrids
-  for (h in c("spS")) { # identify type of parentals
-    assign(
-      paste(i, h, sep = "_"),
-      
-      left_join(
-        ### lnRR ###
-        escalc(
-          measure = "ROM",
-          # N of hybrids
-          n1i = dat[, paste("N", i, sep = ".")],
-          # N of parentals
-          n2i = dat[, paste("N", h, sep = ".")],
-          # Mean of hybrids
-          m1i = dat[, paste("Mn", i, sep = ".")],
-          # Mean of parentals
-          m2i = dat[, paste("Mn", h, sep = ".")],
-          # SD of hybrids
-          sd1i = dat[, paste("SD", i, sep = ".")],
-          # SD of parentals
-          sd2i = dat[, paste("SD", h, sep = ".")],
-          data = dat
-          ) %>%
-          rename(lnRR.es = yi, lnRR.sv = vi),
-        ### SMD ###
-        escalc(
-          measure = "SMD",
-          # N of hybrids
-          n1i = dat[, paste("N", i, sep = ".")],
-          # N of parentals
-          n2i = dat[, paste("N", h, sep = ".")],
-          # Mean of hybrids
-          m1i = dat[, paste("Mn", i, sep = ".")],
-          # Mean of parentals
-          m2i = dat[, paste("Mn", h, sep = ".")],
-          # SD of hybrids]
-          sd1i = dat[, paste("SD", i, sep = ".")],
-          # SD of parentals
-          sd2i = dat[, paste("SD", h, sep = ".")],
-          data = dat
-          ) %>%
-          rename(SMD.es = yi, SMD.sv = vi)
-        ) %>%
-        
-        select(ES.ID, contains("lnRR"), contains("SMD")) %>%
-        # indicate type of hybrid
-        mutate(cross = i) 
-    )
-  }
-}
-
-mean.dif <- bind_rows(
-  hybLS_spS, hybSL_spS, spL_spS
-  ) %>%
+mean.dif <- foreach(
+  cr = c("hybLS", "hybSL", "spL"), 
+  .combine = `rbind`
+  ) %do%
+  left_join(
+    ### lnRR ###
+    escalc(
+      measure = "ROM",
+      # N of hybrids
+      n1i = dat[, paste("N", cr, sep = ".")],
+      # N of parentals
+      n2i = dat[, "N.spS"],
+      # Mean of hybrids
+      m1i = dat[, paste("Mn", cr, sep = ".")],
+      # Mean of parentals
+      m2i = dat[, "Mn.spS"],
+      # SD of hybrids
+      sd1i = dat[, paste("SD", cr, sep = ".")],
+      # SD of parentals
+      sd2i = dat[, "SD.spS"],
+      data = dat
+      ) %>%
+      rename(lnRR.es = yi, lnRR.sv = vi),
+    ### SMD ###
+    escalc(
+      measure = "SMD",
+      # N of hybrids
+      n1i = dat[, paste("N", cr, sep = ".")],
+      # N of parentals
+      n2i = dat[, "N.spS"],
+      # Mean of hybrids
+      m1i = dat[, paste("Mn", cr, sep = ".")],
+      # Mean of parentals
+      m2i = dat[, "Mn.spS"],
+      # SD of hybrids]
+      sd1i = dat[, paste("SD", cr, sep = ".")],
+      # SD of parentals
+      sd2i = dat[, "SD.spS"],
+      data = dat
+      ) %>%
+      rename(SMD.es = yi, SMD.sv = vi)
+    ) %>%
+  select(ES.ID, contains("lnRR"), contains("SMD")) %>%
+  # indicate type of hybrid
+  mutate(cross = cr) %>% 
   drop_na(SMD.sv) %>%
   arrange(ES.ID) %>%
   left_join(., dat) 
-
+  
 # Dataset able to compare reciprocal crosses
 write.csv(
   mean.dif %>%
@@ -928,7 +920,7 @@ Because those outliers did not affect meta-analytic model convergence, we did no
 <div style="margin-bottom:70px;">
 </div>
 
-### Judging novel phenotype expression 
+### Judging novelty in phenotypic means 
 
 ```{r}
 
@@ -1040,7 +1032,7 @@ bind_rows(
   as.data.frame %>%
   select(-trait) %>%
   mutate_at("taxa", as.factor) %>%
-  within(levels(Novelty) <- c("No", "Novel phenotype expression")) %>%
+  within(levels(Novelty) <- c("No", "novelty in phenotypic means")) %>%
   within(
     taxa <- ordered(
       taxa,
@@ -1576,7 +1568,7 @@ bind_rows(
 
 <div style="margin-bottom:180px;">
 </div>
-# Meta-analysis for phenotypic variation
+# Meta-analysis for phenotypic variation (coefficient of variation - CV)
 
 ### Effect size calculation
 
@@ -1594,38 +1586,52 @@ dat$taxa <- ordered(
   levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
   )
 
-for (i in c("hybLS", "hybSL", "spL")) { # identify type of hybrids
-  for (h in c("spS")) { # identify type of parentals
-    assign(
-      paste(i, h, sep = "_"),
-        escalc(
-          measure = "CVR",
-          # N of hybrids
-          n1i = dat[, paste("N", i, sep = ".")],
-          # N of parentals
-          n2i = dat[, paste("N", h, sep = ".")],
-          # Mean of hybrids
-          m1i = dat[, paste("Mn", i, sep = ".")],
-          # Mean of parentals
-          m2i = dat[, paste("Mn", h, sep = ".")],
-          # SD of hybrids
-          sd1i = dat[, paste("SD", i, sep = ".")],
-          # SD of parentals
-          sd2i = dat[, paste("SD", h, sep = ".")],
-          data = dat
-          ) %>%
-          mutate(cross = i) 
-    )
-  }
-}
-
-# Combine all ES datasets
-CV.dif <- bind_rows(
-  hybLS_spS, hybSL_spS, spL_spS
-  ) %>%
-  drop_na(yi) %>%
+var.dif <- foreach(
+  cr = c("hybLS", "hybSL", "spL"), 
+  .combine = `rbind`
+  ) %do%
+  left_join(
+    ### lnRR ###
+    escalc(
+      measure = "CVR",
+      # N of hybrids
+      n1i = dat[, paste("N", cr, sep = ".")],
+      # N of parentals
+      n2i = dat[, "N.spS"],
+      # Mean of hybrids
+      m1i = dat[, paste("Mn", cr, sep = ".")],
+      # Mean of parentals
+      m2i = dat[, "Mn.spS"],
+      # SD of hybrids
+      sd1i = dat[, paste("SD", cr, sep = ".")],
+      # SD of parentals
+      sd2i = dat[, "SD.spS"],
+      data = dat
+      ) %>%
+      rename(lnCVR.es = yi, lnCVR.sv = vi),
+    ### SMD ###
+    escalc(
+      measure = "VR",
+      # N of hybrids
+      n1i = dat[, paste("N", cr, sep = ".")],
+      # N of parentals
+      n2i = dat[, "N.spS"],
+      # Mean of hybrids
+      m1i = dat[, paste("Mn", cr, sep = ".")],
+      # Mean of parentals
+      m2i = dat[, "Mn.spS"],
+      # SD of hybrids]
+      sd1i = dat[, paste("SD", cr, sep = ".")],
+      # SD of parentals
+      sd2i = dat[, "SD.spS"],
+      data = dat
+      ) %>%
+      rename(lnVR.es = yi, lnVR.sv = vi)
+    ) %>%
+  mutate(cross = cr)  %>%
+  drop_na(lnCVR.es, lnVR.es) %>%
   arrange(ES.ID) %>%
-  left_join(., dat) 
+  left_join(., dat)
 
 ```
 
@@ -1633,7 +1639,7 @@ CV.dif <- bind_rows(
 
 ```{r}
 
-res <- rma(yi = yi, vi = vi, data = CV.dif, method="FE")
+res <- rma(yi = lnCVR.es, vi = lnCVR.sv, data = var.dif, method="FE")
 
 ### set up 2x2 array for plotting
 par(mfrow=c(2,2))
@@ -1651,9 +1657,9 @@ Checked effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 8
 
 ```{r, results='asis'}
 
-outliers <- CV.dif %>%
+outliers <- var.dif %>%
   # vi (sampling variance) 
-  mutate(SE = sqrt(vi)) %>%
+  mutate(SE = sqrt(lnCVR.sv)) %>%
   arrange(desc(SE)) %>%
   filter(SE > 1.2 | 1/SE > 8.5) %>%
   select(ES.ID, Study.name, SE, cross, Reciprocal, trait, Cross.ID) %>%
@@ -1664,9 +1670,9 @@ outliers %>%
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
-CV.dif.2 <- CV.dif %>%
+var.dif.2 <- var.dif %>%
   filter(!ES.ID %in% unique(outliers$ES.ID)) 
-write.csv(CV.dif.2, "../data/variation.ES.general.csv", row.names = F)
+write.csv(var.dif.2, "../data/variation.ES.general.csv", row.names = F)
 
 ```
 Because they inhibit meta-analytic model convergence, we excluded these outliers from the formal meta-analysis dataset, but not from novel variability dataset.
@@ -1676,7 +1682,7 @@ Because they inhibit meta-analytic model convergence, we excluded these outliers
 Funnel plots after outliers excluded
 ```{r}
 
-res <- rma(yi = yi, vi = vi, data = CV.dif.2, method="FE")
+res <- rma(yi = lnCVR.es, vi = lnCVR.sv, data = var.dif.2, method="FE")
 ### set up 2x2 array for plotting
 par(mfrow=c(2,2))
 ### draw funnel plots
@@ -1688,7 +1694,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
 ```
 
 
-### Jugding novel variability expression
+### Jugding novelty in phenotypic variabilities (using CV)
 
 ```{r}
 
@@ -1719,16 +1725,17 @@ for (i in c("spL")) { # identify type of hybrids
           sd2i = dat[, paste("SD", h, sep = ".")],
           data = dat
           ) %>%
-        select(ES.ID, yi, vi) %>%
-        mutate(
-          # direction of transgressve segregation - greater than parent
-          direction = "+",
-          # SE for logistic distribution, for the weighted binomial regression
-          # SE = pi/sqrt(3*(n_e + n_c))
-          SE = pi/sqrt(3*(
-            dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
-          ))
-        )
+          select(ES.ID, yi, vi) %>%
+          rename("lnCVR.es" = "yi", "lnCVR.sv" = "vi") %>% 
+      mutate(
+        # direction of transgressve segregation - greater than parent
+        direction = "+",
+        # SE for logistic distribution, for the weighted binomial regression
+        # SE = pi/sqrt(3*(n_e + n_c))
+        SE = pi/sqrt(3*(
+          dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
+        ))
+      )
     )
   }
 }
@@ -1757,16 +1764,17 @@ for (i in c("hybLS", "hybSL")) { # identify type of hybrids
           sd2i = dat[, paste("SD", h, sep = ".")],
           data = dat
           ) %>%
-        select(ES.ID, yi, vi) %>%
-        mutate(
-          # direction of transgressve segregation - smaller than parent
-          direction = "-",
-          # SE for logistic distribution, for the weighted binomial regression
-          # SE = pi/sqrt(3*(n_e + n_c))
-          SE = pi/sqrt(3*(
-            dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
-          ))
-        )
+          select(ES.ID, yi, vi) %>%
+          rename("lnCVR.es" = "yi", "lnCVR.sv" = "vi") %>% 
+      mutate(
+        # direction of transgressve segregation - smaller than parent
+        direction = "-",
+        # SE for logistic distribution, for the weighted binomial regression
+        # SE = pi/sqrt(3*(n_e + n_c))
+        SE = pi/sqrt(3*(
+          dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
+        ))
+      )
     )
   }
 }
@@ -1784,10 +1792,10 @@ bind_rows(
   bind_rows(hybLS_spS, hybSL_spL) %>%
     mutate(parental = "Father")
   ) %>%
-  drop_na(yi) %>%
+  drop_na(lnCVR.es) %>%
   left_join(., dat) %>%
   # Assign novel variability to 1, non-novel variability to 0 for each effect size
-  mutate(Novelty = ifelse(yi < 0, 1, 0)) %>%
+  mutate(Novelty = ifelse(lnCVR.es < 0, 1, 0)) %>%
   ### Join with metadata ###
   left_join(
     .,
@@ -1822,7 +1830,7 @@ bind_rows(
 ```{r, fig.height = 6.5}
 
 # Load effect sizes
-CV.dif <- read.csv("../data/variation.ES.general.csv", head = TRUE)%>%
+var.dif <- read.csv("../data/variation.ES.general.csv", head = TRUE)%>%
   # indicate dataset including novel variability
   mutate(data.type = "Alltraits")
 
@@ -1837,7 +1845,7 @@ Nonovel <- read.csv("../data/variation.ES.general.csv", head = TRUE) %>%
   mutate(data.type = "Nonnoveltraits")
 
 # combine dataset with/without novel variability
-Novel.Nonnovel <- bind_rows(CV.dif, Nonovel) %>%
+Novel.Nonnovel <- bind_rows(var.dif, Nonovel) %>%
   mutate(metaunit =  str_c(data.type, cross, sep = "_")) %>%
   # Use observations with both reciprocal crosses
   drop_na(contains("Mn"), contains("SD")) %>%
@@ -1852,7 +1860,7 @@ Novel.Nonnovel <- bind_rows(CV.dif, Nonovel) %>%
 
 # # matching names from open tree taxonomy
 # taxa <- tnrs_match_names(
-#   names = levels(CV.dif$spL.name) %>%
+#   names = levels(var.dif$spL.name) %>%
 #     str_replace_all("_", " "), 
 #   context_name = "Animals"
 #   )
@@ -1868,8 +1876,8 @@ Novel.Nonnovel <- bind_rows(CV.dif, Nonovel) %>%
 # # Fix names of tip labels
 # bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
 # # Indicate mismatch between tip labels & dataset species names
-# setdiff(levels(as.factor(bin.tree$tip.label)), levels(CV.dif$spL.name))
-# setdiff(levels(CV.dif$spL.name), levels(as.factor(bin.tree$tip.label)))
+# setdiff(levels(as.factor(bin.tree$tip.label)), levels(var.dif$spL.name))
+# setdiff(levels(var.dif$spL.name), levels(as.factor(bin.tree$tip.label)))
 
 # write.tree(bin.tree, file= "../data/phylo.variation.tre")
 
@@ -1893,9 +1901,9 @@ Phylogenetic tree used. Tree was created for <i>spLL<sub>V</sub></i>
 <div style="margin-bottom:70px;">
 </div>
 
-## Dominance in variance
+## Dominance in coefficient of variation (CV)
 
-We compared midparent-value of phenotypic variability and hybrids' phenotypic variability by calculating log ratio of phenotypic variability (lnCVR) of midparent-value and hybrids to <i>spSS<sub>V</sub></i>. <br> 
+We compared midparent-value of phenotypic variability (CV) and hybrids' phenotypic variability by calculating log ratio of phenotypic variability (lnCVR) of midparent-value and hybrids to <i>spSS<sub>V</sub></i>. <br> 
 
 lnCVR of midparent-value to <i>spSS<sub>V</sub></i> was, following $lnCVR=\ln{\frac{CV_E}{CV_C}}+\frac{1}{2(N_E-1)}-\frac{1}{2(N_C-1)}$ 
 , calculated as <br>
@@ -2063,8 +2071,8 @@ midparent.ma <- bind_rows(
 <div style="margin-bottom:70px;">
 </div>
 
-## Univarate meta-analysis for each cross
-Quantify and visualise overall trend of phenotypic variability of hybrids compared to parents <br>
+## Univarate meta-analysis for each cross (using CV)
+Quantify and visualise overall trend of phenotypic variability (CV) of hybrids compared to parents <br>
 Meta-analysis was repeated for subset data - including only non-novel phenotypes, only insects, and non-novel phenotypes in insects <br>
 Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
 
@@ -2231,7 +2239,7 @@ bind_rows(
 <div style="margin-bottom:70px;">
 </div>
 
-## Crossing direction effect in phenotypic variability
+## Crossing direction effect in phenotypic variability (CV)
 
 We statistically compared lnCVR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
 Here we asked if lnCVR of <i>hybSL<sub>V</sub></i> was smaller/larger than that of <i>hybLS<sub>V</sub></i>. Smaller lnCVR of <i>hybSL<sub>V</sub></i> indicates maternal inheritance in phenotypic variability <br>
@@ -2322,7 +2330,7 @@ bind_rows(
 
 <div style="margin-bottom:180px;">
 </div>
-# Novel phenotype expression
+# Novelty in phenotypic means
 
 ## Frequency
 
@@ -2351,7 +2359,7 @@ summary <- bind_rows(
       Observations = length(unique(ES.ID)),
       Study = length(unique(Study.ID))
       ) %>%
-    mutate(direction = "Novel phenotype expression")
+    mutate(direction = "novelty in phenotypic means")
   ,
   # novel phenotype for each direction
   dat.full %>%
@@ -2374,15 +2382,15 @@ summary <- bind_rows(
 # Order taxon
 summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", "Observations"))
 # Order novel phenotype category
-summary$direction <- ordered(summary$direction, levels = c("All Observations", "Novel phenotype expression", "+", "-"))
+summary$direction <- ordered(summary$direction, levels = c("All Observations", "novelty in phenotypic means", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "Novel phenotype expression", "Exceed upper range", "Exceed lower range")
+levels(summary$direction) <- c("All Observations", "novelty in phenotypic means", "Exceed upper range", "Exceed lower range")
 
 ### Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "Novel phenotype expression", "Exceed upper range", "Exceed lower range")) %>%
+    within(levels(direction) <- c("All Obser- vations", "novelty in phenotypic means", "Exceed upper range", "Exceed lower range")) %>%
     within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
@@ -2395,7 +2403,7 @@ plot <- ggplot(
   xlab("") + ylab("") +
   stackedbartheme
 plot +
-  ggtitle("Taxonomic distribution of novel phenotype expression")
+  ggtitle("Taxonomic distribution of novelty in phenotypic means")
 
 # ggsave(
 #   plot = plot, 
@@ -2415,7 +2423,7 @@ summary %>%
     'Observaton %' = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3, caption = "Summary of the novel phenotype expression frequency") %>% 
+  kable("html", digits = 3, caption = "Summary of the novelty in phenotypic means frequency") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -2437,7 +2445,7 @@ Model, which was ran using `MCMCglmm` function, included following Random effect
 
 * `SE.units`: Sampling variance of effect size
 
-The moderators were categorised into 3 subsets: main effects (labelled as `novel phenotype expression`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
+The moderators were categorised into 3 subsets: main effects (labelled as `novelty in phenotypic means`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
 
 ```{r, results = 'asis'}
 
@@ -2736,7 +2744,7 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
       fun = function(x) 
         1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
       ) +
-    ylab("Novel phenotype expression") + 
+    ylab("novelty in phenotypic means") + 
     xlab(paste(i, "(log)")) +
     scale_color_manual(values = c("#648FFF", "#FE6100")) + 
     scale_y_continuous(breaks=seq(0,1)) +
@@ -2838,7 +2846,7 @@ for (i in c("Reciprocal", "trait.type")) {
         ) +
       geom_point(size = 1.3, shape = 17) +
       # Title
-      ylab("") + xlab("Effect on novel phenotype expression") +
+      ylab("") + xlab("Effect on novelty in phenotypic means") +
       ggtitle(i) +
       # Combine different plots for main factors and interactions
       facet_grid(
@@ -2863,7 +2871,7 @@ for (i in c("Reciprocal", "trait.type")) {
 
 <div style="margin-bottom:180px;">
 </div>
-# Novel variability expression
+# Novelty in phenotypic variabilities (using CV)
 
 ## Frequency
 
@@ -2892,7 +2900,7 @@ summary <- bind_rows(
       Observations = length(unique(ES.ID)),
       Study = length(unique(Study.ID))
       ) %>%
-    mutate(direction = "Novel variability expression")
+    mutate(direction = "novelty in phenotypic variabilities")
   ,
   # TS for each direction
   dat.full %>%
@@ -2915,15 +2923,15 @@ summary <- bind_rows(
 # Order taxon
 summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", "Observations"))
 # Order TS category
-summary$direction <- ordered(summary$direction, levels = c("All Observations", "Novel variability expression", "+", "-"))
+summary$direction <- ordered(summary$direction, levels = c("All Observations", "novelty in phenotypic variabilities", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "Novel variability expression", "Exceed upper range", "Exceed lower range")
+levels(summary$direction) <- c("All Observations", "novelty in phenotypic variabilities", "Exceed upper range", "Exceed lower range")
 
 ### Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "Novel variability expression", "Exceed upper range", "Exceed lower range")) %>%
+    within(levels(direction) <- c("All Obser- vations", "novelty in phenotypic variabilities", "Exceed upper range", "Exceed lower range")) %>%
     within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
@@ -2936,7 +2944,7 @@ plot <- ggplot(
   xlab("") + ylab("") +
   stackedbartheme
 plot +
-  ggtitle("Taxonomic distribution of novel variability expression")
+  ggtitle("Taxonomic distribution of novelty in phenotypic variabilities")
 
 # ggsave(
 #   plot = plot,
@@ -2956,7 +2964,7 @@ summary %>%
     'Observaton %' = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3, caption = "Summary of the novel variability expression frequency") %>% 
+  kable("html", digits = 3, caption = "Summary of the novelty in phenotypic variabilities frequency") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -2977,7 +2985,7 @@ Model, which was ran using `MCMCglmm` function, included following Random effect
 
 * `SE.units`: Sampling variance of effect size
 
-The moderators were categorised into 3 subsets: main effects (labelled as `novel variability expression`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
+The moderators were categorised into 3 subsets: main effects (labelled as `novelty in phenotypic variabilities`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
 
 ```{r, results='asis'}
 
@@ -3068,13 +3076,13 @@ for (k in c("alltaxon", "insect")) {
                       "Exceed mother",
                       ifelse(Factors == "Hetero.sexMale:direction+",
                              "Exceed upper range",
-                             "Novel variability expression"
+                             "novelty in phenotypic variabilities"
                              )
                       )
                )
     ) %>%
     mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("Novel variability expression", "Exceed upper range", "Exceed mother"))) %>%
+    within(group <- ordered(group, c("novelty in phenotypic variabilities", "Exceed upper range", "Exceed mother"))) %>%
     ### Change factor names ###
     within(
       Factors <- str_remove_all(
@@ -3279,7 +3287,7 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
       fun = function(x) 
         1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
       ) +
-    ylab("Novel variability expression") + 
+    ylab("novelty in phenotypic variabilities") + 
     xlab(paste(i, "(log)")) +
     scale_color_manual(values = c("#648FFF", "#FE6100")) + 
     scale_y_continuous(breaks=seq(0,1)) +
@@ -3381,7 +3389,7 @@ for (i in c("Reciprocal", "trait.type")) {
         ) +
       geom_point(size = 1.3, shape = 17) +
       # Title
-      ylab("") + xlab("Effect on novel phenotype expression") +
+      ylab("") + xlab("Effect on novelty in phenotypic means") +
       ggtitle(i) +
       # Combine different plots for main factors and interactions
       facet_grid(
@@ -3629,7 +3637,7 @@ $d_{mismatch} = \sqrt{2} * \sqrt{ Z_i^2 + Z_j^2 - \frac{Z_i + Z_j}{\sqrt{2}}^2 }
 Where $Z_i$, standardized hybrid trait value in trait $i$, is <br>
 $Z_i = \frac{hyb_i - spSS_i}{spLL_i - spSS_i}$ <br>
 
-$Z_i$ is 0-1 if F1 phenotypic mean lies within the range of parents. We note, however, novel phenotype expression (transgressive segregation) can result in quite large $Z_i$: when trait size is large and parental phenotypic divergence is small, novel hybrid phenotype will result in quite large $Z_i$. This seems occurred in mice (see bellow) <br>
+$Z_i$ is 0-1 if F1 phenotypic mean lies within the range of parents. We note, however, novelty in phenotypic means (transgressive segregation) can result in quite large $Z_i$: when trait size is large and parental phenotypic divergence is small, novel hybrid phenotype will result in quite large $Z_i$. This seems occurred in mice (see bellow) <br>
 
 ```{r}
 
@@ -3772,7 +3780,7 @@ get_random.MCMCglmm(summary(phylmix$VCV)) %>%
   kable_styling("striped", position = "left")
 
 ```
-Even data included quite large d<sub>mismatch</sub>, overall it did not differ from 0. Yet, the estimate (β  = 4.41, CI = -3.05 – 10.29) is still much larger than  previously reported mean d<sub>mismatch</sub> 0.6 [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). This is presumably because novel phenotype expression, which should increase d<sub>mismatch</sub>, is much more frequent in our data compared to [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1).
+Even data included quite large d<sub>mismatch</sub>, overall it did not differ from 0. Yet, the estimate (β  = 4.41, CI = -3.05 – 10.29) is still much larger than  previously reported mean d<sub>mismatch</sub> 0.6 [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). This is presumably because novelty in phenotypic means, which should increase d<sub>mismatch</sub>, is much more frequent in our data compared to [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1).
 
 <div style="margin-bottom:70px;">
 </div>
@@ -3817,6 +3825,778 @@ get_random.MCMCglmm(summary(phylmix$VCV)) %>%
 
 ```
 None of species level moderators did not influence d<sub>mismatch</sub>, as [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1) showed. 
+
+
+<div style="margin-bottom:180px;">
+</div>
+# Meta-analysis for phenotypic variation (using lnVR)
+
+### Allign parental species according to phenotypic variation
+
+To investigate paternal effect in hybrids using difference in variance between reciprocal cross, it's better to allign species with larger phenotypic variance (<i>spLL<sub>V2</sub></i>) and smaller CV (<i>spSS<sub>V2</sub></i>) in each traits. Name of hybrids will be changed according to change in names of parental species (<i>hybridLS<sub>V2</sub></i> & <i>hybridSL<sub>V2</sub></i>).  
+
+```{r}
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# sp1 >= sp2 in phenotypic variation
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# extract
+sp1sp2.var <- original.dat %>%
+  filter(SD.sp1 >= SD.sp2) # filtering according to CV of parentals
+# change column name from sp1 or sp2 -> spL or spS
+names(sp1sp2.var) <- gsub("1", "L", names(sp1sp2.var))
+names(sp1sp2.var) <- gsub("2", "S", names(sp1sp2.var))
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# sp1 < sp2 in phenotypic variation
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# extract
+sp2sp1.var <- original.dat %>%
+  filter(SD.sp1 < SD.sp2)
+# change column name from sp1 or sp2 -> spS or spL
+names(sp2sp1.var) <- gsub("1", "S", names(sp2sp1.var))
+names(sp2sp1.var) <- gsub("2", "L", names(sp2sp1.var))
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# combine dataset & sort by ES.ID 
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+bind_rows(sp1sp2.var, sp2sp1.var) %>%
+  arrange(ES.ID) %>%
+  write.csv("../data/dat.var.csv", quote=F,row.names = F)
+
+```
+<!-- Data set created here, `dat.var.csv`, is used in calculating effect sizes for analyses investigating [phenotypic variation](#meta-analysis-for-phenotypic-variation) and [novelty in phenotypic variabilities](#novel-variability-expression). -->
+
+
+### Effect size calculation
+
+We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V2</sub></i>) to the parent with small variability (<i>spSS<sub>V2</sub></i>), by using [lnVR](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309). **We compared variance itself**, and did not controll mean-variance relationship. <br>
+Effecct size was calculated by using `escalc` function in `metafor` package 
+
+```{r}
+
+# load spLS files
+dat <- read.csv("../data/dat.var.csv", head = TRUE)
+
+# Order by taxon
+dat$taxa <- ordered(
+  dat$taxa,
+  levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
+  )
+
+var.dif <- foreach(
+  cr = c("hybLS", "hybSL", "spL"), 
+  .combine = `rbind`
+  ) %do%
+  escalc(
+    measure = "VR",
+    # N of hybrids
+    n1i = dat[, paste("N", cr, sep = ".")],
+    # N of parentals
+    n2i = dat[, "N.spS"],
+    # Mean of hybrids
+    m1i = dat[, paste("Mn", cr, sep = ".")],
+    # Mean of parentals
+    m2i = dat[, "Mn.spS"],
+    # SD of hybrids]
+    sd1i = dat[, paste("SD", cr, sep = ".")],
+    # SD of parentals
+    sd2i = dat[, "SD.spS"],
+    data = dat
+    ) %>%
+    rename(lnVR.es = yi, lnVR.sv = vi) %>%
+  mutate(cross = cr)  %>%
+  drop_na(lnVR.es) %>%
+  arrange(ES.ID) %>%
+  left_join(., dat)
+
+write.csv(var.dif, "../data/lnVR.ES.general.csv", row.names = F)
+
+```
+
+### Funnel plots
+
+```{r}
+
+res <- rma(yi = lnVR.es, vi = lnVR.sv, data = var.dif, method="FE")
+
+### set up 2x2 array for plotting
+par(mfrow=c(2,2))
+### draw funnel plots
+funnel(res, main="Standard Error", xlim = c(-5, 5))
+funnel(res, yaxis="vi", main="Sampling Variance", xlim = c(-5, 5))
+funnel(res, yaxis="seinv", main="Inverse Standard Error", xlim = c(-5, 5))
+funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
+
+```
+
+### Check data
+
+Checked effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 8.5) and confirmed that those data were correctly imported. 
+
+```{r, results='asis'}
+
+outliers <- var.dif %>%
+  # vi (sampling variance)
+  mutate(SE = sqrt(lnVR.sv)) %>%
+  arrange(desc(SE)) %>%
+  filter(SE > 1.2 | 1/SE > 8.5) %>%
+  select(ES.ID, Study.name, SE, cross, Reciprocal, trait, Cross.ID) %>%
+  mutate_if(is.numeric, round, 3)
+
+outliers %>%
+  kable("html", digits = 3, caption = "Effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 140)") %>%
+  kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
+
+var.dif.2 <- var.dif %>%
+  filter(!ES.ID %in% unique(outliers$ES.ID))
+write.csv(var.dif.2, "../data/variation.ES.general.csv", row.names = F)
+
+```
+Because they inhibit meta-analytic model convergence, we excluded these outliers from the formal meta-analysis dataset, but not from novel variability dataset.
+
+
+### Funnel plots again
+Funnel plots after outliers excluded
+```{r}
+
+res <- rma(yi = lnVR.es, vi = lnVR.sv, data = var.dif.2, method="FE")
+### set up 2x2 array for plotting
+par(mfrow=c(2,2))
+### draw funnel plots
+funnel(res, main="Standard Error")
+funnel(res, yaxis="vi", main="Sampling Variance")
+funnel(res, yaxis="seinv", main="Inverse Standard Error")
+funnel(res, yaxis="vinv", main="Inverse Sampling Variance")
+
+```
+
+
+### Jugding novelty in phenotypic variabilities
+
+```{r}
+
+# load spLS files
+dat <- read.csv("../data/dat.var.csv", head = TRUE)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Difference between larger species (spL) and hybrids 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+for (i in c("spL")) { # identify type of hybrids
+  for (h in c("hybLS", "hybSL")) { # identify type of parentals
+    assign(
+      paste(h, i, sep = "_"),
+        escalc(
+          measure = "VR",
+          # N of hybrids
+          n1i = dat[, paste("N", i, sep = ".")],
+          # N of parentals
+          n2i = dat[, paste("N", h, sep = ".")],
+          # Mean of hybrids
+          m1i = dat[, paste("Mn", i, sep = ".")],
+          # Mean of parentals
+          m2i = dat[, paste("Mn", h, sep = ".")],
+          # SD of hybrids
+          sd1i = dat[, paste("SD", i, sep = ".")],
+          # SD of parentals
+          sd2i = dat[, paste("SD", h, sep = ".")],
+          data = dat
+          ) %>%
+          select(ES.ID, yi, vi) %>%
+          rename("lnVR.es" = "yi", "lnCVR.sv" = "vi") %>% 
+        mutate(
+          # direction of transgressve segregation - greater than parent
+          direction = "+",
+          # SE for logistic distribution, for the weighted binomial regression
+          # SE = pi/sqrt(3*(n_e + n_c))
+          SE = pi/sqrt(3*(
+            dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
+          ))
+        )
+    )
+  }
+}
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Difference between hybrids and smaller species (spS)
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+for (i in c("hybLS", "hybSL")) { # identify type of hybrids
+  for (h in c("spS")) { # identify type of parentals
+    assign(
+      paste(i, h, sep = "_"),
+        escalc(
+          measure = "VR",
+          # N of hybrids
+          n1i = dat[, paste("N", i, sep = ".")],
+          # N of parentals
+          n2i = dat[, paste("N", h, sep = ".")],
+          # Mean of hybrids
+          m1i = dat[, paste("Mn", i, sep = ".")],
+          # Mean of parentals
+          m2i = dat[, paste("Mn", h, sep = ".")],
+          # SD of hybrids
+          sd1i = dat[, paste("SD", i, sep = ".")],
+          # SD of parentals
+          sd2i = dat[, paste("SD", h, sep = ".")],
+          data = dat
+          ) %>%
+          select(ES.ID, yi, vi) %>%
+          rename("lnVR.es" = "yi", "lnCVR.sv" = "vi") %>% 
+        mutate(
+          # direction of transgressve segregation - smaller than parent
+          direction = "-",
+          # SE for logistic distribution, for the weighted binomial regression
+          # SE = pi/sqrt(3*(n_e + n_c))
+          SE = pi/sqrt(3*(
+            dat[, paste("N", i, sep = ".")] + dat[, paste("N", h, sep = ".")]
+          ))
+        )
+    )
+  }
+}
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Data output
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+bind_rows(
+  ### Difference with mother species ###
+  bind_rows(hybLS_spL, hybSL_spS) %>%
+    mutate(parental = "Mother"),
+  ### Difference with father species ###
+  bind_rows(hybLS_spS, hybSL_spL) %>%
+    mutate(parental = "Father")
+  ) %>%
+  drop_na(lnVR.es) %>%
+  left_join(., dat) %>%
+  # Assign novel variability to 1, non-novel variability to 0 for each effect size
+  mutate(Novelty = ifelse(lnVR.es < 0, 1, 0)) %>%
+  ### Join with metadata ###
+  left_join(
+    .,
+    read.xlsx(
+      "../data/original.data.xlsx", sheet = "Species.level.moderators"
+      )
+    ) %>%
+  mutate_at(vars(contains("divergence")), as.numeric) %>%
+  mutate_at(vars(contains("divergence")), scale) %>%
+  as.data.frame %>%
+  select(-trait) %>%
+  drop_na(Hetero.sex, trait.type, Genet.divergence) %>%
+  # order taxon
+  within(
+    taxa <- ordered(
+      taxa,
+      levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
+      )
+    ) %>%
+  mutate_if(is.character, as.factor) %>%
+  # Insect or no
+  mutate(
+    insect = ifelse(taxa %in% c("Aves", "Rodentia", "Anura", "Cichliformes"), "no", "insect"),
+  ) %>%
+  write.csv("../data/lnVR.ES.Novelty.csv", row.names = F)
+
+```
+
+
+### Reload data & Prepare phylogenetic tree
+
+```{r, fig.height = 6.5}
+
+# Load effect sizes
+var.dif <- read.csv("../data/lnVR.ES.general.csv", head = TRUE)%>%
+  # indicate dataset including novel variability
+  mutate(data.type = "Alltraits")
+
+# Observations with novel variability
+All <- read.csv("../data/lnVR.ES.novelty.csv", head = TRUE) %>%
+  filter(lnVR.es < 0) %>%
+  distinct(ES.ID)
+
+# Effect sizes with non-novel variability
+Nonovel <- read.csv("../data/lnVR.ES.general.csv", head = TRUE) %>%
+  filter(!ES.ID %in% unique(All$ES.ID)) %>%
+  # indicate dataset without novel variability
+  mutate(data.type = "Nonnoveltraits")
+
+# combine dataset with/without novel variability
+Novel.Nonnovel <- bind_rows(var.dif, Nonovel) %>%
+  mutate(metaunit =  str_c(data.type, cross, sep = "_")) %>%
+  # Use observations with both reciprocal crosses
+  drop_na(contains("Mn"), contains("SD")) %>%
+  # Insect or no
+  mutate(
+    insect = ifelse(taxa %in% c("Cichliformes", "Anura", "Aves", "Rodentia"), "no", "insect"),
+  )
+
+#+++++++++++++++++++++++++++++++#
+# Phylogeny 
+#+++++++++++++++++++++++++++++++#
+
+# # matching names from open tree taxonomy
+# taxa <- tnrs_match_names(
+#   names = levels(var.dif$spL.name) %>%
+#     str_replace_all("_", " "),
+#   context_name = "Animals"
+#   )
+# 
+# # Create tree
+# tree <- tol_induced_subtree(ott_ids = taxa$ott_id)
+# tree$tip.label %<>%
+#   strip_ott_ids # remove OTT IDs from tip labels
+# # randomly solve non-binary phylogeny
+# set.seed(6)
+# bin.tree <- multi2di(tree, random = T)
+# 
+# # Fix names of tip labels
+# bin.tree$tip.label %<>% str_replace_all("Dryophytes", "Hyla")
+# # Indicate mismatch between tip labels & dataset species names
+# setdiff(levels(as.factor(bin.tree$tip.label)), levels(var.dif$spL.name))
+# setdiff(levels(var.dif$spL.name), levels(as.factor(bin.tree$tip.label)))
+# 
+# write.tree(bin.tree, file= "../data/phylo.lnVR.tre")
+
+# compute branch lengths of tree
+phylo_branch <- read.tree(file = "../data/phylo.lnVR.tre") %>%
+  compute.brlen(bin.tree, method = "Grafen", power = 1)
+
+# saving phylogeneic matrix
+phylo_cor <- vcv(phylo_branch, cor = T)
+
+# Note one of the tips is called "Lates calcarifer (estimated)"
+phylo_branch$node.label <- NULL
+
+# Plot tree
+plot.phylo(phylo_branch, cex = 0.7)
+
+```
+<br>
+Phylogenetic tree used. Tree was created for <i>spLL<sub>V</sub></i>
+
+<div style="margin-bottom:70px;">
+</div>
+
+## Dominance
+
+We compared midparent-value of phenotypic variability and hybrids' phenotypic variability by calculating log ratio of phenotypic variability (lnVR) of midparent-value and hybrids to <i>spSS<sub>V</sub></i>. <br> 
+
+It's sampling variance was substitute by that of <i>spLL<sub>V</sub></i> <br>
+
+We statistically compared those effect sizes through the formal meta-regression by using `rma.mv` function of R package `metafor` <br>
+
+All meta-analytic models included following Random effects estimates: 
+
+* `Study.ID`: Primary studies. Denoted as **Study**
+
+* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations. Denoted as **crossed strain**
+
+* `spL.name`: Phylogeny of parental species (<i>spLL<sub>M</sub></i>). Denoted as **species with phylogeny**
+
+```{r}
+
+#+++++++++++++++++++++++++++++++++++++++++++#
+# Calculate midparent 
+#+++++++++++++++++++++++++++++++++++++++++++#
+midparent <- Novel.Nonnovel %>%
+   mutate(
+     lnVR.midparent.es =
+       ifelse(
+         cross == "spL",
+         # log(Se/Sc)
+         log((SD.spL + SD.spS)/2) - log(SD.spS) +  
+           # 1/2(Ne-1) - 1/2(Nc-1)
+           1/(N.spL + N.spS -2) - 1/(2*N.spS - 2), 
+         lnVR.es
+         )
+     # Divide variance by 4 in spL whereas hybrids are constant
+     ) %>%
+   mutate_at("cross", as.factor) %>%
+   within(levels(cross) <- c("hybLS", "hybSL", "midparent"))
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Compare midparent and hybrids by meta-regresson
+#+++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+for (trait in c("Alltraits", "Nonnoveltraits")) {
+  for (taxon in c("alltaxon", "insect")) {
+    
+    # Filtering taxon (all taxon or insects)
+    if (taxon == "alltaxon") {
+      dat <- midparent %>% 
+        filter(data.type == trait)
+    } else {
+      dat <- midparent %>% 
+        filter(data.type == trait, insect == taxon)
+    }
+
+    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+    # Estimate meta-analytic mean of midparent of phenotypic variation
+    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+    midparent.compare <- rma.mv(
+      yi = lnVR.midparent.es, V = lnVR.sv,
+      data = dat,
+      method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      R = list(spL.name = phylo_cor),
+      mods = ~ relevel(cross, ref = "midparent")
+      )
+    ### Save model ###
+    saveRDS(
+      midparent.compare,
+      file = paste("../Analysis/lnVR.midparent.compare", trait, taxon, "obj", sep = ".")
+      )
+  
+    # ### Load model ###
+    # midparent.compare <- readRDS(paste("../Analysis/lnVR.midparent.compare", j, k, "obj", sep = "."))
+    # 
+    # assign(
+    #   paste("Dominance", trait, taxon, sep = "."),
+    #   get_reg(midparent.compare) %>%
+    #     # Show dataset name
+    #     within(Dataset <- c(paste(trait, taxon), rep("", length(.$Estimate)-1))) %>%
+    #     # Rename fixed effects
+    #     within('Fixed effects' <- c("", "midparent (intrcpt)", "hybLS", "hybSL")) %>%
+    #     # Difference of each cross from midparent in %
+    #     mutate('Comparison with midparent' = c(
+    #       rep("", 2),
+    #       # Difference hybLS - midparent
+    #       paste(
+    #         round(
+    #         100*(exp(midparent.compare$beta[1]+midparent.compare$beta[2])            -exp(midparent.compare$beta[1])), # hybrid LS
+    #         2),
+    #         "% larger"
+    #         ),
+    #           # beta[1] : midparent
+    #           # beta[2] : hybLS
+    #           # beta[3] : hybSL
+    #       # Difference hybSL - midparent
+    #       paste(
+    #         round(
+    #         100*(exp(midparent.compare$beta[1]+midparent.compare$beta[3])-exp(midparent.compare$beta[1])), # hybrid SL
+    #         2),
+    #         "% larger"
+    #         )
+    #       ))
+    #   )
+
+    #++++++++++++++++++++++++++++++++++++++++++++++#
+    # Meta-analysis for midparent to plot band
+    #++++++++++++++++++++++++++++++++++++++++++++++#
+
+    # Phylogenetic random meta-analysis
+    midparent.random <- rma.mv(
+      yi = lnCVR.midparent.es,
+      V = lnVR.sv,
+      data = dat %>%
+        filter(cross == "midparent"),
+      method = "REML",
+      random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      R = list(spL.name = phylo_cor)
+      )
+    ### Save model ###
+    saveRDS(
+      midparent.random,
+      file = paste("../Analysis/lnVR.midparent", trait, taxon, "obj", sep = ".")
+      )
+    
+    # ### Load model ###
+    # midparent.random <- readRDS(paste("../Analysis/lnVR.midparent", trait, taxon, "obj", sep = "."))
+    # # creating summary table of results
+    # assign(
+    #   paste("midparent.ma", trait, taxon, sep = "."),
+    #   # Prediction interval of midparent
+    #   get_pred(midparent.random) %>%
+    #     as.data.frame() %>%
+    #     mutate(
+    #       data.type = trait,
+    #       taxon = taxon
+    #       )
+    # )
+    
+  }
+}
+
+bind_rows(
+  Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
+  Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
+  ) %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>%
+  kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
+
+
+### Midparent meta-analysis result for plot below ###
+midparent.ma <- bind_rows(
+  midparent.ma.Alltraits.alltaxon, midparent.ma.Nonnoveltraits.alltaxon,
+  midparent.ma.Alltraits.insect, midparent.ma.Nonnoveltraits.insect
+  )
+
+```
+
+
+<div style="margin-bottom:70px;">
+</div>
+
+## Univarate meta-analysis for each cross
+Quantify and visualise overall trend of phenotypic variability of hybrids compared to parents <br>
+Meta-analysis was repeated for subset data - including only non-novel phenotypes, only insects, and non-novel phenotypes in insects <br>
+Meta-analysis was conducted by using `rma.mv` function in `metafor` package <br>
+
+* Confidential interval : thick line  
+
+* Prediction interval : thin line
+
+```{r, fig.height = 4, fig.width = 6}
+
+for (j in c("Alltraits", "Nonnoveltraits")) {
+  for (k in c("alltaxon", "insect")) {
+    for (h in c("spL", "hybLS", "hybSL")) {
+
+      if (k == "alltaxon") {
+        dat <- Novel.Nonnovel %>%
+          filter(cross == h, data.type == j)
+      } else {
+        dat <- Novel.Nonnovel %>%
+          filter(cross == h, data.type == j, insect == k)
+      }
+      
+      # # Phylogenetic random meta-analysis
+      # phyl.random <- rma.mv(
+      #   yi = yi, V = vi,
+      #   data = dat, method = "REML",
+      #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+      #   R = list(spL.name = phylo_cor)
+      #   )
+      # saveRDS(phyl.random,
+      #   file = paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
+
+
+      ### Load model ###
+      phyl.random <- readRDS(paste("../Analysis/Variation.meta", j, k, h, "obj", sep = "."))
+      # Funnel plot
+      # funnel(phyl.random, xlab = paste(j, k, h))
+      # creating summary table of results
+      assign(
+        paste("res", h, sep = "."), 
+        get_pred(phyl.random) %>%
+          as.data.frame() %>%
+          mutate(
+            N = length(dat$ES.ID),
+            # I2 = I2(phyl.random)["I2_total"] %>% round(3),
+            cross = h # indicate cross (spL, hybLS, hybSL)
+            )
+          )
+      
+    }
+    
+    if (k == "alltaxon") {
+      dat.plot <- Novel.Nonnovel %>% 
+        filter(data.type == j)
+    } else {
+      dat.plot <- Novel.Nonnovel %>% 
+        filter(data.type == j, insect == k)
+    }
+    
+    
+    # Bind result of all crosses at each dataset
+    assign(
+      paste("res.ma", j,k, sep = "."),
+      res.ma <- bind_rows(
+        res.spL, res.hybLS, res.hybSL
+        ) %>%
+        as.data.frame() %>%
+        within('Dataset' <- c(paste(j,k), "", "")) # Show dataset name in first row
+    )
+    
+    ### Midparent estimate & CI ###
+    midparent.ma.2 <- midparent.ma %>%
+      filter(data.type == j, taxon == k)
+    
+    # creating a forest plot
+    plot.metamean <- ggplot(
+      data = res.ma,
+      aes(x = tanh(Estimate), y = cross)
+      ) +
+      scale_y_discrete(expand = c(0,1)) +
+      scale_x_continuous(
+        limits = c(-1, 1),
+        breaks = seq(-1, 1, by = 0.5)
+        ) +
+      ### Midparent CI ###
+      geom_rect(
+        aes(
+          xmin = tanh(midparent.ma.2$LowerCI),
+          xmax = tanh(midparent.ma.2$UpperCI),
+          ymin = -Inf, ymax = Inf
+          ),
+        fill="Grey 95", inherit.aes = FALSE
+        ) +
+      ### Midparent estimate ###
+      geom_vline(
+        xintercept = tanh(midparent.ma.2$Estimate), colour = "grey20",
+        alpha = 0.3, size = 1
+        ) +
+      ### Orchard plot ###
+      geom_quasirandom(
+        data = dat.plot %>%
+          filter(data.type == j),
+        aes(x = tanh(yi), y = cross, size = 1/vi, color = cross),
+        alpha = 0.2, groupOnX = FALSE
+        ) +
+      scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
+      # Delete legend for colors
+      guides(fill = "none", colour = "none") +
+      ## Confidential interval ###
+      geom_errorbarh(
+        aes(xmin = tanh(LowerCI), xmax = tanh(UpperCI)),
+        height = 0, size = 1.2, alpha = 0.6
+        ) +
+      ### Prediction interval ###
+      geom_errorbarh(
+        aes(xmin = tanh(lowerPR), xmax = tanh(upperPR)),
+        height = 0.1, size = 0.5, alpha = 0.6
+        ) +
+      geom_vline(xintercept = 0, linetype = 2, colour = "black", alpha = 0.3) +
+      ### Estimate ###
+      geom_point(size = 3, shape = 21, fill = "black") +
+      ### N ###
+      annotate(
+        "text", x = -0.93, y = 3.85,
+        label = paste("italic(N)==", length(dat.plot$ES.ID)/3),
+        parse = TRUE, hjust = "left", size = 5
+      ) +
+      annotate(
+        "text", x = -0.68, y = 3.85,
+        label = "each", hjust = "left", size = 5
+      ) +
+      ylab("") +
+      xlab(expression(
+        paste("hyperbolic tangent of lnCVR from ", italic("spSS")),
+        parse = TRUE
+        )) +
+      ggtitle(cap[paste(j,k,sep="."),]) +
+      orchardtheme 
+    
+    print(plot.metamean)
+
+    # ggsave(
+    #   plot = plot.metamean,
+    #   file = paste("../Analysis/variation.general.metamean", j, k, "svg", sep = "."),
+    #   height = 4, width = 5
+    # )
+
+  }
+}
+
+bind_rows(
+  res.ma.Alltraits.alltaxon, res.ma.Nonnoveltraits.alltaxon,
+  res.ma.Alltraits.insect, res.ma.Nonnoveltraits.insect
+  ) %>%
+  as.data.frame() %>%
+  select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
+
+```
+
+
+
+<div style="margin-bottom:70px;">
+</div>
+
+## Crossing direction effect in phenotypic variability
+
+We statistically compared lnVR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
+Here we asked if lnVR of <i>hybSL<sub>V</sub></i> was smaller/larger than that of <i>hybLS<sub>V</sub></i>. Smaller lnVR of <i>hybSL<sub>V</sub></i> indicates maternal inheritance in phenotypic variability <br>
+
+```{r}
+
+for (j in c("Alltraits", "Nonnoveltraits")) {
+  for (k in c("alltaxon", "insect")) {
+    
+    if (k == "alltaxon") {
+      dat <- Novel.Nonnovel %>% 
+        filter(data.type == j)
+    } else {
+      dat <- Novel.Nonnovel %>% 
+        filter(data.type == j, insect == k)
+    }
+
+  #++++++++++++++++++++++++++++++++++++++++++++++#
+  # phylogenetic random regresson (ANOVA)
+  #++++++++++++++++++++++++++++++++++++++++++++++#
+    
+  # # Regress by lnRR of phenotypic difference between parentals
+  # phyl.random.spL <- rma.mv(
+  #   yi = yi, V = vi,
+  #   data = dat, method = "REML",
+  #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+  #   R = list(spL.name = phylo_cor),
+  #   mods = ~ relevel(cross, ref = "spL")
+  #   )
+  # phyl.random.hybLS <- rma.mv(
+  #   yi = yi, V = vi,
+  #   data = dat, method = "REML",
+  #   random = list(~1 | spL.name, ~1 | Study.ID, ~1 | Cross.ID, ~1 | ES.ID),
+  #   R = list(spL.name = phylo_cor),
+  #   mods = ~ cross
+  #   )
+  # # Save model ###
+  # saveRDS(
+  #   phyl.random.spL,
+  #   file = paste("../Analysis/Variation.compare.from.spL", j, k, "obj", sep = ".")
+  #   )
+  # saveRDS(
+  #   phyl.random.hybLS,
+  #   file = paste("../Analysis/Variation.compare.from.hybLS", j, k, "obj", sep = ".")
+  #   )
+
+
+  ### Load model ###
+  # phyl.random.spL <- readRDS(paste("../Analysis/Variation.compare.from.spL", j, k, "obj", sep = "."))
+  phyl.random.hybLS <- readRDS(paste("../Analysis/Variation.compare.from.hybLS", j, k, "obj", sep = "."))
+  
+  assign(
+    paste("Reciprocal", j,k, sep = "."),
+    get_reg(phyl.random.hybLS) %>%
+      # Show dataset name
+      within(Dataset <- c(paste(j,k), rep("", length(.$Estimate)-1))) %>%
+      # Rename fixed effects
+      within('Fixed effects' <- c("", "hybLS (intrcpt)", "hybSL", "spLL")) %>%
+      # Difference of each cross from midparent in %
+      mutate('Comparison with hybridLS' = c(
+        rep("", 2),
+        paste(
+          round(
+            (exp(phyl.random.hybLS$beta[1]+phyl.random.hybLS$beta[2]) -
+               exp(phyl.random.hybLS$beta[1])
+             )*100,
+            2),
+          "% larger"
+          ), 
+        ""
+        )
+      )
+    )
+  }
+}
+
+bind_rows(
+  Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
+  Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
+  ) %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable_styling("striped", position = "left") %>%
+  scroll_box(width = "100%", height = "500px")
+
+```
 
 
 <div style="margin-bottom:180px;">

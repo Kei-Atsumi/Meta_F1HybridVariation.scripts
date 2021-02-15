@@ -1,0 +1,321 @@
+---
+title: "QTLs and variability"
+author: "Keisuke Atsumi"
+date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+output:
+  html_document:
+    code_download: true
+    code_folding: hide
+    theme: united
+    toc: yes
+    toc_float: yes
+---
+## Setup
+
+### Load packages
+
+```{r}
+
+rm(list=ls())  # reset workspace
+options(scipen=100)  # do not show numbers using exponential
+
+# install & load packages
+pacman::p_load(
+  openxlsx   # open excel
+  , tidyverse
+  , magrittr   # extended pipe
+  , metafor    # meta-analysis
+  , MCMCglmm   # comparative analysis
+  , orchaRd    # Orchard plot - meta-analysis
+  , rotl       # open tree of life
+  , ape        # Phylogeny
+  , phytools   # Phylogeny
+  , knitr  
+  , kableExtra # nice tables
+  , pander     # nice tables
+  , svglite    # Export SVG plots
+  , ggiraphExtra # Geom predict
+  # , R.rsp
+)
+
+# Rmarkdown settings
+knitr::opts_chunk$set(
+  prompt  = FALSE,  # Do not add > or + in inline-code
+  message = FALSE, 
+  comment = "", 
+  warning = FALSE,  # Mute warnings
+  tidy    = TRUE
+  ) 
+options(knitr.kable.NA = '') # Hide NAs in kable table
+```
+
+
+# Dataset
+
+I searched QTL mapping studies through forward citations of primary studies. I could find QTLs only for 10 traits. <br>
+Among those, all species pairs were male heterogametic, and both recciprocal hybrids were viable. Genetic distance metrics was not available for the crossin using *Laupara* crickets.
+
+```{r, results = 'asis'}
+
+## Phenotype data ##
+pheno <- read.xlsx(
+    "../data/original.data.xlsx", sheet = "Phenotype"
+    # Same data is also saved as "../data/original.data.Phenotype.txt"
+    ) %>%
+  # Excluding data without any parent data
+  drop_na(contains("SD.sp")) %>%
+  # to numeric
+  mutate_at(
+    vars(contains("Mn") | contains("SD") | N.sp1:N.sp2), 
+    as.numeric
+    ) %>%
+  # delete observation with negative mean trait value
+  filter(Mn.sp1 > 0 & Mn.sp2 > 0 & homologous == "Yes") %>%   
+  # calculate phenotypic difference between parental species
+  mutate(
+    Pheno.divergence = abs(log(Mn.sp1/Mn.sp2))
+    ) %>%
+  mutate_at(vars(contains("pheno.div")), scale) %>%
+  # describe whether full cross or not
+  mutate(
+    Reciprocal = ifelse(
+      is.na(Mn.hyb12 & Mn.hyb21), 
+      "Inviable", "Viable"
+      )
+    )
+
+meta <- read.xlsx(
+    "../data/original.data.xlsx", sheet = "Species.level.moderators"
+    # Same data is also saved as "../data/original.data.Species.level.moderators.txt"
+    ) %>%
+  mutate_at(vars(contains("divergence")), as.numeric) %>%
+  # Logalize genetic divergence
+  mutate_at(vars(contains("divergence")), log10)
+
+
+#++++++++++++++++++++++++++++++++++++++++++++++
+# Combine phenotypic data and moderators data
+#++++++++++++++++++++++++++++++++++++++++++++++
+original.dat <- left_join(read.csv("QTL.csv"), pheno) %>%
+  drop_na(N.QTL) %>%
+  left_join(., meta)
+# add unique ID for each effect size (row)
+original.dat$ES.ID <- paste("ES", sprintf("%03d",c(1:dim(original.dat)[1])), sep="")
+
+
+summary <- original.dat %>%
+  group_by(taxa) %>%
+  summarise(
+    'Species pair' = length(unique(species.pair)),
+    'Obser- vation' = length(unique(ES.ID)),
+    Study = length(unique(Study.ID))
+    )
+
+
+### Table ###
+original.dat %>%
+  kable("html", digits = 3) %>%
+  kable_styling("striped", position = "left") %>%
+  scroll_box(width = "80%", height = "300px")
+
+### Plot ###
+ggplot(
+  # Make tidy summary data
+  summary %>%
+  gather(key = metrics, value = N, -c(taxa)) %>%
+  # Order metrics
+  within(
+    metrics <- ordered(
+      metrics,
+      levels = c("Study", "Species pair", "Obser- vation")
+      )
+    ), 
+  aes(x = "", y = N, fill = taxa)) +
+  geom_bar(width = 1, stat = "identity") +
+  scale_fill_brewer(palette = "YlGn") +
+  facet_wrap(
+    scale = "free", "metrics",
+    # strip text into two lines
+    labeller = label_wrap_gen(width = 8)
+    ) +
+  xlab("")
+
+
+```
+
+
+# Meta-regression for phenotypic variation
+
+We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V</sub></i>) to the parent with small variability (<i>spSS<sub>V</sub></i>), by using [lnCVR](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309). We controlled mean-variance relationship by using Coefficient of Variation (CV) as the proxy of phenotypic variability. <br>
+
+We then regressed relative phenotypic variability of hybrids (arrows 2&3 in Fig.1b of [Atsumi et al](https://ecoevorxiv.org/kt3ud/)) by phenotypic variability of parent (arrow 1 - to controll the additive inheritance for phenotypic variability, `spL.variability`) and estimated number of QTLs for the focal traits (`N.QTL`).
+
+```{r}
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Align parental species by phenotypic variability size
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# sp1 >= sp2 in phenotypic variation (CV)
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# extract
+sp1sp2.var <- original.dat %>%
+  filter(SD.sp1/Mn.sp1 >= SD.sp2/Mn.sp2) # filtering according to CV of parentals
+# change column name from sp1 or sp2 -> spL or spS
+names(sp1sp2.var) <- gsub("1", "L", names(sp1sp2.var))
+names(sp1sp2.var) <- gsub("2", "S", names(sp1sp2.var))
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# sp1 < sp2 in phenotypic variation (CV)
+#+++++++++++++++++++++++++++++++++++++++++++++++++#
+# extract
+sp2sp1.var <- original.dat %>%
+  filter(SD.sp1/Mn.sp1 < SD.sp2/Mn.sp2)
+# change column name from sp1 or sp2 -> spS or spL
+names(sp2sp1.var) <- gsub("1", "S", names(sp2sp1.var))
+names(sp2sp1.var) <- gsub("2", "L", names(sp2sp1.var))
+
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+# Effect size calculation | lnCVR
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+dat <- bind_rows(sp1sp2.var, sp2sp1.var)
+
+# Order by taxon
+dat$taxa <- ordered(
+  dat$taxa,
+  levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")
+  )
+
+for (i in c("hybLS", "hybSL", "spL")) { # identify type of hybrids
+  for (h in c("spS")) { # identify type of parentals
+    assign(
+      paste(i, h, sep = "_"),
+        escalc(
+          measure = "CVR",
+          # N of hybrids
+          n1i = dat[, paste("N", i, sep = ".")],
+          # N of parentals
+          n2i = dat[, paste("N", h, sep = ".")],
+          # Mean of hybrids
+          m1i = dat[, paste("Mn", i, sep = ".")],
+          # Mean of parentals
+          m2i = dat[, paste("Mn", h, sep = ".")],
+          # SD of hybrids
+          sd1i = dat[, paste("SD", i, sep = ".")],
+          # SD of parentals
+          sd2i = dat[, paste("SD", h, sep = ".")],
+          data = dat
+          ) %>%
+          mutate(cross = i) 
+    )
+  }
+}
+
+# Combine all ES datasets
+CV.dif <- bind_rows(
+  hybLS_spS, hybSL_spS
+  ) %>%
+  left_join(
+    spL_spS %>%
+      dplyr::select("ES.ID", "yi") %>%
+      rename(spL.variability = yi)
+  ) %>%
+  drop_na(yi) %>%
+  arrange(ES.ID) %>%
+  left_join(., dat) 
+
+
+# Regress by lnRR of phenotypic difference between parentals
+model <- rma.mv(
+  yi = yi, V = vi,
+  data = CV.dif, method = "REML",
+  random = list(~1 | spL.name, ~1 | ES.ID),
+  mods = ~ N.QTL + spL.variability
+  )
+
+### Output result ###
+reg <- tibble(
+    'Fixed_effects' = row.names(model$beta),
+    'Estimate' = model$beta, # regression: estimate
+    'LowerCI' = model$ci.lb, # regression: 95ci, 
+    'UpperCI'  = model$ci.ub, # regression: 95ci
+    'P'        = model$pval
+    )  %>%
+    as.data.frame() %>%
+    mutate(significance = ifelse(P < 0.05, "*", "")) %>%
+  mutate_at("Fixed_effects", as.factor)
+
+ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
+  geom_errorbar(
+    aes(ymin = LowerCI, ymax = UpperCI, colour=significance), 
+    width=.0001
+    ) +
+  # Color of plots and errorbars
+  scale_colour_manual(values = c("grey60", "black")) +
+  geom_point(size = 1.5, aes(colour = significance)) +
+  scale_fill_manual(values = c("grey60", "black")) +
+  scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
+  geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+  coord_flip() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "none",
+    panel.border=element_blank(),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 12),
+    axis.line=element_line(colour = "grey70")
+    )
+
+```
+
+The result implies negative relationship between F1 phenotypic variability and QTL counts. <br>
+
+```{r}
+
+# Regress by lnRR of phenotypic difference between parentals
+model <- rma.mv(
+  yi = yi, V = vi,
+  data = CV.dif, method = "REML",
+  random = list(~1 | spL.name, ~1 | ES.ID),
+  mods = ~ N.QTL + Genet.divergence + spL.variability
+  )
+
+### Output result ###
+reg <- tibble(
+    'Fixed_effects' = row.names(model$beta),
+    'Estimate' = model$beta, # regression: estimate
+    'LowerCI' = model$ci.lb, # regression: 95ci, 
+    'UpperCI'  = model$ci.ub, # regression: 95ci
+    'P'        = model$pval
+    )  %>%
+    as.data.frame() %>%
+    mutate(significance = ifelse(P < 0.05, "*", "")) %>%
+  mutate_at("Fixed_effects", as.factor)
+
+ggplot(reg, aes(y = Estimate, x = Fixed_effects)) +
+  geom_errorbar(
+    aes(ymin = LowerCI, ymax = UpperCI, colour=significance), 
+    width=.0001
+    ) +
+  # Color of plots and errorbars
+  scale_colour_manual(values = c("grey60", "black")) +
+  geom_point(size = 1.5, aes(colour = significance)) +
+  scale_fill_manual(values = c("grey60", "black")) +
+  scale_x_discrete(limits = rev(reg$Fixed_effects))+ # reverse x-axis
+  geom_hline(yintercept = 0, linetype="dashed", size = 0.3) +
+  coord_flip() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "none",
+    panel.border=element_blank(),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 12),
+    axis.line=element_line(colour = "grey70")
+    )
+
+```
+After genetic divergence between parents was included (reduce 2 data points), sign of the effect of QTL counts remained negative, but became weaker.
