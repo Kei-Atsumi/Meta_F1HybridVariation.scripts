@@ -12,6 +12,10 @@ output:
 subtitle: Supplementary Information
 
 ---
+
+<div style="margin-bottom:120px;">
+</div>
+
 ## Setup
 
 ## Load packages
@@ -287,7 +291,7 @@ c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 ```
 
-<div style="margin-bottom:180px;">
+<div style="margin-bottom:120px;">
 </div>
 
 # Data description
@@ -634,6 +638,7 @@ full_join(
   kable_styling("striped", position = "left")
 
 ```
+Two fish and three orthoptera species-pairs were not used in meta-regression and Bayesian phylogenetic mixed models because of the lack of data for genetic distance or sex-determination system (fish, *Haplochromis burtoni* × *H. nubilus* and *Pundamilia nyererei* × *P. pundamilia*; orthoptera, *Chorthippus parallelus erythropus* × *C. parallelus parallelus*, *Gryllus armatus* × *G. rubens* and *Laupala kohalensis* × *L. paranigra*). We did not assign value of the heterogametic sex in cichlid fishes that undergo frequent evolutionary changes in sex-determination system [Yoshida et al. 2011](https://dx.plos.org/10.1371/journal.pgen.1002203). 
 
 <div style="margin-bottom:70px;">
 </div>
@@ -799,6 +804,8 @@ Data set created here, `dat.novelty.csv`, is used in investigating [phenotypic v
 <div style="margin-bottom:180px;">
 </div>
 # Meta-analysis for phenotypic mean
+
+We created data subset according to taxon (all taxon or insect only) and novelty in phenotypic means (all traits or non-novel traits - trait size of hybrids does not exceed size range of parents). We conduct identical analyses for full data and data subsets, and checked robustness of our results.
 
 ## Calculating effect sizes
 
@@ -1012,7 +1019,7 @@ bind_rows(
   as.data.frame %>%
   select(-trait) %>%
   mutate_at("taxa", as.factor) %>%
-  within(levels(Novelty) <- c("No", "novelty in phenotypic means")) %>%
+  within(levels(Novelty) <- c("No", "Novel phenotypic means")) %>%
   within(
     taxa <- ordered(
       taxa,
@@ -1032,7 +1039,7 @@ bind_rows(
 
 ## Reload data & Prepare phylogenetic tree
 
-```{r, fig.height = 6.5}
+```{r, fig.height = 6.5, fig.cap = "Figure S1. Phylogenetic tree used in meta-analysis for phenotypic mean, which was based on tree of the parental species with larger phenotypic mean"}
 
 # Load effect sizes
 mean.dif <- read.csv("../data/mean.ES.general.csv", head = TRUE) %>%
@@ -1116,12 +1123,12 @@ plot.phylo(phylo_branch, cex = 0.7)
 
 ```
 <br>
-Phylogenetic tree used. Tree was created for <i>spLL<sub>M</sub></i> based on taxonomic tree on [Open Tree of Life](https://tree.opentreeoflife.org/opentree/argus/opentree12.3@ott93302). Non-binary tree was randomly solved. We used packages `rotl`, `ape` and `phytools` on R.
+Phylogenetic tree created based on taxonomic tree on [Open Tree of Life](https://tree.opentreeoflife.org/opentree/argus/opentree12.3@ott93302). Non-binary tree was randomly solved. We used packages `rotl`, `ape` and `phytools` on R.
 
 <div style="margin-bottom:70px;">
 </div>
 
-## Dominance (lnRR)
+## Dominance in phenotypic means
 Compare midparent and hybrids by comparing difference from <i>spSS<sub>M</sub></i> phenotypic mean to midparent-value $\frac{spLL_M+spSS_M}{2}$ and to hybrids' phenotypic mean.  
 
 * lnRR of midparent to <i>spSS<sub>M</sub></i>: $\ln\frac{spLL_M+spSS_M}{2spSS_M}$ 
@@ -1240,7 +1247,7 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable("html", digits = 3, caption = "Table S3. Results of meta-analysis investigating dominance in phenotypic means using full dataset or data subsets") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -1365,7 +1372,7 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
       geom_quasirandom(
         data = dat.plot, 
         aes(x = tanh(lnRR.es), y = cross, size = 1/lnRR.sv, color = cross), 
-        alpha = 0.2, groupOnX = FALSE
+        alpha = 0.2, GroupOnX = FALSE
         ) + 
       scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
       # Delete legend for colors
@@ -1425,7 +1432,7 @@ bind_rows(
   as.data.frame() %>%
   # mutate_at(vars('Estimate':'%I2[residual]'), as.numeric) %>%
   # select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and data subsets") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -1435,7 +1442,7 @@ bind_rows(
 <div style="margin-bottom:70px;">
 </div>
 
-## Crossing direction effect
+## Crossing direction effect in phenotypic means
 
 We statistically compared lnRR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
 
@@ -1519,7 +1526,7 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable("html", digits = 3, caption = "Table S4. Results of meta-analysis investigating crossing direction effects in phenotypic means using full dataset or data subsets") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -1531,6 +1538,8 @@ bind_rows(
 <div style="margin-bottom:180px;">
 </div>
 # Meta-analysis for phenotypic variation (coefficient of variation - CV)
+
+We created data subset according to taxon (all taxon or insect only) and novelty in phenotypic variabilities (all traits or non-novel traits - trait variability [in terms of coefficient of variation] of hybrids does not exceed size range of parents). We conduct identical analyses for full data and data subsets, and checked robustness of our results.
 
 ## Effect size calculation
 
@@ -1769,7 +1778,7 @@ bind_rows(
 
 ## Reload data & Prepare phylogenetic tree
 
-```{r, fig.height = 6.5}
+```{r, fig.height = 6.5, fig.cap = "Figure S2. Phylogenetic tree used in meta-analysis for phenotypic variability (coefficient of variation, CV), which was based on tree of the parental species with larger CV in trait size"}
 
 # Load effect sizes
 var.dif <- read.csv("../data/variation.ES.general.csv", head = TRUE)%>%
@@ -1838,7 +1847,6 @@ plot.phylo(phylo_branch, cex = 0.7)
 
 ```
 <br>
-Phylogenetic tree used. Tree was created for <i>spLL<sub>V</sub></i>
 
 <div style="margin-bottom:70px;">
 </div>
@@ -1982,7 +1990,7 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>%
+  kable("html", digits = 3, caption = "Table S5. Results of meta-analysis investigating dominance in phenotypic variabilities using full dataset or data subsets") %>%
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -2094,7 +2102,7 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
         data = dat.plot %>%
           filter(data.type == tr),
         aes(x = tanh(lnCVR.es), y = cross, size = 1/lnCVR.sv, color = cross),
-        alpha = 0.2, groupOnX = FALSE
+        alpha = 0.2, GroupOnX = FALSE
         ) +
       scale_color_manual(values = c("#DC267F", "#785EF0", "#FE6100")) +
       # Delete legend for colors
@@ -2147,7 +2155,7 @@ bind_rows(
   ) %>%
   as.data.frame() %>%
   select(Dataset, cross, Estimate, UpperCI, LowerCI, contains("PR"), contains("I2")) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and data subsets") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -2237,7 +2245,7 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable("html", digits = 3, caption = "Table S6. Results of meta-analysis investigating cross direction effect in phenotypic variabilities using full dataset or data subsets") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -2276,7 +2284,7 @@ summary <- bind_rows(
       Observations = length(unique(ES.ID)),
       Study = length(unique(Study.ID))
       ) %>%
-    mutate(direction = "novelty in phenotypic means")
+    mutate(direction = "Novel phenotypic means")
   ,
   # novel phenotype for each direction
   dat.full %>%
@@ -2299,15 +2307,15 @@ summary <- bind_rows(
 # Order taxon
 summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", "Observations"))
 # Order novel phenotype category
-summary$direction <- ordered(summary$direction, levels = c("All Observations", "novelty in phenotypic means", "+", "-"))
+summary$direction <- ordered(summary$direction, levels = c("All Observations", "Novel phenotypic means", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "novelty in phenotypic means", "Exceed upper range", "Exceed lower range")
+levels(summary$direction) <- c("All Observations", "Novel phenotypic means", "Exceed upper range", "Exceed lower range")
 
 ## Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "novelty in phenotypic means", "Exceed upper range", "Exceed lower range")) %>%
+    within(levels(direction) <- c("All Obser- vations", "Novel phenotypic means", "Exceed upper range", "Exceed lower range")) %>%
     within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
@@ -2320,7 +2328,7 @@ plot <- ggplot(
   xlab("") + ylab("") +
   stackedbartheme
 plot +
-  ggtitle("Taxonomic distribution of novelty in phenotypic means")
+  ggtitle("Taxonomic distribution of novel phenotypic means")
 
 # ggsave(
 #   plot = plot, 
@@ -2340,7 +2348,7 @@ summary %>%
     'Observaton %' = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3, caption = "Summary of the novelty in phenotypic means frequency") %>% 
+  kable("html", digits = 3, caption = "Summary of the novel phenotypic means frequency") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -2369,6 +2377,7 @@ The moderators were categorised into 3 subsets: main effects (labelled as `novel
 # Correcting estimate of binomial regression
 c2 <- (16 * sqrt(3)/(15 * pi))^2
 
+
 #++++++++++++++++++++++++++++++++++#
 # Phylogenetic tree for mcmcglmm 
 #++++++++++++++++++++++++++++++++++#
@@ -2382,6 +2391,16 @@ phylo_cor <- vcv(phylo_branch, cor = T)
 # generating inverse phylogenetic matrix for MCMCglmm
 phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
+
+# Caption
+cap <- data.frame(
+  desc = c(
+    "Table S7. Fixed effects estimates of Bayesian logistic model investigating factors affecting novelty in phenotypic means. Data of all taxon was used",
+    "Fixed effects estimates: insect subset data"
+    )
+  ) %>%
+  mutate_all(as.character)
+row.names(cap) <- c("alltaxon", "insect")
 
 for (taxon in c("alltaxon", "insect")) {
   
@@ -2443,20 +2462,20 @@ for (taxon in c("alltaxon", "insect")) {
   sum <- get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
       ## Grouping Factors ###
       mutate(
-        group = 
+        Group = 
           ifelse(str_detect(Factors, "direction.:"), 
                  "Exceed upper range",
                  ifelse(str_detect(Factors, "parentalMother:"),
                         "Exceed mother",
                         ifelse(Factors == "Hetero.sexMale:direction+",
                                "Exceed upper range",
-                               "Novelty expression"
+                               "Increase novelty"
                                )
                         )
                  )
       ) %>%
-      mutate_at("group", as.factor) %>%
-      within(group <- ordered(group, c("Novelty expression", "Exceed upper range", "Exceed mother"))) %>%
+      mutate_at("Group", as.factor) %>%
+      within(Group <- ordered(Group, c("Increase novelty", "Exceed upper range", "Exceed mother"))) %>%
       ## Change factor names ###
       within(
         Factors <- str_remove_all(
@@ -2497,7 +2516,7 @@ for (taxon in c("alltaxon", "insect")) {
     ylab("") + xlab("Estimate with 95% CI") +
     # Combine different plots for main Factors and interactions
     facet_grid(
-      group~., scales = "free", space = "free",
+      Group~., scales = "free", space = "free",
       labeller = label_wrap_gen(width = 20)
       ) +
     # Themes
@@ -2514,8 +2533,8 @@ print(metaplot)
   # Fixed effects output
   #+++++++++++++++++++++++++#
   sum %>% 
-    select(group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
-    kable("html", caption = paste("Fixed effects estimates:", taxon, "data", " ")) %>% 
+    select(Group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
+    kable("html", caption = cap[taxon,]) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
     print()
@@ -2661,7 +2680,7 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
       fun = function(x) 
         1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
       ) +
-    ylab("novelty in phenotypic means") + 
+    ylab("Novelty in phenotypic means") + 
     xlab(paste(i, "(log)")) +
     scale_fill_brewer(palette = "Set2") +
     scale_y_continuous(breaks=seq(0,1)) +
@@ -2722,7 +2741,7 @@ for (i in c("Reciprocal", "trait.type")) {
     #     )
 
   #++++++++++++++++++++++++++++++++++++++#  
-  # Grouping interaction terms
+  # ing interaction terms
   #++++++++++++++++++++++++++++++++++++++#
   phylmix <- readRDS(
     paste("../Analysis/Mean.novelty", i, "alltaxon.obj", sep = ".")
@@ -2816,7 +2835,7 @@ summary <- bind_rows(
       Observations = length(unique(ES.ID)),
       Study = length(unique(Study.ID))
       ) %>%
-    mutate(direction = "novelty in phenotypic variabilities")
+    mutate(direction = "Increase novelty")
   ,
   # TS for each direction
   dat.full %>%
@@ -2839,15 +2858,15 @@ summary <- bind_rows(
 # Order taxon
 summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", "Observations"))
 # Order TS category
-summary$direction <- ordered(summary$direction, levels = c("All Observations", "novelty in phenotypic variabilities", "+", "-"))
+summary$direction <- ordered(summary$direction, levels = c("All Observations", "Increase novelty", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "novelty in phenotypic variabilities", "Exceed upper range", "Exceed lower range")
+levels(summary$direction) <- c("All Observations", "Increase novelty", "Exceed upper range", "Exceed lower range")
 
 ## Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "novelty in phenotypic variabilities", "Exceed upper range", "Exceed lower range")) %>%
+    within(levels(direction) <- c("All Obser- vations", "Novel phenotypic variabilities", "Exceed upper range", "Exceed lower range")) %>%
     within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
@@ -2860,7 +2879,7 @@ plot <- ggplot(
   xlab("") + ylab("") +
   stackedbartheme
 plot +
-  ggtitle("Taxonomic distribution of novelty in phenotypic variabilities")
+  ggtitle("Taxonomic distribution of novel phenotypic variabilities")
 
 # ggsave(
 #   plot = plot,
@@ -2880,7 +2899,7 @@ summary %>%
     'Observaton %' = Observations/.[1, "Observations"]*100
   ) %>%
   mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3, caption = "Summary of the novelty in phenotypic variabilities frequency") %>% 
+  kable("html", digits = 3, caption = "Summary of the novel phenotypic variabilities frequency") %>% 
   kable_styling("striped", position = "left")
 
 ```
@@ -2888,7 +2907,7 @@ summary %>%
 <div style="margin-bottom:70px;">
 </div>
 
-## Factors affecting  novel variability
+## Factors affecting  novelty in phenotypic variability
 We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
 
 Model, which was ran using `MCMCglmm` function, included following Random effects estimates: 
@@ -2924,6 +2943,16 @@ phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 #+++++++++++++++++++++++++++++++++++++#
 # Phylogenetic comparative analysis
 #+++++++++++++++++++++++++++++++++++++#
+
+# Caption
+cap <- data.frame(
+  desc = c(
+    "Table S8. Fixed effects estimates of Bayesian logistic model investigating factors affecting novelty in phenotypic variabilities. Data of all taxon was used",
+    "Fixed effects estimates: insect subset data"
+    )
+  ) %>%
+  mutate_all(as.character)
+row.names(cap) <- c("alltaxon", "insect")
 
 for (taxon in c("alltaxon", "insect")) {
   
@@ -2983,22 +3012,22 @@ for (taxon in c("alltaxon", "insect")) {
   phylmix <- readRDS(file = paste("../Analysis/Variation.novelty.allfactors", taxon, "obj", sep = "."))
   
   sum <- get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
-    ## Grouping Factors ###
+    ## ing Factors ###
     mutate(
-      group = 
+      Group = 
         ifelse(str_detect(Factors, "direction.:"), 
                "Exceed upper range",
                ifelse(str_detect(Factors, "parentalMother:"),
                       "Exceed mother",
                       ifelse(Factors == "Hetero.sexMale:direction+",
                              "Exceed upper range",
-                             "novelty in phenotypic variabilities"
+                             "Increase novelty"
                              )
                       )
                )
     ) %>%
-    mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("novelty in phenotypic variabilities", "Exceed upper range", "Exceed mother"))) %>%
+    mutate_at("Group", as.factor) %>%
+    within(Group <- ordered(Group, c("Increase novelty", "Exceed upper range", "Exceed mother"))) %>%
     ## Change factor names ###
     within(
       Factors <- str_remove_all(
@@ -3039,7 +3068,7 @@ for (taxon in c("alltaxon", "insect")) {
     ylab("") + xlab("Estimate with 95% CI") +
     # Combine different plots for main Factors and interactions
     facet_grid(
-      group~., scales = "free", space = "free",
+      Group~., scales = "free", space = "free",
       labeller = label_wrap_gen(width = 20)
       ) +
     # Themes
@@ -3056,8 +3085,8 @@ for (taxon in c("alltaxon", "insect")) {
   # Fixed effects output
   #+++++++++++++++++++++++++#
   sum %>% 
-    select(group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
-    kable("html", caption = paste("Fixed effects estimates:", taxon, "data", " ")) %>% 
+    select(Group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
+    kable("html", caption = cap[taxon,]) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
     print()
@@ -3203,7 +3232,7 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
       fun = function(x) 
         1/(1 + exp(-(reg[1,1] + x*reg[2,1])))
       ) +
-    ylab("novelty in phenotypic variabilities") + 
+    ylab("Novel phenotypic variabilities") + 
     xlab(paste(i, "(log)")) +
     scale_fill_brewer(palette = "Set2") +
     scale_y_continuous(breaks=seq(0,1)) +
@@ -3408,9 +3437,7 @@ dat.relat.var %>%
 <div style="margin-bottom:70px;">
 </div>
 
-## Phylogeny
-
-```{r, fig.height = 6.5}
+```{r, fig.height = 6.5, fig.cap = "Figure S3. Phylogenetic tree used, which was based on tree of the parental species within a cross which name comes earlier in alphabetical order"}
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++#
 # Read create tree based on Open Tree of Life taxonomy
@@ -3457,8 +3484,6 @@ phylo_branch$node.label <- NULL
 phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
 
 ```
-<br>
-Phylogenetic tree used. Tree was created for <i>sp1</i>, which was ordered alphabetically (*sp1* comes earlier than *sp2*) irrespective of the trait size and variability.
 
 <div style="margin-bottom:70px;">
 </div>
@@ -4051,13 +4076,11 @@ phylo_branch$node.label <- NULL
 plot.phylo(phylo_branch, cex = 0.7)
 
 ```
-<br>
-Phylogenetic tree used. Tree was created for <i>spLL<sub>V</sub></i>
 
 <div style="margin-bottom:70px;">
 </div>
 
-## Dominance (lnVR)
+## Dominance in phenotypic variability (coefficient of variation)
 
 We compared midparent-value of phenotypic variability and hybrids' phenotypic variability by calculating log ratio of phenotypic variability (lnVR) of midparent-value and hybrids to <i>spSS<sub>V</sub></i>. <br> 
 
@@ -4184,7 +4207,7 @@ bind_rows(
   Dominance.Alltraits.alltaxon, Dominance.Nonnoveltraits.alltaxon,
   Dominance.Alltraits.insect, Dominance.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>%
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and data subsets") %>%
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
@@ -4194,7 +4217,7 @@ bind_rows(
 <div style="margin-bottom:70px;">
 </div>
 
-## Crossing direction effect in phenotypic variability
+## Crossing direction effect in phenotypic variability  (coefficient of variation)
 
 We statistically compared lnVR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
 Here we asked if lnVR of <i>hybSL<sub>V</sub></i> was smaller/larger than that of <i>hybLS<sub>V</sub></i>. Smaller lnVR of <i>hybSL<sub>V</sub></i> indicates maternal inheritance in phenotypic variability <br>
@@ -4262,295 +4285,12 @@ bind_rows(
   Reciprocal.Alltraits.alltaxon, Reciprocal.Nonnoveltraits.alltaxon,
   Reciprocal.Alltraits.insect, Reciprocal.Nonnoveltraits.insect
   ) %>%
-  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and each data subset") %>% 
+  kable("html", digits = 3, caption = "Meta-analyses results of full dataset and data subsets") %>% 
   kable_styling("striped", position = "left") %>%
   scroll_box(width = "100%", height = "500px")
 
 ```
 
-
-# Novelty in phenotypic variabilities (using lnVR)
-
-## Frequency
-
-```{r}
-
-dat.full <- read.csv("../data/lnVR.ES.Novelty.csv", head = TRUE)
-
-## N of TS in each taxa and each direction ###
-summary <- bind_rows(
-  # All observations
-  dat.full %>%
-    group_by(taxa) %>%
-    summarise(
-      'Species pair' = length(unique(species.pair)),
-      Observations = length(unique(ES.ID)),
-      Study = length(unique(Study.ID))
-      ) %>%
-    mutate(direction = "All Observations")
-  ,
-  # TS for any direction
-  dat.full %>%
-    filter(Novelty == "1") %>%
-    group_by(taxa) %>%
-    summarise(
-      'Species pair' = length(unique(species.pair)),
-      Observations = length(unique(ES.ID)),
-      Study = length(unique(Study.ID))
-      ) %>%
-    mutate(direction = "novelty in phenotypic variabilities")
-  ,
-  # TS for each direction
-  dat.full %>%
-    filter(Novelty == "1") %>%
-    group_by(taxa, direction) %>%
-    summarise(
-      'Species pair' = length(unique(species.pair)),
-      Observations = length(unique(ES.ID)),
-      Study = length(unique(Study.ID))
-      )
-  ) %>%
-  # Assign 0 for no observation of TS
-  replace(., is.na(.), "0") %>% 
-  # Make tidy data
-  gather(key = metrics, value = N, -c(taxa, direction)) %>%
-  # Order factors
-  mutate_at(vars("metrics", "direction"), as.factor) %>%
-  filter(metrics != "Study")
-
-# Order taxon
-summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", "Observations"))
-# Order TS category
-summary$direction <- ordered(summary$direction, levels = c("All Observations", "novelty in phenotypic variabilities", "+", "-"))
-# Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "novelty in phenotypic variabilities", "Exceed upper range", "Exceed lower range")
-
-## Plot ###
-plot <- ggplot(
-  # rename levels of factors to wrap label text
-  summary %>%
-    within(levels(direction) <- c("All Obser- vations", "novelty in phenotypic variabilities", "Exceed upper range", "Exceed lower range")) %>%
-    within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
-  aes(x = "", y = N, fill = taxa)) +
-  geom_bar(width = 1, stat = "identity") +
-  scale_fill_brewer(palette = "Paired") +
-  facet_grid(
-    scale = "free", metrics ~ direction,
-    # strip text into two lines
-    labeller = label_wrap_gen(width = 10)
-    ) +
-  xlab("") + ylab("") +
-  stackedbartheme
-plot +
-  ggtitle("Taxonomic distribution of novelty in phenotypic variabilities")
-
-## Total number of observations and percentage ###
-summary %>%
-  group_by(direction, metrics) %>%
-  # Count number of observaitons and species pairs
-  summarise(sum(N)) %>%
-  spread(key = metrics, value = "sum(N)") %>%
-  as.data.frame() %>%
-  # Calculate percentage
-  mutate(
-    'Species pair %' = .[, "Species pair"]/.[1, "Species pair"]*100,
-    'Observaton %' = Observations/.[1, "Observations"]*100
-  ) %>%
-  mutate_at(vars(contains("percent")), round, 2) %>%
-  kable("html", digits = 3, caption = "Summary of the novelty in phenotypic variabilities frequency") %>% 
-  kable_styling("striped", position = "left")
-
-```
-
-<div style="margin-bottom:70px;">
-</div>
-
-## Factors affecting  novel variability
-We checked robustness of results by conducting identical analysis for `insect` subset data (removing vertebrate data). <br>
-
-Model, which was ran using `MCMCglmm` function, included following Random effects estimates: 
-
-* `Study.ID`: Primary studies
-
-* `Cross.ID`: Parental strain used in the crossing. Discriminate intraspecific populations
-
-* `spL.name`: Phylogeny of parental species (<i>spLL<sub>V</sub></i>)
-
-* `SE.units`: Sampling variance of effect size
-
-The moderators were categorised into 3 subsets: main effects (labelled as `novelty in phenotypic variabilities`), interaction terms with compared parental species (spLL vs. spSS, labelled as `exceed upper range`; mother species vs. father, labelled as `exceed mother`). 
-
-```{r, results='asis'}
-
-#++++++++++++++++++++++++++++++++++#
-# Phylogenetic tree for mcmcglmm 
-#++++++++++++++++++++++++++++++++++#
-
-# compute branch lengths of tree
-phylo_branch <- read.tree(file = "../data/phylo.lnVR.tre") %>%
-  compute.brlen(method = "Grafen", power = 1)
-
-# saving phylogeneic matrix
-phylo_cor <- vcv(phylo_branch, cor = T)
-
-# generating inverse phylogenetic matrix for MCMCglmm
-phylo_branch$node.label <- NULL
-phylo_MCMC <- MCMCglmm::inverseA(phylo_branch, nodes = "ALL", scale = TRUE)$Ainv
-
-
-#+++++++++++++++++++++++++++++++++++++#
-# Phylogenetic comparative analysis
-#+++++++++++++++++++++++++++++++++++++#
-
-for (taxon in c("alltaxon", "insect")) {
-  
-  if (taxon == "alltaxon") {
-    dat <- dat.full
-  } else {
-    dat <- dat.full %>% 
-      filter(insect == taxon)
-  }
-  
-  # ## Setting prior to logistic regression ###
-  # prior <- list(
-  #   B=list(
-  #     mu = rep(0, 17), # N of coefficient. (level -1) for categorical factors, 1 for continuous factors, 1 for intercept
-  #     V = gelman.prior(~
-  #     parental*Hetero.sex + parental*direction +
-  #     direction*Genet.divergence + direction*Pheno.divergence +
-  #     direction*Hetero.sex + direction*trait.type +
-  #     direction*Distribution + direction*Reciprocal,
-  #     data = dat, # formula and data
-  #     scale=sqrt(pi^2/3+1))), # error distribution of logistic regression
-  #   R=list(V=1,fix=1),
-  #   # Replicating same G for the number of random effects (here, 4)
-  #   G = list(
-  #     G1 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-  #     G2 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-  #     G3 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000),
-  #     G4 = list(V = 1, nu = 1, alpha.mu = 0, alpha.V = 1000)
-  #     )
-  #   )
-  # ## Phylogenetic binomial regression ###
-  # phylmix <-MCMCglmm(
-  #   fixed = Novelty ~
-  #     parental*Hetero.sex + parental*direction +
-  #     direction*Genet.divergence + direction*Pheno.divergence +
-  #     direction*Hetero.sex + direction*trait.type +
-  #     direction*Distribution + direction*Reciprocal,
-  #   family = "categorical",
-  #   # idh(SE):units | weight by SE of effect size
-  #   random = ~ Study.ID + Cross.ID + spL.name + idh(SE):units,
-  #   verbose = FALSE,
-  #   ginverse = list(spL.name = phylo_MCMC),
-  #   prior = prior,
-  #   data = dat,
-  #   nitt = 60000,  # Increase the number of iterations, default is 13000
-  #   burnin = 5000  # Increase the number of burnin, default is 3000
-  # )
-  # ## Correcting estimate ###
-  # phylmix$Sol <- phylmix$Sol/sqrt(1+c2)
-  # ## Save model ###
-  # saveRDS(
-  #   phylmix,
-  #   file = paste("../Analysis/lnVR.novelty.allfactors", taxon, "obj", sep = ".")
-  #   )
-  
-  ## Load model ###
-  phylmix <- readRDS(file = paste("../Analysis/lnVR.novelty.allfactors", taxon, "obj", sep = "."))
-  
-  sum <- get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
-    ## Grouping Factors ###
-    mutate(
-      group = 
-        ifelse(str_detect(Factors, "direction.:"), 
-               "Exceed upper range",
-               ifelse(str_detect(Factors, "parentalMother:"),
-                      "Exceed mother",
-                      ifelse(Factors == "Hetero.sexMale:direction+",
-                             "Exceed upper range",
-                             "novelty in phenotypic variabilities"
-                             )
-                      )
-               )
-    ) %>%
-    mutate_at("group", as.factor) %>%
-    within(group <- ordered(group, c("novelty in phenotypic variabilities", "Exceed upper range", "Exceed mother"))) %>%
-    ## Change factor names ###
-    within(
-      Factors <- str_remove_all(
-        Factors, "direction.:"
-        ) %>%
-        str_remove_all(., "parentalMother:") %>%
-        str_remove_all(., ":direction.")
-      ) %>%
-    within(
-      Factors <- factor(
-        Factors, ordered = TRUE, 
-        levels = c("parentalMother", "direction+", "trait.typesound", "Hetero.sexMale", "ReciprocalViable", "DistributionOverlap", "Pheno.divergence",  "Genet.divergence",  "(Intercept)")
-        )
-      )
-  levels(sum$Factors) <- c("Exceed mother", "Exceed upper range", "Sound traits", "Male heterogametic", "Viable reciprocal hybrids", "Distribution overlap", "Phenotypic divergence", "Genetic divergence", "Intercept")
-  
-  ## Plot ###
-  metaplot <- ggplot(sum, aes(x = post.mean, y = Factors)) +
-    # Vertical line
-    geom_vline(
-      xintercept = 0, size = 0.2, 
-      colour = "grey30", linetype = "dotted"         
-      ) +
-    # CI
-    geom_errorbarh(
-      aes(
-        xmin = sum[, 'l-95% CI'], xmax = sum[, 'u-95% CI'],
-        colour=significance 
-        ), 
-      height = .0001
-      ) +
-    # Color of plots and errorbars
-    scale_colour_manual(values = c("grey60", "black")) +
-    geom_point(size = 1, aes(colour = significance)) +
-    scale_fill_manual(values = c("grey60", "black")) +
-    # Title
-    ggtitle(paste("Fixed effects estimates using", taxon, "data")) +
-    ylab("") + xlab("Estimate with 95% CI") +
-    # Combine different plots for main Factors and interactions
-    facet_grid(
-      group~., scales = "free", space = "free",
-      labeller = label_wrap_gen(width = 20)
-      ) +
-    # Themes
-    foresttheme
-  print(metaplot)
-  
-  #+++++++++++++++++++++++++#
-  # Fixed effects output
-  #+++++++++++++++++++++++++#
-  sum %>% 
-    select(group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
-    kable("html", caption = paste("Fixed effects estimates:", taxon, "data", " ")) %>% 
-    kable_styling("striped", position = "left") %>%
-    scroll_box(width = "100%", height = "500px") %>%
-    print()
-  
-  #+++++++++++++++++++++++++++#
-  # Random effects output 
-  #+++++++++++++++++++++++++++#
-  # transformation for varaince
-  get_random.MCMCglmm(summary(phylmix$VCV/(1+c2))) %>%
-    kable("html", digits = 2,
-          caption = paste("Random effects estimates: ", taxon, "data", " ")
-          ) %>% 
-    kable_styling("striped", position = "left") %>%
-    print()
-  
-}
-
-```
-While significant moderators become no longer significant in `insect` subset data, effects are qualitatively the same in sign.  
-
-<div style="margin-bottom:70px;">
-</div>
 
 
 <div style="margin-bottom:180px;">
