@@ -2,6 +2,8 @@
 title: "Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids"
 author: "Keisuke Atsumi, Malgorzata Lagisz & Shinichi Nakagawa"
 date: '`r format(Sys.time(), "%y/%m/%d %H:%M")`'
+bibliography: pheno_dist_hyb.bib                                    
+csl: evolution.csl 
 output:
   html_document:
     code_download: true
@@ -290,6 +292,102 @@ orchardtheme <-  theme_bw() +
 c2 <- (16 * sqrt(3)/(15 * pi))^2
 
 ```
+
+<div style="margin-bottom:120px;">
+</div>
+
+# Hypotheses
+
+```{r}
+
+tibble(
+  Factors = c(
+    "Genetic divergence",
+    "Phenotypic divergence in focal trait",
+    "Inviability of reciprocal hybrids (i.e. genetic incompatibility)",
+    "Distribution overlap between parental species",
+    "Crossing direction (parent-of-origin effect)",
+    "Sex-determination system (male heterogamety vs. female heterogamety)",
+    "Interaction between crossing direction and sex-determination system",
+    "Trait type (sound trait vs. morphology)"
+    ),
+  'Hypothetical effect for novelty in phenotypic means' = c(
+    "Increase. Positively correlate with the genetic divergence at phenotype-determining loci that increase phenotypic novelty through novel allelic interactions (i.e. over/underdominance, dominance, and epistasis) [@Lamkey1999; @Rieseberg1999]",
+    "Increase. Indicates the genetic divergence at quantitative trait loci (QTL) that enhances phenotypic novelty [@Lamkey1999]",
+    "Reduces trait size by outbreeding depression",
+    "Increase. Reinforcement in range overlapping species pairs diverges QTL to develop behavioral isolation, and thus facilitate phenotypic novelty.",
+    "Genomic imprinting increases novel phenotype resembles either mother or father (i.e. polar overdominance) [@Cockett1996].",
+    "Increase in male heterogamety. In male heterogametic organisms, coadaptation between sex-chromosome and other chromosomes breaks down in F1 males [@Haldane1922; @Schilthuizen2011]. This genetic incompatibility reduce trait size in male heterogametic hybrids.",
+    "Male heterogametic organisms tend to exhibit novel phenotype similar to father species, not mother species, due to effect of Y chromosome. Female heterogametic organisms do not show such trend.",
+    "Increase in sound because of lower heritability compared to morphology [@Hoffmann2016]"
+    ),
+  `Hypothetical effect for phenotypic variability` = c(
+    "Increase. Increase variation because of increased diversity in novel allelic interactions at phenotype determining loci [@Edmands1999]; increase variation by damaging developmental stability, through genetic incompatibility [@Lerner1954; @Alibert2003].",
+    "Increase. Increases diversity in novel allelic interactions at QTL [@Edmands1999]",
+    "Reduce. Lethal allelic interactions reduce genetic diversity of surviving hybrids",
+    "Reduce. Reinforcement reduces intraspecific variation at QTL, and thus diminish genetic diversity of F1 hybrids at QTL",
+    "Not specified",
+    "Increase in male heterogamety. Reduced developmental stability increases phenotypic variability of heterogametic F1 males",
+    "Not specified",
+    "Not specified"
+    )
+  ) %>% 
+  kable("html", caption = "Table S1. Hypotheses for phenotypic novelty and variability of F1 hybrids") %>% 
+  kable_styling("striped", position = "left") %>% 
+  scroll_box(width = "100%", height = "500px")
+
+```
+
+<div style="margin-bottom:120px;">
+</div>
+
+# Female preference data
+
+
+```{r}
+
+tibble(
+  Taxon = c(
+    "Anura: tree frog (*Hyla*)",
+    "Diptera: fruit fly (*Drosophila*)",
+    "Orthoptera: bushcricket (*Ephippiger*)",
+    "Orthoptera: grasshopper (*Chorthippus*)",
+    "Orthoptera: grasshopper (*Chorthippus*)",
+    "Orthoptera: grasshopper (*Chorthippus*)",
+    "Orthoptera: Hawaiian cricket (*Laupala*)"
+    ),
+  `Parental species` = c(
+    "*H. chrysoscelis* × *H. femoralis*",
+    "*D. virilis* female × *D. montana* male",
+    "*E. ephippiger* polysyllabic form 
+    × *E. ephippiger* monosyllabic form",
+    "*C. brunneus* × *C. jacobsi*",
+    "*C. biguttulus* × *C. Brunneus*",
+    "*C. parallelus* × *C. Montanus*",
+    "*L. kohalensis* × *L. Paranigra*"
+    ),
+  `Reciprocal cross` = c("Viable", "Inviable", rep("Viable", 5)),
+  Results = c(
+    "**Dominance**. Both reciprocal hybrids preferred hybrids over one parental species but not over the other parental species",
+    "**Maternal / paternal inheritance**. Resembled mother in their receptivity, but resembled father in their song requirement",
+    "**Additive**. Intermediate mate preferences without a large difference between reciprocal crosses",
+    "**Dominance and paternal inheritance**. Both reciprocal hybrids preferred one parental species over themselves. Preference function resembles that of the father",
+    "**Additive and dominance**. Several components of preference showed dominance, but other components showed additive inheritance. No maternal/paternal inheritance.",
+    "**Novel preference**. Both reciprocal hybrids did not discriminate between males of two parental species",
+    "**Additive**. Intermediate preference function, which was similar to reciprocal hybrids, resulting in preference for hybrids"
+    ),
+  Reference = c(
+    "@Doherty1984", "@Isoherranen1999", "@Ritchie2000", "@Bridle2006", 
+    "@Gottsberger2019", "@Hochkirch2011", "@Shaw2000"
+    )
+  ) %>% 
+  kable("html", caption = "Table S2. Previously described female mate preference of F1 hybrids") %>% 
+  kable_styling("striped", position = "left") %>% 
+  scroll_box(width = "100%", height = "500px")
+
+```
+
+Only 3 out of 7 studies detected additive inheritance in female mate preference during hybridization, showing that non-additivity pervades female mate preference of F1 hybrids. Dominance and parent-of-origin effect (maternal / paternal inheritance) were detected in 3 and 2 studies, respectively. Novel weak preference also appeared in 1 study. Importantly, components of female preference often varied in inheritance mode, indicating that integration of mate preference easily breaks down in F1 hybrids. This summary is based on a non-exhaustive and non-systematic review.
 
 <div style="margin-bottom:120px;">
 </div>
@@ -1543,7 +1641,7 @@ We created data subset according to taxon (all taxon or insect only) and novelty
 
 ## Effect size calculation
 
-We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V</sub></i>) to the parent with small variability (<i>spSS<sub>V</sub></i>), by using [lnCVR](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309). We controlled mean-variance relationship by using Coefficient of Variation (CV) as the proxy of phenotypic variability. <br>
+We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V</sub></i>) to the parent with small variability (<i>spSS<sub>V</sub></i>), by using [lnCVR]  (https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309) (@Nakagawa2015). We controlled mean-variance relationship by using Coefficient of Variation (CV) as the proxy of phenotypic variability. <br>
 Effecct size was calculated by using `escalc` function in `metafor` package 
 
 ```{r}
@@ -3571,7 +3669,7 @@ F1 hybrids can be seen as “a mosaic of both parental and intermediate morpholo
 
 ## d<sub>mismatch</sub> calculation
 
-To quantify trait mosaicism in each crossing, we calculated d<sub>mismatch</sub>  following [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). d<sub>mismatch</sub> was calculated as follows:
+To quantify trait mosaicism in each crossing, we calculated d<sub>mismatch</sub>  following [Thompson et al.](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1) -@Thompson2021. d<sub>mismatch</sub> was calculated as follows:
 
 $d_{mismatch} = \sqrt{2} * \sqrt{ Z_i^2 + Z_j^2 - \frac{Z_i + Z_j}{\sqrt{2}}^2 }$
 <br>
@@ -4299,4 +4397,9 @@ bind_rows(
 ```{r}
 sessionInfo()  # show R version etc
 ```
+
+<div style="margin-bottom:120px;">
+</div>
+
+# References
 
