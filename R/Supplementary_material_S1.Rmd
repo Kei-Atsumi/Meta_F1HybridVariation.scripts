@@ -245,15 +245,15 @@ foresttheme <- theme_bw() +
     panel.grid.major.y = element_blank(),
     panel.grid.minor = element_blank(),
     panel.border = element_blank(),
-    strip.text = element_text(size = 9.5, color = "black")
+    strip.text = element_text(size = 11, color = "black")
     )
 
 #++++++++++++++++++++++++++++++++++++++++++++++#
 # Setting plot theme for forest plots
 #++++++++++++++++++++++++++++++++++++++++++++++#
 stackedbartheme <- theme(
-    strip.text = element_text(size = 11),
-    axis.text.y = element_text(size = 11),
+    strip.text = element_text(size = 11, color = "black"),
+    axis.text = element_text(size = 11, color = "black"),
     panel.grid.minor = element_blank(),
     panel.grid.major.x = element_blank(),
     axis.ticks.x = element_blank(),
@@ -264,17 +264,17 @@ stackedbartheme <- theme(
 #++++++++++++++++++++++++++++++++++++++++++++++#
 # Setting plot theme for regression scatterplot
 #++++++++++++++++++++++++++++++++++++++++++++++#
-regressiontheme <-   theme_bw() +
-    theme(
-      legend.position = "none",
-      axis.ticks = element_line(size = 0.3, color = "grey50"),
-      axis.text = element_text(size = 9.5, color = "black"),
-      axis.text.y = element_blank(),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.border = element_rect(colour = "grey50", size = 0.7),
-      strip.text = element_text(size = 9.5, color = "black")
-      )
+regressiontheme <- theme_bw() +
+  theme(
+    legend.position = "none",
+    axis.ticks = element_line(size = 0.3, color = "grey50"),
+    axis.text = element_text(size = 11, color = "black"),
+    axis.text.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "grey50", size = 0.7),
+    strip.text = element_text(size = 11, color = "black")
+    )
 
 #++++++++++++++++++++++++++++++++++++++++++++++#
 # Setting plot theme for orchard plot
@@ -516,7 +516,6 @@ meta <- read.xlsx(
 kable(meta, "html") %>% kable_styling("striped", position = "left") %>% 
     scroll_box(width = "100%", height = "500px")
   
-
 #++++++++++++++++++++++++++++++++++++++++++++++
 # Combine phenotypic data and moderators data
 #++++++++++++++++++++++++++++++++++++++++++++++
@@ -548,12 +547,11 @@ original.dat$ES.ID <- paste("ES",sprintf("%03d",c(1:dim(original.dat)[1])), sep=
 <div style="margin-bottom:70px;">
 </div>
 ## Species composition
-```{r, results = 'asis'}
+```{r, results = 'asis', fig.height=5, fig.width=4.8}
 
 #+++++++++++++++++++++#
 # Phylogeny
 #+++++++++++++++++++++#
-
 # species pairs data 
 taxa <- meta %>%
   select(-Cross.ID) %>%
@@ -582,18 +580,18 @@ tree$tip.label[8] <- "Anura"
 # # N of species pairs at each order
 # factor(meta.sum$taxa, levels = as.vector(tree$tip.label))
 
-plot.phylo <- ggtree(tree) + 
-  geom_tiplab(
-    geom = "image",
-    image = paste("../data/pic", tree$tip.label, "png", sep = "."), 
-    size = 0.1, offset = 3, hjust = 1
-    ) +
-  geom_tiplab(
-    geom = "text",  
-    label = tree$tip.label, 
-    align = 1, size = 3
-    ) +
-  xlim(NA, 7)
+# plot.phylo <- ggtree(tree) + 
+#   geom_tiplab(
+#     geom = "image",
+#     image = paste("../data/pic", tree$tip.label, "png", sep = "."), 
+#     size = 0.1, offset = 3, hjust = 1
+#     ) +
+#   geom_tiplab(
+#     geom = "text",
+#     label = tree$tip.label, 
+#     align = 1, size = 3
+#     ) +
+#   xlim(NA, 7)
 
 # images from phylopic #    
 # Lepidoptera (genus Catocala) "c224abfd-ee39-4923-98e5-c2606dcc56cb", 
@@ -608,7 +606,6 @@ plot.phylo <- ggtree(tree) +
 #+++++++++++++++++++++#
 # Summary 
 #+++++++++++++++++++++#
-
 summary <- original.dat %>%
   group_by(taxa) %>%
   summarise(
@@ -618,7 +615,6 @@ summary <- original.dat %>%
     ) %>%
   # Order taxon so that match with phylogenetic tree topology
   within(taxa <- ordered(taxa, levels = c("Neuroptera", "Coleoptera", "Diptera", "Lepidoptera", "Orthoptera", "Aves", "Rodentia", "Anura", "Cichliformes")))
-
 
 ## Table ###
 summary %>%
@@ -649,21 +645,14 @@ plot.sum <- ggplot(
     labeller = label_wrap_gen(width = 8)
     ) +
   xlab("") +
-  stackedbartheme +
-  theme(
-    strip.text = element_text(size = 15),
-    axis.text.y = element_text(size = 14)
-    )
+  stackedbartheme
 
 #+++++++++++++++++#
 # Combine figures
 #+++++++++++++++++#
 # plot.all <- plot.phylo + plot.sum
 plot.sum
-# save(
-#   plot = plot.all, 
-#   file = "../Analysis/data.svg", height = 5, width = 8.5
-#   )
+# ggsave(plot.sum, file = "../Plot/Species_composition.svg", height = 3.4, width = 4.5)
 
 ```
 **Figure 1a** 
@@ -2397,7 +2386,7 @@ summary <- bind_rows(
       Observations = length(unique(ES.ID)),
       Study = length(unique(Study.ID))
       ) %>%
-    mutate(direction = "Novel phenotypic means")
+    mutate(direction = "Novel means")
   ,
   # novel phenotype for each direction
   dat.full %>%
@@ -2420,16 +2409,16 @@ summary <- bind_rows(
 # Order taxon
 summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", "Observations"))
 # Order novel phenotype category
-summary$direction <- ordered(summary$direction, levels = c("All Observations", "Novel phenotypic means", "+", "-"))
+summary$direction <- ordered(summary$direction, levels = c("All Observations", "Novel means", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "Novel phenotypic means", "Exceed upper range", "Exceed lower range")
+levels(summary$direction) <- c("All Observations", "Novel means", "Exceed upper range", "Exceed lower range")
 
 ## Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "Novel phenotypic means", "Exceed upper range", "Exceed lower range")) %>%
-    within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
+    within(levels(direction) <- c("All Obser- vations", "Novel means", "Exceed upper range", "Exceed lower range")) %>%
+    within(levels(metrics) <- c("Study", "Species pair", "Observations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
   scale_fill_brewer(palette = "Paired") +
@@ -2438,15 +2427,12 @@ plot <- ggplot(
     # strip text into two lines
     labeller = label_wrap_gen(width = 10)
     ) +
-  xlab("") + ylab("") +
+  labs(x = "", y = "", fill = "Taxa") +
   stackedbartheme
 plot +
   ggtitle("Taxonomic distribution of novel phenotypic means")
 
-# ggsave(
-#   plot = plot, 
-#   file = "../Analysis/mean.TS.frequency.svg", height = 3.7, width = 5.0
-#   )
+ggsave(plot, file = "../Plot/part_novelmeanfrequency.svg", height = 3.5, width = 5.2)
 
 ## Total number of observations and percentage ###
 summary %>%
@@ -2646,7 +2632,7 @@ print(metaplot)
   # Fixed effects output
   #+++++++++++++++++++++++++#
   sum %>% 
-    select(Group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
+    select(Group, Factors, Estimates, '95% credible interval', P, significance) %>%
     kable("html", caption = cap[taxon,]) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
@@ -2799,11 +2785,11 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
     scale_y_continuous(breaks=seq(0,1)) +
     regressiontheme 
   print(plot)
-  # ggsave(
-  #   plot = plot + theme(axis.title  = element_blank()),
-  #   file = paste("../Analysis/mean.TS.continuous", i, "svg", sep = "."),
-  #   height = 1.6, width = 1.7
-  #   )
+  ggsave(
+    plot = plot + theme(axis.title  = element_blank()),
+    file = paste("../Plot/part_novelmeanscontinuous", i, "svg", sep = "."),
+    height = 1.7, width = 1.6
+    )
 
 }
 
@@ -2973,14 +2959,14 @@ summary$metrics <- ordered(summary$metrics, levels = c("Study", "Species pair", 
 # Order TS category
 summary$direction <- ordered(summary$direction, levels = c("All Observations", "Increase novelty", "+", "-"))
 # Change names of TS category to more intuitive name
-levels(summary$direction) <- c("All Observations", "Increase novelty", "Exceed upper range", "Exceed lower range")
+levels(summary$direction) <- c("All Observations", "Increase novelty", "Larger variabilities", "Smaller variabilities")
 
 ## Plot ###
 plot <- ggplot(
   # rename levels of factors to wrap label text
   summary %>%
-    within(levels(direction) <- c("All Obser- vations", "Novel phenotypic variabilities", "Exceed upper range", "Exceed lower range")) %>%
-    within(levels(metrics) <- c("Study", "Species pair", "Obser- vations")), 
+    within(levels(direction) <- c("All Obser- vations", "Novel varia- bilities", "Larger varia- bilities", "Smaller varia- bilities")) %>%
+    within(levels(metrics) <- c("Study", "Species pair", "Observations")), 
   aes(x = "", y = N, fill = taxa)) +
   geom_bar(width = 1, stat = "identity") +
   scale_fill_brewer(palette = "Paired") +
@@ -2989,15 +2975,12 @@ plot <- ggplot(
     # strip text into two lines
     labeller = label_wrap_gen(width = 10)
     ) +
-  xlab("") + ylab("") +
+  labs(x = "", y = "", fill = "Taxa") +
   stackedbartheme
 plot +
   ggtitle("Taxonomic distribution of novel phenotypic variabilities")
 
-# ggsave(
-#   plot = plot,
-#   file = "../Analysis/Variation.TS.frequency.svg", height = 3.7, width = 5.0
-#   )
+# ggsave(plot, file = "../Plot/part_novelvarfrequency.svg", height = 3.5, width = 5.2)
 
 ## Total number of observations and percentage ###
 summary %>%
@@ -3198,7 +3181,7 @@ for (taxon in c("alltaxon", "insect")) {
   # Fixed effects output
   #+++++++++++++++++++++++++#
   sum %>% 
-    select(Group, Factors, Estimates, '95% credible interval', P, significance, Description) %>%
+    select(Group, Factors, Estimates, '95% credible interval', P, significance) %>%
     kable("html", caption = cap[taxon,]) %>% 
     kable_styling("striped", position = "left") %>%
     scroll_box(width = "100%", height = "500px") %>%
@@ -3333,13 +3316,13 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
     geom_jitter(
       height = 0.1, width = 0, aes(color = direction), alpha = 0.3, size = 0.2
       ) +
-    # Larger variability
+    # Larger variabilities
     stat_function(
       aes(color = "+"), size = 0.8,
       fun = function(x) 
         1/(1 + exp(-(reg[1,1] + x*(reg[2,1]+reg[3,1]))))
       ) +
-    # Smaller variability
+    # Smaller variabilities
     stat_function(
       aes(color = "-"), size = 0.8,
       fun = function(x) 
@@ -3352,11 +3335,11 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
     regressiontheme 
   
   print(plot)
-  # ggsave(
-  #   plot = plot, 
-  #   file = paste("../Analysis/Variation.TS.continuous", i, "svg", sep = "."), 
-  #   height = 1.6, width = 1.7
-  #   )
+  ggsave(
+    plot = plot + theme(axis.title  = element_blank()),
+    file = paste("../Plot/part_novelvarscontinuous", i, "svg", sep = "."),
+    height = 1.7, width = 1.6
+  )
 
 }
 
@@ -3478,11 +3461,11 @@ for (i in c("Reciprocal", "trait.type")) {
 
 Relative variability indicates F1 hybrids' phenotypic variability size (CV) compared to those of parents. <br>
 
-* Smaller: smaller variability than of both parents
+* Smaller: Smaller variabilities than of both parents
 
 * Intermediate: intermediate between parents' variability 
 
-* Larger: larger variability than of both parents
+* Larger: Larger variabilities than of both parents
 
 ```{r, results='asis'}
 
@@ -4193,7 +4176,7 @@ plot.phylo(phylo_branch, cex = 0.7)
 <div style="margin-bottom:70px;">
 </div>
 
-## Dominance in phenotypic variability (coefficient of variation)
+## Dominance in phenotypic variability (variance)
 
 We compared midparent-value of phenotypic variability and hybrids' phenotypic variability by calculating log ratio of phenotypic variability (lnVR) of midparent-value and hybrids to <i>spSS<sub>V</sub></i>. <br> 
 
@@ -4330,7 +4313,7 @@ bind_rows(
 <div style="margin-bottom:70px;">
 </div>
 
-## Crossing direction effect in phenotypic variability  (coefficient of variation)
+## Crossing direction effect in phenotypic variability  (variance)
 
 We statistically compared lnVR from <i>spSS<sub>M</sub></i> to the other crosses through the formal meta-regression by using `rma.mv` function of R package `metafor`. <br> 
 Here we asked if lnVR of <i>hybSL<sub>V</sub></i> was smaller/larger than that of <i>hybLS<sub>V</sub></i>. Smaller lnVR of <i>hybSL<sub>V</sub></i> indicates maternal inheritance in phenotypic variability <br>
@@ -4417,8 +4400,7 @@ orchards = ((orchardplot_lnRR_Alltraits*
   theme(axis.text.y = element_blank())) +
   plot_annotation(tag_levels = 'A')
 orchards
-  
-ggsave("../Plot/orchards.svg", orchards, height = 7, width = 8)
+# ggsave("../Plot/orchards.svg", orchards, height = 7, width = 8)
 
 ```
 
