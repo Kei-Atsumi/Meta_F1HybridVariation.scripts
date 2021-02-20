@@ -904,7 +904,7 @@ We created data subset according to taxon (all taxon or insect only) and novelty
 
 ## Calculating effect sizes
 
-To quantify phenotypic difference from <i>spSS<sub>M</sub></i> to the other crosses, we calculated log response ratio (lnRR) from phenotypic mean of <i>spSS<sub>M</sub></i> to those of the other crosses (<i>hybLS<sub>M</sub></i>, <i>hybSL<sub>M</sub></i> and <i>spLL<sub>M</sub></i>).<br>
+To quantify phenotypic difference from <i>spSS<sub>M</sub></i> to the other crosses, we calculated log response ratio (lnRR) from phenotypic mean of <i>spSS<sub>M</sub></i> to those of the other crosses (<i>hybLS<sub>M</sub></i> (*spLL* mother × *spSS* father), <i>hybSL<sub>M</sub></i> (*spSS* mother × *spLL* father) and <i>spLL<sub>M</sub></i>).<br>
 Effecct size was calculated by using `escalc` function in `metafor` package 
 
 ```{r}
@@ -1639,7 +1639,7 @@ We created data subset according to taxon (all taxon or insect only) and novelty
 
 ## Effect size calculation
 
-We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V</sub></i>) to the parent with small variability (<i>spSS<sub>V</sub></i>), by using [lnCVR]  (https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309) (@Nakagawa2015). We controlled mean-variance relationship by using Coefficient of Variation (CV) as the proxy of phenotypic variability. <br>
+We quantified relative phenotypic variability of hybrids and the parent with large variability (<i>spLL<sub>V</sub></i>) to the parent with small variability (<i>spSS<sub>V</sub></i>), by using [lnCVR](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12309) [@Nakagawa2015]. We controlled mean-variance relationship by using Coefficient of Variation (CV) as the proxy of phenotypic variability. <br>
 Effecct size was calculated by using `escalc` function in `metafor` package 
 
 ```{r}
@@ -3638,7 +3638,7 @@ phylmix <- readRDS("../Analysis/novelty.mean.var.obj")
 # Fixed effects output 
 #+++++++++++++++++++++++++++#
 get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
-  dplyr::select("Factors", "Estimates", "95% credible interval", "P", "Description") %>%
+  dplyr::select("Factors", "Estimates", "95% credible interval", "P") %>%
   kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
   kable_styling("striped", position = "left")
 
@@ -3804,7 +3804,7 @@ phylmix <- readRDS("../Analysis/mismatch.obj")
 # Fixed effects output 
 #+++++++++++++++++++++++++++#
 get_fixed.MCMCglmm(summary(phylmix)$solutions) %>%
-  dplyr::select("Factors", "Estimates", "95% credible interval", "P", "Description") %>%
+  dplyr::select("Factors", "Estimates", "95% credible interval", "P") %>%
   kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
   kable_styling("striped", position = "left")
 
@@ -3817,7 +3817,7 @@ get_random.MCMCglmm(summary(phylmix$VCV)) %>%
   kable_styling("striped", position = "left")
 
 ```
-Even data included quite large d<sub>mismatch</sub>, overall it did not differ from 0. Yet, the estimate (β  = 4.41, CI = -3.05 – 10.29) is still much larger than  previously reported mean d<sub>mismatch</sub> 0.6 [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1). This is presumably because novelty in phenotypic means, which should increase d<sub>mismatch</sub>, is much more frequent in our data compared to [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1).
+Even data included quite large d<sub>mismatch</sub>, overall it did not differ from 0. Yet, the estimate (β  = 4.41, CI = -3.05 – 10.29) is still much larger than  previously reported mean d<sub>mismatch</sub> 0.6 [@Thompson2021]. This is presumably because novelty in phenotypic means, which should increase d<sub>mismatch</sub>, is much more frequent in our data compared to [Thompson et al.](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1) -@Thompson2021.
 
 <div style="margin-bottom:70px;">
 </div>
@@ -3848,7 +3848,7 @@ phylmix <- readRDS("../Analysis/mismatch.reg.obj")
 # Fixed effects output 
 #+++++++++++++++++++++++++++#
 get_fixed.MCMCglmm(summary(phylmix)$solutions)  %>%
-  dplyr::select("Factors", "Estimates", "95% credible interval", "P", "Description") %>%
+  dplyr::select("Factors", "Estimates", "95% credible interval", "P") %>%
   kable("html", digits = 3, caption = "Fixed effects estimates") %>% 
   kable_styling("striped", position = "left")
 
@@ -3861,7 +3861,7 @@ get_random.MCMCglmm(summary(phylmix$VCV)) %>%
     kable_styling("striped", position = "left")
 
 ```
-None of species level moderators did not influence d<sub>mismatch</sub>, as [Thompson et al. 2019](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1) showed. 
+None of species level moderators did not influence d<sub>mismatch</sub>, as [Thompson et al.](https://www.biorxiv.org/content/10.1101/818658v1.full#disp-formula-1)-@Thompson2021 showed. 
 
 
 <div style="margin-bottom:180px;">
@@ -4387,22 +4387,20 @@ bind_rows(
 
 ```
 
-# Figure output
+<!-- ```{r, fig.width=8, fig.height=6} -->
 
-```{r, fig.width=8, fig.height=6}
+<!-- orchards = ((orchardplot_lnRR_Alltraits* -->
+<!--   theme(axis.text.x = element_blank(), axis.title.x = element_blank()) / -->
+<!--   orchardplot_lnRR_Nonnoveltraits) |  -->
+<!--   (orchardplot_lnCVR_Alltraits* -->
+<!--   theme(axis.text = element_blank(), axis.title.x = element_blank()) / -->
+<!--   orchardplot_lnCVR_Nonnoveltraits)*  -->
+<!--   theme(axis.text.y = element_blank())) + -->
+<!--   plot_annotation(tag_levels = 'A') -->
+<!-- orchards -->
+<!-- # ggsave("../Plot/orchards.svg", orchards, height = 7, width = 8) -->
 
-orchards = ((orchardplot_lnRR_Alltraits*
-  theme(axis.text.x = element_blank(), axis.title.x = element_blank()) /
-  orchardplot_lnRR_Nonnoveltraits) | 
-  (orchardplot_lnCVR_Alltraits*
-  theme(axis.text = element_blank(), axis.title.x = element_blank()) /
-  orchardplot_lnCVR_Nonnoveltraits)* 
-  theme(axis.text.y = element_blank())) +
-  plot_annotation(tag_levels = 'A')
-orchards
-# ggsave("../Plot/orchards.svg", orchards, height = 7, width = 8)
-
-```
+<!-- ``` -->
 
 
 
