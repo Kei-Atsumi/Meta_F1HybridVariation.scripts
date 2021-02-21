@@ -978,7 +978,7 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-2, 4))
 
 ```
 
-## Check data
+### Check data
 Checked effect sizes with extremely high/low standard error (SE > 1.2 | 1/SE > 140) and confirmed that those data were correctly imported. 
 
 ```{r, results='asis'}
@@ -1003,6 +1003,8 @@ Because those outliers did not affect meta-analytic model convergence, we did no
 </div>
 
 ## Judging novelty in phenotypic means 
+
+We judged if hybrids exhibit larger or smaller trait size than both parents (see Fig. 3c)
 
 ```{r}
 
@@ -1420,9 +1422,9 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
         }
     
     # Rename crossing names
-    res.ma$cross <- c("Large pure", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
+    res.ma$cross <- c("Large × Large", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
     dat.plot$cross <- factor(dat.plot$cross, levels = c("spL", "hybLS", "hybSL"))
-    levels(dat.plot$cross) <- c("Large pure", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
+    levels(dat.plot$cross) <- c("Large × Large", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
     # Bind result of all crosses at each dataset
     assign(paste("res.ma", tr, taxon, sep = "."), res.ma)
     
@@ -1437,7 +1439,7 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
     # creating a forest plot
     plot.metamean <- ggplot(data = res.ma, aes(x = tanh(Estimate), y = cross)) +
       scale_y_discrete(
-        limits = c("Small mother ×\nLarge father", "Large mother ×\nSmall father", "Large pure"),
+        limits = c("Small mother ×\nLarge father", "Large mother ×\nSmall father", "Large × Large"),
         expand = c(0.05, 0.8)
         ) +
       scale_x_continuous(limits = c(-1, 1), breaks = seq(-1, 1, by = 0.5)) + 
@@ -1500,7 +1502,7 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
       # Labels
       labs(
         y = "", 
-        x = "Hyperbolic tangent of\nlnRR from small pure",
+        x = "Hyperbolic tangent of\nlnRR from small non-hybrid",
         size = "Precision"
       ) +
       orchardtheme
@@ -1742,6 +1744,8 @@ funnel(res, yaxis="vinv", main="Inverse Sampling Variance", xlim = c(-5, 5))
 
 
 ## Jugding novelty in phenotypic variabilities (using CV)
+
+We judged if hybrids have larger or smaller CV in trait size than both parents (see Fig. 3c)
 
 ```{r}
 
@@ -2151,9 +2155,9 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
       }
 
     # Rename crossing names
-    res.ma$cross <- c("Large pure", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
+    res.ma$cross <- c("Large × Large", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
     dat.plot$cross <- factor(dat.plot$cross, levels = c("spL", "hybLS", "hybSL"))
-    levels(dat.plot$cross) <- c("Large pure", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
+    levels(dat.plot$cross) <- c("Large × Large", "Large mother ×\nSmall father", "Small mother ×\nLarge father")
     
     assign(paste("res.ma", tr, taxon, sep = "."), res.ma)
 
@@ -2168,7 +2172,7 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
     # creating a forest plot
     plot.metamean <- ggplot(data = res.ma, aes(x = tanh(Estimate), y = cross)) +
       scale_y_discrete(
-        limits = c("Small mother ×\nLarge father", "Large mother ×\nSmall father", "Large pure"),
+        limits = c("Small mother ×\nLarge father", "Large mother ×\nSmall father", "Large × Large"),
         expand = c(0.05, 0.8)
       ) +
       ## Midparent CI ###
@@ -2231,7 +2235,7 @@ for (tr in c("Alltraits", "Nonnoveltraits")) {
       # Labels
       labs(
         y = "", 
-        x = "Hyperbolic tangent of\nlnCVR from small pure",
+        x = "Hyperbolic tangent of\nlnCVR from small non-hybrid",
         size = "Precision"
       ) +
       orchardtheme
@@ -2432,7 +2436,7 @@ plot <- ggplot(
 plot +
   ggtitle("Taxonomic distribution of novel phenotypic means")
 
-ggsave(plot, file = "../Plot/part_novelmeanfrequency.svg", height = 3.5, width = 5.2)
+# ggsave(plot, file = "../Plot/part_novelmeanfrequency.svg", height = 3.5, width = 5.2)
 
 ## Total number of observations and percentage ###
 summary %>%
@@ -2785,11 +2789,11 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
     scale_y_continuous(breaks=seq(0,1)) +
     regressiontheme 
   print(plot)
-  ggsave(
-    plot = plot + theme(axis.title  = element_blank()),
-    file = paste("../Plot/part_novelmeanscontinuous", i, "svg", sep = "."),
-    height = 1.7, width = 1.6
-    )
+  # ggsave(
+  #   plot = plot + theme(axis.title  = element_blank()),
+  #   file = paste("../Plot/part_novelmeanscontinuous", i, "svg", sep = "."),
+  #   height = 1.7, width = 1.6
+  #   )
 
 }
 
@@ -3335,11 +3339,11 @@ for (i in c("Genet.divergence", "Pheno.divergence")) {
     regressiontheme 
   
   print(plot)
-  ggsave(
-    plot = plot + theme(axis.title  = element_blank()),
-    file = paste("../Plot/part_novelvarscontinuous", i, "svg", sep = "."),
-    height = 1.7, width = 1.6
-  )
+  # ggsave(
+  #   plot = plot + theme(axis.title  = element_blank()),
+  #   file = paste("../Plot/part_novelvarscontinuous", i, "svg", sep = "."),
+  #   height = 1.7, width = 1.6
+  # )
 
 }
 
