@@ -2,9 +2,9 @@
 
 This repo includes all data, supplementary material and R code of the paper "**Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids**". 
 
-## Folders and files
+# Folders and files
 
-### R
+## R
 
 Contains  
 
@@ -14,11 +14,12 @@ Contains
 
 - citation format file *evolution.csl*  
 
-### data
+## data
 
 Contains  
 
-- original data file | *original.data.xlsx*  
+- original data file | *original.data.xlsx*. 
+-- Sheet *Phenotype* contains all phenotypic data gathered through systematic review. 
 
 - datasets that parental species are alined by phenotypic means (*dat.mean.csv*), coefficient of variation (*dat.CV.csv*), variance (*dat.var.csv*) and alphabetical order (*dat.novelty.csv*)  
 
