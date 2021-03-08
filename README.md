@@ -18,8 +18,11 @@ Contains
 
 Contains  
 
-- original data file | *original.data.xlsx*. 
--- Sheet *Phenotype* contains all phenotypic data gathered through systematic review. 
+- original data file | *original.data.xlsx*. Contains sheets following:
+  - Sheet *Phenotype* contains all phenotypic data gathered through systematic review
+  - Sheet *Species.level.moderators* contains additional data (e.g., genetic distance between parents) used in meta-/Bayesian regression models
+  - Sheet *Description* provides explanations for column names of sheet *Phenotype* and *Species.level.moderators*
+  - Sheet *Primary.studies* provides list of primary studies included in our meta-analysis.
 
 - datasets that parental species are alined by phenotypic means (*dat.mean.csv*), coefficient of variation (*dat.CV.csv*), variance (*dat.var.csv*) and alphabetical order (*dat.novelty.csv*)  
 
