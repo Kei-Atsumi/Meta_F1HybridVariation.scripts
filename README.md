@@ -1,4 +1,6 @@
-# Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids
+# Readme
+
+This repo includes all data, supplementary material and R code of the paper "**Non-additive genetic effects induce novel phenotypic distributions in male mating traits of F1 hybrids**". 
 
 ## Folders and files
 
